@@ -1,15 +1,70 @@
 ---
-description: "Enable a hook by creating its template and match script"
+description: "Enable a hook by creating its template and/or match script"
 args: "<HookName> [type]"
 ---
 
 # Enable a Hooker Hook
 
-Create a template file and optionally a match script for the specified hook.
+Create a template file and/or match script for the specified hook in `.claude/hooker/`.
 
 ## Arguments
 - `HookName` (required): One of the 21 hook event names
-- `type` (optional): Template type — `inject`, `remind`, `block`, `allow`, `deny`, `context`
+- `type` (optional): Template type — `inject`, `remind`, `block`, `warn`, `allow`, `deny`, `ask`, `context`
+
+## Architecture — THREE modes of operation
+
+### Mode 1: Template only (`.md`, no `.match.sh`)
+Static rule — always fires, content from template.
+```
+.claude/hooker/SessionStart.md  → always injects content on session start
+```
+
+### Mode 2: Template + match script (`.md` + `.match.sh` without output)
+Conditional rule — match script decides IF, template decides WHAT.
+```
+.claude/hooker/Stop.md          → content to show
+.claude/hooker/Stop.match.sh    → exit 0 if files were edited, else exit 1
+```
+
+### Mode 3: Standalone match script (`.match.sh` with output, no `.md` needed)
+Full dynamic control — script decides everything. Uses helpers for output.
+**This is the most powerful mode.** The script can read files, check state, build messages dynamically.
+```
+.claude/hooker/SubagentStart.match.sh  → reads CLAUDE.md, injects it
+```
+
+## Helpers library
+
+Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
+
+**JSON responses (visible to user by default):**
+| Helper | Effect |
+|--------|--------|
+| `warn "msg"` | Warning, doesn't block |
+| `deny "msg"` | Denies tool use (PreToolUse) |
+| `allow "msg"` | Auto-allows tool use |
+| `ask "msg"` | Escalates to user for decision |
+| `block "msg"` | Blocks action (stop/prompt) |
+| `remind "msg"` | Blocks stop with reminder |
+
+**Context injection (hidden from user, only Claude sees):**
+| Helper | Effect |
+|--------|--------|
+| `inject "text"` | Injects text into Claude's context (XML trick) |
+| `context "text"` | Adds as additionalContext JSON |
+| `visible "text"` | Outputs text visible to user |
+| `load_md "file.md"` | Loads file as `<hidden>` content (Claude sees, user doesn't) |
+
+**Visibility tags in messages:**
+- `<hidden>...</hidden>` — inside warn/deny/block: hidden from user, only Claude sees
+- `<visible>...</visible>` — inside inject templates (.md): shown to user
+- `load_md "file.md"` — wraps file content in `<hidden>` automatically
+
+**Environment variables (no JSON parsing needed):**
+- `$HOOKER_EVENT` — hook event name
+- `$HOOKER_TRANSCRIPT` — path to transcript JSONL
+- `$HOOKER_CWD` — working directory
+- `$HOOKER_HELPERS` — path to helpers.sh
 
 ## Steps
 
@@ -27,100 +82,106 @@ If no hook name provided, ask user. Group by category:
 - **Other**: Notification
 
 ### 2. Ask what user wants to achieve
-Don't ask for "type" directly — ask what they want to happen. Examples:
-- "Chcę przypominajkę o dokumentacji przy stopie" → type: remind + match script checking for Edit/Write
-- "Chcę blokować rm -rf" → type: deny + match on PreToolUse
-- "Chcę dodać kontekst na starcie sesji" → type: inject, no match script
+Don't ask for "type" directly — ask what they want to happen. Based on the answer, choose the best mode:
 
-### 3. Suggest the best `type` for the hook
-- Stop → `remind`
-- PreToolUse → `allow` or `deny`
-- SessionStart, PreCompact, SubagentStart → `inject`
-- UserPromptSubmit → `inject` or `block`
-- PostToolUse → `context`
-- Default → `inject`
+- **Static content injection** → Mode 1 (template only)
+  - "Dodaj kontekst na starcie sesji" → `SessionStart.md` with `type: inject`
+- **Conditional action** → Mode 2 (template + match script)
+  - "Przypominaj o docs ale tylko gdy zmieniałem pliki" → `Stop.md` (remind) + `Stop.match.sh`
+- **Dynamic content / file reading / complex logic** → Mode 3 (standalone match script)
+  - "Wstrzyknij CLAUDE.md do subagentów" → `SubagentStart.match.sh` with `inject "$(cat CLAUDE.md)"`
+  - "Blokuj deploy w piątki" → `PreToolUse.match.sh` with date check + `deny`
 
-### 4. Create match script if needed
-If the action should only fire conditionally, write a match script.
+### 3. Example match scripts with helpers
 
-**Match script contract:**
-- Receives hook input JSON on stdin
-- Input JSON always contains: `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `permission_mode`
-- `transcript_path` points to a JSONL file with the full conversation transcript
-- Exit 0 = match (fire the hook action), exit non-0 = skip
-- Must be executable (`chmod +x`)
-
-**JSONL transcript format** (each line is a JSON object):
-- Tool uses: `{"type": "tool_use", "tool_name": "Edit", "tool_input": {...}}`
-- Tool results: `{"type": "tool_result", "tool_name": "Edit", "tool_result": {...}}`
-- Messages: `{"type": "message", "role": "user|assistant", "content": "..."}`
-
-**Example match scripts:**
-
-File was modified:
+**Dynamic file injection (e.g. inject CLAUDE.md into subagents):**
 ```bash
 #!/bin/bash
-set -euo pipefail
-INPUT=$(cat)
-TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
-[ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
-grep -qP '"tool_name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$TRANSCRIPT"
+source "${HOOKER_HELPERS}"
+CLAUDE_MD=$(cat CLAUDE.md 2>/dev/null || true)
+[ -z "$CLAUDE_MD" ] && exit 1
+inject "$CLAUDE_MD"
+exit 0
 ```
 
-Bash command contained dangerous pattern:
+**Conditional deny with visible + hidden message:**
 ```bash
 #!/bin/bash
-set -euo pipefail
+source "${HOOKER_HELPERS}"
 INPUT=$(cat)
-TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
-[ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
-grep -qP '"command"\s*:\s*"[^"]*rm\s+-rf' "$TRANSCRIPT"
+CMD=$(echo "$INPUT" | grep -oP '"command"\s*:\s*"\K[^"]+' || true)
+DAY=$(date +%u)
+if [ "$DAY" = "5" ] && echo "$CMD" | grep -qi 'deploy\|push'; then
+    deny "Piątek — nie robimy deployów. <hidden>Zaproponuj alternatywę na poniedziałek.</hidden>"
+    exit 0
+fi
+exit 1
 ```
 
-Specific file was touched:
+**Remind with dynamic content:**
 ```bash
 #!/bin/bash
-set -euo pipefail
-INPUT=$(cat)
-TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
-[ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
-grep -qP '"file_path"\s*:\s*"[^"]*README\.md"' "$TRANSCRIPT"
+source "${HOOKER_HELPERS}"
+# Only fire if files were modified
+[ -z "$HOOKER_TRANSCRIPT" ] || [ ! -f "$HOOKER_TRANSCRIPT" ] && exit 1
+grep -qP '"tool_name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$HOOKER_TRANSCRIPT" || exit 1
+remind "Zmieniałeś pliki — sprawdź docs i testy. $(load_md 'checklist.md')"
+exit 0
 ```
 
-### 5. Create files
+**Conditional warn (PostToolUse):**
+```bash
+#!/bin/bash
+source "${HOOKER_HELPERS}"
+INPUT=$(cat)
+FILE=$(echo "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]+' || true)
+LINES=$(wc -l < "$FILE" 2>/dev/null || echo 0)
+if [ "$LINES" -gt 500 ]; then
+    warn "Plik $FILE ma ${LINES} linii — rozważ podział."
+    exit 0
+fi
+exit 1
+```
+
+### 4. Create files
 
 1. `mkdir -p .claude/hooker`
-2. Write `.claude/hooker/{HookName}.md` with frontmatter and content
-3. If match script needed, write `.claude/hooker/{HookName}.match.sh` and `chmod +x`
+2. Depending on mode:
+   - Mode 1: Write `.claude/hooker/{HookName}.md` only
+   - Mode 2: Write `.claude/hooker/{HookName}.md` + `.claude/hooker/{HookName}.match.sh`
+   - Mode 3: Write `.claude/hooker/{HookName}.match.sh` only
+3. `chmod +x` any `.match.sh` files
 
-### 6. TEST the match script
+### 5. TEST
 
-**This is critical.** After creating the match script, test it immediately:
+**Critical.** After creating, test immediately:
 
-1. Find the current session's transcript path. Run:
+1. Find transcript:
    ```bash
    ls -t ~/.claude/projects/*/transcript.jsonl 2>/dev/null | head -1
    ```
 
-2. Create a test input JSON:
+2. Test match script standalone:
    ```bash
-   echo '{"hook_event_name": "{HookName}", "transcript_path": "/path/to/transcript.jsonl", "session_id": "test", "cwd": "'$(pwd)'"}' | .claude/hooker/{HookName}.match.sh
+   echo '{"hook_event_name": "{HookName}", "transcript_path": "/path/to/transcript.jsonl", "session_id": "test", "cwd": "'$(pwd)'"}' \
+     | HOOKER_HELPERS="${CLAUDE_PLUGIN_ROOT}/scripts/helpers.sh" \
+       HOOKER_EVENT="{HookName}" \
+       HOOKER_CWD="$(pwd)" \
+       HOOKER_TRANSCRIPT="/path/to/transcript.jsonl" \
+       .claude/hooker/{HookName}.match.sh
    echo "Exit code: $?"
    ```
 
-3. If the script should match (because the condition is true in current session), expect exit 0.
-   If it should NOT match, expect exit 1.
-
-4. Show the user the test result and explain. If the script doesn't work as expected, fix it and re-test.
-
-5. Optionally, do a full integration test through inject.sh:
+3. Full integration test through inject.sh:
    ```bash
-   echo '{"hook_event_name": "{HookName}", "transcript_path": "/path/to/transcript.jsonl", "session_id": "test", "cwd": "'$(pwd)'"}' | CLAUDE_PLUGIN_ROOT=. bash ${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh
+   echo '{"hook_event_name": "{HookName}", "transcript_path": "/path/to/transcript.jsonl", "session_id": "test", "cwd": "'$(pwd)'"}' \
+     | CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" bash "${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh"
    ```
 
-### 7. Confirm
-Show the user:
-- Created template: `.claude/hooker/{HookName}.md`
-- Created match script: `.claude/hooker/{HookName}.match.sh` (if any)
-- Remind: project-level overrides plugin defaults
-- They can edit these files anytime to tweak behavior
+4. Show test result. Fix and re-test if needed.
+
+### 6. Confirm
+Show the user what was created and remind:
+- Project-level `.claude/hooker/` overrides plugin defaults in `templates/`
+- Files can be edited anytime
+- `chmod +x` is required for `.match.sh` files
