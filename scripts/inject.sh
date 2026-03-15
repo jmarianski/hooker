@@ -14,6 +14,13 @@ if [ -z "$HOOK_EVENT" ]; then
     exit 0
 fi
 
+# --- Export env vars for match scripts ---
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
+export HOOKER_HELPERS="${PLUGIN_DIR}/scripts/helpers.sh"
+export HOOKER_EVENT="$HOOK_EVENT"
+export HOOKER_CWD=$(echo "$INPUT" | grep -oP '"cwd"\s*:\s*"\K[^"]+' || true)
+export HOOKER_TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
+
 # --- Logging ---
 HOOKER_CONFIG=".claude/hooker.json"
 LOGGING_ENABLED="${HOOKER_LOG:-0}"
@@ -30,39 +37,54 @@ log() {
 
 log "Hook triggered in $(pwd)"
 
-# --- Find template ---
+# --- Find template and/or match script ---
 # Priority: project override > plugin default
-PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
+# Standalone match scripts (no .md) are allowed — they handle everything via output
 WORKSPACE_DIR=".claude/hooker"
 
 TEMPLATE_FILE=""
 MATCH_SCRIPT=""
 
-if [ -f "${WORKSPACE_DIR}/${HOOK_EVENT}.md" ]; then
-    TEMPLATE_FILE="${WORKSPACE_DIR}/${HOOK_EVENT}.md"
-    # Match script: same dir, .match.sh extension
-    [ -x "${WORKSPACE_DIR}/${HOOK_EVENT}.match.sh" ] && MATCH_SCRIPT="${WORKSPACE_DIR}/${HOOK_EVENT}.match.sh"
-    log "Using workspace template: $(pwd)/${TEMPLATE_FILE}"
-elif [ -f "${PLUGIN_DIR}/templates/${HOOK_EVENT}.md" ]; then
-    TEMPLATE_FILE="${PLUGIN_DIR}/templates/${HOOK_EVENT}.md"
-    [ -x "${PLUGIN_DIR}/templates/${HOOK_EVENT}.match.sh" ] && MATCH_SCRIPT="${PLUGIN_DIR}/templates/${HOOK_EVENT}.match.sh"
-    log "Using plugin template: ${TEMPLATE_FILE}"
-fi
+# Check workspace first, then plugin defaults
+for DIR in "$WORKSPACE_DIR" "${PLUGIN_DIR}/templates"; do
+    if [ -f "${DIR}/${HOOK_EVENT}.md" ] && [ -z "$TEMPLATE_FILE" ]; then
+        TEMPLATE_FILE="${DIR}/${HOOK_EVENT}.md"
+        log "Using template: ${TEMPLATE_FILE}"
+    fi
+    if [ -x "${DIR}/${HOOK_EVENT}.match.sh" ] && [ -z "$MATCH_SCRIPT" ]; then
+        MATCH_SCRIPT="${DIR}/${HOOK_EVENT}.match.sh"
+        log "Using match script: ${MATCH_SCRIPT}"
+    fi
+done
 
-if [ -z "$TEMPLATE_FILE" ]; then
-    log "No template found, skipping"
+if [ -z "$TEMPLATE_FILE" ] && [ -z "$MATCH_SCRIPT" ]; then
+    log "No template or match script found, skipping"
     exit 0
 fi
 
 # --- Run match script ---
+# Match scripts can:
+#   exit 1 (no output)  → skip, do nothing
+#   exit 0 (no output)  → matched, fall through to template
+#   exit 0 (with output)→ matched, output IS the response (template ignored)
 if [ -n "$MATCH_SCRIPT" ]; then
     log "Running match script: $MATCH_SCRIPT"
-    if echo "$INPUT" | "$MATCH_SCRIPT" 2>/dev/null; then
-        log "Match script: MATCHED"
-    else
+    MATCH_OUTPUT=$(echo "$INPUT" | "$MATCH_SCRIPT" 2>/dev/null) || {
         log "Match script: no match, skipping"
         exit 0
+    }
+    log "Match script: MATCHED"
+    if [ -n "$MATCH_OUTPUT" ]; then
+        log "Match script returned output, using as direct response"
+        echo "$MATCH_OUTPUT"
+        exit 0
     fi
+fi
+
+# If we only had a match script (no template), and it matched but had no output — nothing to do
+if [ -z "$TEMPLATE_FILE" ]; then
+    log "Match script matched but no output and no template, skipping"
+    exit 0
 fi
 
 # --- Parse frontmatter ---
@@ -94,16 +116,56 @@ json_escape() {
         || printf '"%s"' "$(echo "$1" | sed 's/"/\\"/g' | tr '\n' ' ')"
 }
 
-# --- Execute action ---
-case "$ACTION" in
-    inject)
+# --- Helper: split visible/hidden content and output ---
+# <visible>text</visible> → shown in terminal
+# everything else → hidden via XML trick (only Claude sees)
+output_with_visibility() {
+    local TEXT="$1"
+
+    if echo "$TEXT" | grep -q '<visible>'; then
+        # Has <visible> sections — extract and split
+        # Visible parts: shown in terminal. Hidden parts: XML trick.
+        local VISIBLE=""
+        local HIDDEN=""
+
+        # Extract visible parts (supports multiline via perl)
+        VISIBLE=$(echo "$TEXT" | perl -0777 -ne 'while(/<visible>(.*?)<\/visible>/gs){print "$1\n"}' 2>/dev/null \
+            || echo "$TEXT" | sed -n 's/.*<visible>\(.*\)<\/visible>.*/\1/p')
+
+        # Extract hidden parts (everything outside <visible> tags)
+        HIDDEN=$(echo "$TEXT" | perl -0777 -pe 's/<visible>.*?<\/visible>//gs' 2>/dev/null \
+            || echo "$TEXT" | sed 's/<visible>[^<]*<\/visible>//g')
+        HIDDEN=$(echo "$HIDDEN" | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba;}')
+
+        # Output visible part normally (user sees it)
+        [ -n "$VISIBLE" ] && echo "$VISIBLE"
+
+        # Output hidden part via XML trick (only Claude sees)
+        if [ -n "$HIDDEN" ]; then
+            cat <<HIDDEN_EOF
+</local-command-stdout>
+
+${HIDDEN}
+
+<local-command-stdout>
+HIDDEN_EOF
+        fi
+    else
+        # No visible sections — hide everything
         cat <<INJECT_EOF
 </local-command-stdout>
 
-${CONTENT}
+${TEXT}
 
 <local-command-stdout>
 INJECT_EOF
+    fi
+}
+
+# --- Execute action ---
+case "$ACTION" in
+    inject)
+        output_with_visibility "$CONTENT"
         log "Injected context"
         ;;
 

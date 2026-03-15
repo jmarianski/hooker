@@ -60,6 +60,15 @@
 - [ ] **HTTP match endpoint** — `match_url: http://localhost:3000/check` for integration with external services
 - [ ] **Marketplace publishing** — publish to Anthropic/obra marketplace
 
+### Presets (ready-made hook + match script + outer tool bundles)
+
+- [ ] **Ralph Wiggum preset** — faithful implementation of Huntley's autonomous looping technique. NOT a Stop hook loop (that's what the broken official plugin does). Instead: outer bash loop spawning fresh `claude -p` sessions + Hooker hooks for continuity:
+  - `SessionStart` (inject) — loads original prompt + progress report from previous iterations
+  - `SessionEnd` / `Stop` — saves iteration results to state file (e.g. `.claude/hooker/ralph-state.json`)
+  - Generated bash wrapper script with `--max-iterations` and `--completion-promise` flags
+  - Each iteration = clean context (the whole point of Ralph), hooks provide memory across iterations
+  - See: ghuntley.com/ralph for original concept, official plugin's architectural flaw is using Stop hook to keep single session alive instead of fresh sessions
+
 ### Integration with other plugins
 
 - [ ] **Kompakt coexistence** — detect if kompakt is installed, skip PreCompact if kompakt handles it (or offer to replace kompakt's functionality)
@@ -72,3 +81,4 @@
 - Replacing hookify's built-in regex matching engine — match scripts are more powerful and flexible
 - Building a full workflow/methodology framework (that's superpowers' domain)
 - Caching/persistence between hook invocations — keep it stateless and simple
+- Ralph Wiggum via Stop hook blocking — this is architecturally wrong (context rot), use outer loop + session hooks instead
