@@ -14,4 +14,5 @@ if [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ]; then
 fi
 
 # Check if any file-modifying tools were used in this session
-grep -qP '"tool_name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$TRANSCRIPT" 2>/dev/null
+# Transcript uses "name" field for tool names, not "tool_name"
+grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$TRANSCRIPT" 2>/dev/null
