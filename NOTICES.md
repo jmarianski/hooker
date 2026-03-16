@@ -35,6 +35,44 @@ Where code is adapted (not just conceptually inspired), the original license app
 - **License:** MIT
 - **Recipes inspired:** skip-acknowledgments
 
+## Existing Plugins (referenced in README, not bundled)
+
+### safety-net
+- **Author:** J Liew (kenryu42)
+- **URL:** https://github.com/kenryu42/claude-code-safety-net
+- **License:** MIT
+- **Note:** Production-grade bash guardrail plugin. Referenced as a more complete alternative to our block-dangerous-commands recipe.
+
+### hookify
+- **Author:** Daisy Hollman (Anthropic)
+- **URL:** https://github.com/anthropics/claude-code/tree/main/plugins/hookify
+- **License:** Anthropic Commercial Terms
+- **Note:** Official guardrail/policy engine. Referenced for comparison; no code copied.
+
+### kompakt
+- **Author:** Jacek Marianski
+- **URL:** https://gitlab.com/treetank/kompakt
+- **License:** MIT
+- **Note:** Custom summarization plugin by the same author as Hooker.
+
+### claudekit
+- **Author:** Carl Rannaberg
+- **URL:** https://github.com/carlrannaberg/claudekit
+- **License:** MIT
+- **Note:** Comprehensive toolkit. Several Hooker recipes adapted from claudekit patterns (with attribution).
+
+### parry
+- **Author:** vaporif
+- **URL:** https://github.com/vaporif/parry
+- **License:** MIT
+- **Note:** ML-based prompt injection scanner. Referenced as advanced security tool.
+
+### Dippy
+- **Author:** ldayton
+- **URL:** https://github.com/ldayton/Dippy
+- **License:** MIT
+- **Note:** AST-based bash auto-approval. Referenced as advanced permission management tool.
+
 ## Conceptual Inspiration (clean-room reimplementation, no code copied)
 
 ### Scott Chacon's auto-commit hook

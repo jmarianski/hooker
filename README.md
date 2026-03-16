@@ -68,9 +68,26 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **detect-lazy-code** | PostToolUse | Catches `// ... rest` and underscore-prefix hacks |
 | **reinject-after-compact** | SessionStart | Re-injects context lost during compaction |
 
+### Existing Plugins That Do This Better
+
+Some dedicated plugins cover specific hook use cases with more depth than a simple recipe.
+They all use the same hook mechanism — technically reimplementable with Hooker, but the originals are more mature.
+
+| Plugin | What it does | Hooks used | License |
+|--------|-------------|------------|---------|
+| [safety-net](https://github.com/kenryu42/claude-code-safety-net) | Production-grade bash guardrails. Python AST parser, recursive `sudo`/`bash -c` unwrapping, semantic git analysis, custom rules via JSON config, audit logging. 1285 lines of battle-tested logic. | PreToolUse (Bash) | MIT |
+| [hookify](https://github.com/anthropics/claude-code/tree/main/plugins/hookify) | Official Anthropic guardrail engine. Markdown rule files, regex matching on fields, AI-powered rule creation from conversation analysis. | PreToolUse, PostToolUse, Stop, UserPromptSubmit | Anthropic Commercial |
+| [kompakt](https://gitlab.com/treetank/kompakt) | Custom summarization for `/compact`. Preserves conversation language, verbatim user messages, configurable presets. | PreCompact | MIT |
+| [claudekit](https://github.com/carlrannaberg/claudekit) | Toolkit: typecheck, eslint, file-guard (195+ patterns), self-review, ban-any, codebase-map, thinking-level. | PreToolUse, PostToolUse, SessionStart, UserPromptSubmit, Stop | MIT |
+| [parry](https://github.com/vaporif/parry) | ML-based prompt injection scanner using DeBERTa v3. Six-stage detection pipeline. | PreToolUse, PostToolUse, UserPromptSubmit | MIT |
+| [Dippy](https://github.com/ldayton/Dippy) | AST-based bash auto-approval. Parses commands into syntax tree, 14,000+ tests. Reduces permission fatigue. | PreToolUse (Bash) | MIT |
+
+Our included recipes (block-dangerous-commands, protect-sensitive-files) are lightweight alternatives for users who don't need the full power of these plugins.
+
 ### Recipe Catalog — Community Inspirations
 
 These hooks exist in the community and can be implemented with Hooker.
+All are technically achievable with a `.match.sh` script + helpers.
 See [NOTICES.md](NOTICES.md) for full attribution and license details.
 
 #### Security & Safety
@@ -83,8 +100,6 @@ See [NOTICES.md](NOTICES.md) for full attribution and license details.
 | Block hardcoded secrets in code | PostToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
 | Branch protection (no commits to main) | PreToolUse | [Cameron Westland](https://cameronwestland.com/building-my-first-claude-code-hooks-automating-the-workflow-i-actually-want/) | Blog |
 | Production keyword warning | PreToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
-| Prompt injection scanner (ML-based) | Pre/PostToolUse | [vaporif/parry](https://github.com/vaporif/parry) | MIT |
-| AST-based bash auto-approval | PreToolUse | [ldayton/Dippy](https://github.com/ldayton/Dippy) | MIT |
 
 #### Code Quality
 
