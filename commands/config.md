@@ -1,22 +1,35 @@
 ---
 description: "Configure Hooker - logging, templates, hook status"
-args: "[on|off|logs]"
+args: "[on|off|logs | natural language request]"
 ---
 
 # Hooker Configuration
 
-You are managing the Hooker plugin configuration. Read the current state and help the user configure it.
+You are managing the Hooker plugin configuration. Read the current state, help the user configure hooks, edit existing ones, or troubleshoot issues.
+
+## Hook file locations (priority order)
+
+1. **Project-level**: `.claude/hooker/` — overrides everything, version-controllable
+2. **User-global**: `~/.claude/hooker/` — applies to all projects unless overridden
+3. **Plugin defaults**: `${CLAUDE_PLUGIN_ROOT}/templates/` — ships with plugin
+
+When the user asks to edit/fix/disable a hook, check ALL three locations to find where it lives.
 
 ## Current State
 
 1. Read `.claude/hooker.json` if it exists (project-level config)
-2. List all active hooks:
-   - Plugin defaults: check `${CLAUDE_PLUGIN_ROOT}/templates/` for `*.md` and `*.match.sh` files
-   - Project overrides: check `.claude/hooker/` for `*.md` and `*.match.sh` files
+2. List all active hooks from all three locations above
 
 ## Available Actions
 
 Based on user's argument or ask them what they want:
+
+### Natural language requests
+If user describes what they want (e.g. "fix the stop hook", "disable remind", "stop asking about tests"):
+1. Find the relevant hook file(s) — check all three locations
+2. Read the file to understand current behavior
+3. Edit it to match what the user wants
+4. If it has a `messages.yml`, edit messages there instead of the script
 
 ### `logs` or logging configuration
 - Toggle logging in `.claude/hooker.json`:

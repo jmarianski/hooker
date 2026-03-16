@@ -9,7 +9,8 @@ Show the user which hooks are active (have templates/scripts) and which are inac
 ## Steps
 
 1. Check for plugin-level files in `${CLAUDE_PLUGIN_ROOT}/templates/` — list all `*.md` and `*.match.sh` files
-2. Check for project-level overrides in `.claude/hooker/` — list all `*.md` and `*.match.sh` files
+2. Check for user-global overrides in `~/.claude/hooker/` — list all `*.md` and `*.match.sh` files
+3. Check for project-level overrides in `.claude/hooker/` — list all `*.md` and `*.match.sh` files
 3. For each of the 21 hooks, show status:
 
 Format output as a table:
@@ -31,7 +32,7 @@ SubagentStart        | ACTIVE    | .claude/hooker   | static      | inject
 
 **Type**: Read from `.md` frontmatter `type:` field, or `(script)` if dynamic mode
 
-**Source**: `plugin/templates` (default) or `.claude/hooker` (project override)
+**Source**: `plugin/templates` (default), `~/.claude/hooker` (user-global), or `.claude/hooker` (project override)
 
 Mark active hooks clearly, inactive ones as dimmed/dash.
 

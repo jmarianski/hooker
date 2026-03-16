@@ -7,6 +7,14 @@ args: "[recipe-name | natural language description | list|install|remove|install
 
 Universal hook injection framework for Claude Code. This is the main entry point.
 
+## Hook file locations (priority order)
+
+1. **Project-level**: `.claude/hooker/` — overrides everything, version-controllable
+2. **User-global**: `~/.claude/hooker/` — applies to all projects unless overridden
+3. **Plugin defaults**: `${CLAUDE_PLUGIN_ROOT}/templates/` — ships with plugin
+
+When creating, editing, or troubleshooting hooks — check all three locations.
+
 ## With natural language description
 If the user describes what they want (e.g. `/hooker:recipe block deploys on fridays`, `/hooker:recipe remind about docs`):
 1. Figure out which hook event(s) are needed
