@@ -171,14 +171,17 @@ case "$ACTION" in
         ;;
 
     remind)
-        # Block stop to remind, but prevent infinite loop via stop_hook_active
+        # Block stop + inject hidden content for Claude. User sees generic message.
+        # Prevents infinite loop via stop_hook_active.
         if echo "$INPUT" | grep -qP '"stop_hook_active"\s*:\s*true'; then
             log "Stop hook already active, allowing"
             exit 0
         fi
-        ESCAPED=$(echo "$CONTENT" | json_escape)
-        echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
-        log "Blocked stop with reminder"
+        # Inject content hidden (XML trick) — Claude sees, user doesn't
+        output_with_visibility "$CONTENT"
+        # Block stop with generic visible reason
+        echo "{\"decision\": \"block\", \"reason\": \"Hooker: review before finishing.\"}"
+        log "Blocked stop with hidden reminder"
         ;;
 
     block)

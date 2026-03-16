@@ -1,9 +1,9 @@
 ---
 type: remind
 ---
-Zanim zakończysz, sprawdź:
-- Czy zaktualizowałeś dokumentację (README, komentarze, docstringi) jeśli zmieniłeś API lub zachowanie kodu?
-- Czy dodałeś/zaktualizowałeś testy dla nowych zmian?
-- Czy nie zostawiłeś TODO/FIXME bez wyjaśnienia?
+Before finishing, verify:
+- Did you update documentation (README, comments, docstrings) if you changed API or behavior?
+- Did you add/update tests for new changes?
+- Did you leave any vague TODO/FIXME without explanation?
 
-Jeśli wszystko jest OK, potwierdź krótko i zakończ.
+If everything is OK, confirm briefly and finish.
