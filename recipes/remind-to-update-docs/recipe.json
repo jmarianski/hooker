@@ -1,0 +1,5 @@
+{
+  "name": "Remind To Update Docs",
+  "description": "Reminds about documentation, tests, and TODOs when stopping after file changes. Only fires if Edit/Write/NotebookEdit was used in the session.",
+  "hooks": ["Stop"]
+}

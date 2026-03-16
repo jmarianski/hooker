@@ -1,15 +1,40 @@
 ---
-description: "Enable a hook by creating its template and/or match script"
-args: "<HookName> [type]"
+description: "Enable a hook by creating its template and/or match script, or install a recipe"
+args: "[recipe:<name>] [<HookName> [type]]"
 ---
 
 # Enable a Hooker Hook
 
 Create a template file and/or match script for the specified hook in `.claude/hooker/`.
+Or install a pre-built recipe.
 
 ## Arguments
-- `HookName` (required): One of the 21 hook event names
+- `recipe:<name>` — install a named recipe (e.g. `recipe:remind-to-update-docs`)
+- `HookName` (required if no recipe): One of the 21 hook event names
 - `type` (optional): Template type — `inject`, `remind`, `block`, `warn`, `allow`, `deny`, `ask`, `context`
+
+## Recipes
+
+Pre-built hook configurations in `${CLAUDE_PLUGIN_ROOT}/recipes/`. Each recipe is a directory with:
+- `recipe.json` — metadata (name, description, hooks list)
+- Hook files (`.md` and/or `.match.sh`) ready to copy
+
+### Installing a recipe
+1. List available recipes: `ls ${CLAUDE_PLUGIN_ROOT}/recipes/`
+2. Read `recipe.json` to show user name + description
+3. Copy hook files to `.claude/hooker/`
+4. `chmod +x` any `.match.sh` files
+5. If target hook files already exist in `.claude/hooker/`, warn about conflict and ask user
+
+### Available recipes
+Scan `${CLAUDE_PLUGIN_ROOT}/recipes/*/recipe.json` and list them with descriptions.
+If user doesn't specify a recipe or hook name, show the list and ask what they want.
+
+### Combining recipes
+Multiple recipes can coexist if they target different hooks. If two recipes target the same hook, the skill should:
+1. Warn the user about the conflict
+2. Offer to merge (if both are match scripts, create a combined script that runs both)
+3. Or let user pick one
 
 ## Architecture — THREE modes of operation
 
