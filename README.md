@@ -1,10 +1,15 @@
 # Hooker - Universal Hook Injection Framework for Claude Code
 
-Inject custom prompts, reminders, and context into any of Claude Code's 21 hook events via simple template files.
+Inject custom prompts, reminders, guardrails, and context into any of Claude Code's 21 hook events. Mix and match pre-built recipes or create your own with simple shell scripts.
 
 ## Installation
 
 ```bash
+# From GitLab marketplace
+/plugin marketplace add https://gitlab.com/treetank/hooker.git
+/plugin install hooker@hooker-marketplace
+
+# Or local
 claude --plugin-dir /path/to/hooker
 ```
 
@@ -13,53 +18,153 @@ claude --plugin-dir /path/to/hooker
 ```
 Any hook event fires (e.g., Stop, PreToolUse, SessionStart...)
     ↓
-inject.sh checks for template: .claude/hooker/{EventName}.md
+inject.sh checks for: .claude/hooker/{EventName}.match.sh or .md
     ↓
-Falls back to: plugin/templates/{EventName}.md
+Falls back to: plugin/templates/{EventName}.match.sh or .md
     ↓
-No template? → no-op (passthrough)
+Nothing found? → passthrough (no-op)
     ↓
-Template found? → reads frontmatter type, executes action
+Match script with output? → script controls everything
+    ↓
+Match script without output? → template controls the action
+    ↓
+Template only? → always fires
 ```
 
-## Template Format
+### Three Modes
 
-```markdown
----
-type: remind
----
-Your content here.
-```
-
-### Action Types
-
-| Type | Behavior | Best for |
-|------|----------|----------|
-| `inject` | Injects into Claude's context (default) | SessionStart, PreCompact |
-| `remind` | Blocks stop to remind, loop-safe | Stop |
-| `block` | Always blocks with reason | UserPromptSubmit (guardrails) |
-| `warn` | Shows warning but doesn't block | PreToolUse, PostToolUse |
-| `allow` | Auto-allows tool use | PreToolUse |
-| `deny` | Denies tool use | PreToolUse |
-| `ask` | Escalates to user for decision | PreToolUse |
-| `context` | Adds additionalContext JSON | PostToolUse |
+| Mode | Files | Use when |
+|------|-------|----------|
+| **Static** | `.md` only | Always inject same content |
+| **Conditional** | `.md` + `.match.sh` | Fire only when condition met |
+| **Dynamic** | `.match.sh` only | Script decides everything at runtime |
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/hooker:config` | Configure logging and view hook reference |
-| `/hooker:status` | Show which hooks are active |
-| `/hooker:enable` | Create a template to enable a hook |
+| `/hooker` | Main hub — status, create hooks, browse recipes |
+| `/hooker:recipe` | Browse, install, combine recipes |
+| `/hooker:status` | Show active hooks |
+| `/hooker:config` | Logging and reference |
 
-## Project Overrides
+## Recipes
 
-Create `.claude/hooker/{HookName}.md` to override plugin defaults per project:
+Pre-built hook configurations. Install with `/hooker:recipe <name>`.
+
+### Included Recipes
+
+| Recipe | Hook | What it does |
+|--------|------|-------------|
+| **remind-to-update-docs** | Stop | Reminds about docs/tests when files were modified |
+| **agent-gets-claude-context** | SubagentStart | Injects CLAUDE.md + MEMORY.md into subagents |
+| **block-dangerous-commands** | PreToolUse | Blocks rm -rf, fork bombs, curl\|sh, DROP TABLE |
+| **no-force-push-main** | PreToolUse | Blocks git push --force to main/master |
+| **protect-sensitive-files** | PreToolUse | Blocks access to .env, SSH keys, credentials |
+| **auto-format** | PostToolUse | Runs formatter (prettier/ruff/gofmt) after edits |
+| **auto-checkpoint** | Stop | Git commit checkpoint after each Claude response |
+| **git-context-on-start** | SessionStart | Injects branch, status, recent commits |
+| **skip-acknowledgments** | UserPromptSubmit | Stops Claude from saying "Great question!" |
+| **detect-lazy-code** | PostToolUse | Catches `// ... rest` and underscore-prefix hacks |
+| **reinject-after-compact** | SessionStart | Re-injects context lost during compaction |
+
+### Recipe Catalog — Community Inspirations
+
+These hooks exist in the community and can be implemented with Hooker.
+See [NOTICES.md](NOTICES.md) for full attribution and license details.
+
+#### Security & Safety
+
+| Idea | Hook | Source | License |
+|------|------|--------|---------|
+| Block dangerous bash commands | PreToolUse | [karanb192/claude-code-hooks](https://github.com/karanb192/claude-code-hooks) | MIT |
+| Protect sensitive files (195+ patterns) | PreToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Block force push to main | PreToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
+| Block hardcoded secrets in code | PostToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
+| Branch protection (no commits to main) | PreToolUse | [Cameron Westland](https://cameronwestland.com/building-my-first-claude-code-hooks-automating-the-workflow-i-actually-want/) | Blog |
+| Production keyword warning | PreToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
+| Prompt injection scanner (ML-based) | Pre/PostToolUse | [vaporif/parry](https://github.com/vaporif/parry) | MIT |
+| AST-based bash auto-approval | PreToolUse | [ldayton/Dippy](https://github.com/ldayton/Dippy) | MIT |
+
+#### Code Quality
+
+| Idea | Hook | Source | License |
+|------|------|--------|---------|
+| Auto-format after edit (multi-lang) | PostToolUse | [ryanlewis/claude-format-hook](https://github.com/ryanlewis/claude-format-hook) | MIT |
+| Ruff lint + format for Python | PostToolUse | [TMYuan/ruff-claude-hook](https://github.com/TMYuan/ruff-claude-hook) | MIT |
+| TypeScript type checking after edit | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Ban `any` types in TypeScript | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Detect comment-replaced code | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Detect lazy underscore params | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Lint gate before commit | PreToolUse | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
+| Enforce package manager (pnpm/npm) | PreToolUse | [Steve Kinney](https://stevekinney.com/courses/ai-development/claude-code-hook-examples) | Blog |
+| Warn on test file modification | PostToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
+
+#### Testing
+
+| Idea | Hook | Source | License |
+|------|------|--------|---------|
+| Auto-run tests after edit | PostToolUse | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
+| Block PR unless tests pass | PreToolUse | [Official docs](https://code.claude.com/docs/en/hooks-guide) | Docs |
+| Full test suite before stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Require tests before task complete | TaskCompleted | [Official docs](https://code.claude.com/docs/en/hooks) | Docs |
+
+#### Git Automation
+
+| Idea | Hook | Source | License |
+|------|------|--------|---------|
+| Auto-commit checkpoint on stop | Stop | [schacon gist](https://gist.github.com/schacon/a3683d51175f0240b900d4c224dbc676) | No license |
+| Auto-commit with prompt as message | Stop | [GitButler blog](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks/) | Blog |
+| Auto-commit after every file edit | PostToolUse | [bleepingswift](https://bleepingswift.com/blog/claude-code-auto-commit) | Blog |
+| Session-isolated git branches | Pre/PostToolUse + Stop | [GitButler blog](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks/) | Blog |
+
+#### Context & Session
+
+| Idea | Hook | Source | License |
+|------|------|--------|---------|
+| Git status on session start | SessionStart | [claudefa.st](https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks) | Blog |
+| Re-inject context after compaction | SessionStart (compact) | [claudefa.st](https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks) | Blog |
+| Codebase map injection | UserPromptSubmit | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Auto-refresh context every N prompts | UserPromptSubmit | [John Lindquist gist](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) | No license |
+| Skip acknowledgments | UserPromptSubmit | [ChrisWiles/claude-code-showcase](https://github.com/ChrisWiles/claude-code-showcase) | MIT |
+| Transcript backup before compaction | PreCompact | [disler/hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) | No license |
+
+#### Review & Notifications
+
+| Idea | Hook | Source | License |
+|------|------|--------|---------|
+| Self-review on stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+| Desktop notification on stop | Stop | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
+| Slack notification on idle | Notification | [karanb192/claude-code-hooks](https://github.com/karanb192/claude-code-hooks) | MIT |
+| Check TODOs on stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
+
+All of these can be implemented as Hooker recipes using `.match.sh` scripts with helpers.
+See `/hooker` to create your own or `/hooker:recipe` to install included ones.
+
+## Match Script Helpers
+
+Source `"${HOOKER_HELPERS}"` in your `.match.sh` scripts:
 
 ```bash
-mkdir -p .claude/hooker
-# Or use: /hooker:enable Stop remind
+#!/bin/bash
+source "${HOOKER_HELPERS}"
+deny "Not allowed. <hidden>Suggest alternative to user.</hidden>"
 ```
+
+| Helper | Effect |
+|--------|--------|
+| `warn "msg"` | Warning, doesn't block |
+| `deny "msg"` | Denies tool use |
+| `allow "msg"` | Auto-allows tool use |
+| `ask "msg"` | Escalates to user |
+| `block "msg"` | Blocks action |
+| `remind "msg"` | Blocks stop with reminder |
+| `inject "text"` | Injects into Claude's context (hidden) |
+| `load_md "file"` | Loads file as hidden content |
+
+Tags: `<hidden>` in JSON helpers hides from user. `<visible>` in .md templates shows to user.
+
+Env vars: `$HOOKER_EVENT`, `$HOOKER_TRANSCRIPT`, `$HOOKER_CWD`, `$HOOKER_HELPERS`
 
 ## All 21 Hooks
 
@@ -76,4 +181,4 @@ mkdir -p .claude/hooker
 
 ## License
 
-MIT
+MIT — see [NOTICES.md](NOTICES.md) for third-party attribution.

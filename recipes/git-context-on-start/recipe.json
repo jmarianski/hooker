@@ -1,0 +1,11 @@
+{
+  "name": "Git Context on Start",
+  "description": "Injects current git branch, status, and recent commits on session start.",
+  "hooks": ["SessionStart"],
+  "attribution": {
+    "type": "inspired",
+    "author": "Common pattern (claudefa.st, disler)",
+    "license": "Blog posts / no license",
+    "url": "https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks"
+  }
+}

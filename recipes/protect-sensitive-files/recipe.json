@@ -1,0 +1,11 @@
+{
+  "name": "Protect Sensitive Files",
+  "description": "Blocks reading or editing .env, SSH keys, credentials, and other sensitive files.",
+  "hooks": ["PreToolUse"],
+  "attribution": {
+    "type": "adapted",
+    "author": "Carl Rannaberg (claudekit), karanb192",
+    "license": "MIT",
+    "url": "https://github.com/carlrannaberg/claudekit"
+  }
+}

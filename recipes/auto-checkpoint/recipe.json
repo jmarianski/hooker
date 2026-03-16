@@ -1,0 +1,11 @@
+{
+  "name": "Auto Checkpoint",
+  "description": "Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes.",
+  "hooks": ["Stop"],
+  "attribution": {
+    "type": "inspired",
+    "author": "Scott Chacon (GitButler/Git co-creator)",
+    "license": "No license (clean-room reimplementation)",
+    "url": "https://gist.github.com/schacon/a3683d51175f0240b900d4c224dbc676"
+  }
+}

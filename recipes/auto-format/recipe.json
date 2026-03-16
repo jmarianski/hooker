@@ -1,0 +1,11 @@
+{
+  "name": "Auto Format",
+  "description": "Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit.",
+  "hooks": ["PostToolUse"],
+  "attribution": {
+    "type": "adapted",
+    "author": "Ryan Lewis",
+    "license": "MIT",
+    "url": "https://github.com/ryanlewis/claude-format-hook"
+  }
+}

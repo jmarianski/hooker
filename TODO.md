@@ -38,6 +38,18 @@
   - `Stop-check-types.md` + `.match.sh` — remind about type checking
 - [ ] **`/hooker:guard`** — quick-enable common guardrails interactively
 
+### Template variables and conditionals
+
+- [ ] **`envsubst` support** — predefine variables (`${DATE}`, `${GIT_BRANCH}`, `${HOOKER_CWD}`, `${TOOL_NAME}`) and expand them in `.md` templates before output. Cheap addition via `envsubst` in inject.sh
+- [ ] **Conditional blocks** — `{{#if VAR}}...{{/if}}` in templates, preprocessed by stripping blocks where `$VAR` is empty. Lightweight sed/perl, not a full templating engine. Enables dynamic templates without needing a match script:
+  ```
+  Sprawdź dokumentację.
+  {{#if FRIDAY}}
+  Piątek — bez deployów!
+  {{/if}}
+  ```
+- [ ] **Note:** match scripts with helpers already cover 100% of these use cases dynamically. Template variables/conditionals are a convenience for simple cases that don't need a full `.match.sh`
+
 ### Context injection presets
 
 - [ ] **SessionStart templates** — inject project context, coding conventions, team agreements on session start
