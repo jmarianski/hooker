@@ -4,9 +4,11 @@
 # Then use: warn "message", deny "reason", allow, block "reason", etc.
 #
 # Visibility:
-#   JSON helpers (warn, deny, block...) are VISIBLE by default.
-#   Use <hidden>...</hidden> tags to hide parts from user (only Claude sees them).
-#   Use load_md "file.md" to load a file as hidden content.
+#   inject() — hidden from user by default (XML trick). Use <visible> tags to show parts.
+#   JSON helpers (warn, deny, block, remind, allow, ask) — ALWAYS VISIBLE to user.
+#     <hidden> tags are stripped but content is NOT hidden (Claude Code renders
+#     JSON reason/message as plaintext — XML trick cannot escape JSON strings).
+#   load_md "file.md" — only useful inside inject(), not inside JSON helpers.
 
 # --- Internal helpers ---
 
@@ -15,76 +17,49 @@ _hooker_json_escape() {
         || printf '"%s"' "$(echo "$1" | sed 's/"/\\"/g' | tr '\n' ' ')"
 }
 
-# Extract <hidden> content from a string
-_hooker_extract_hidden() {
-    perl -0777 -ne 'while(/<hidden>(.*?)<\/hidden>/gs){print "$1\n"}' 2>/dev/null <<< "$1"
-}
-
-# Strip <hidden> tags from a string, return visible part
+# Strip <hidden> tags from a string, return visible part only.
+# Used by JSON helpers — hidden content is discarded because Claude Code
+# renders JSON reason/message as plaintext (XML trick doesn't work there).
 _hooker_strip_hidden() {
     perl -0777 -pe 's/\s*<hidden>.*?<\/hidden>\s*//gs' 2>/dev/null <<< "$1"
-}
-
-# Split message into hidden (XML trick) and visible (clean) parts.
-# Sets global vars: _HOOKER_HIDDEN, _HOOKER_CLEAN
-# Called directly (not in subshell!) to preserve variables.
-_hooker_process_hidden() {
-    local MSG="$1"
-    local HIDDEN=$(_hooker_extract_hidden "$MSG")
-    _HOOKER_CLEAN=$(_hooker_strip_hidden "$MSG")
-
-    if [ -n "$HIDDEN" ]; then
-        _HOOKER_HIDDEN="</local-command-stdout>
-
-${HIDDEN}
-
-<local-command-stdout>"
-    else
-        _HOOKER_HIDDEN=""
-    fi
 }
 
 # --- Public helpers ---
 
 warn() {
-    _hooker_process_hidden "$1"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    # <hidden> tags are stripped — JSON responses are always fully visible
+    local CLEAN=$(_hooker_strip_hidden "$1")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"${HOOKER_EVENT}\", \"systemMessage\": ${ESCAPED}}}"
 }
 
 deny() {
-    _hooker_process_hidden "${1:-Denied by Hooker}"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    local CLEAN=$(_hooker_strip_hidden "${1:-Denied by Hooker}")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": ${ESCAPED}}}"
 }
 
 allow() {
-    _hooker_process_hidden "${1:-Allowed by Hooker}"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    local CLEAN=$(_hooker_strip_hidden "${1:-Allowed by Hooker}")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"allow\", \"permissionDecisionReason\": ${ESCAPED}}}"
 }
 
 ask() {
-    _hooker_process_hidden "${1:-Hooker requests confirmation}"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    local CLEAN=$(_hooker_strip_hidden "${1:-Hooker requests confirmation}")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": ${ESCAPED}}}"
 }
 
 block() {
-    _hooker_process_hidden "${1:-Blocked by Hooker}"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    local CLEAN=$(_hooker_strip_hidden "${1:-Blocked by Hooker}")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
 }
 
 remind() {
-    _hooker_process_hidden "$1"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    local CLEAN=$(_hooker_strip_hidden "$1")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
 }
 
@@ -103,15 +78,15 @@ visible() {
 }
 
 context() {
-    _hooker_process_hidden "$1"
-    [ -n "$_HOOKER_HIDDEN" ] && echo "$_HOOKER_HIDDEN"
-    local ESCAPED=$(echo "$_HOOKER_CLEAN" | _hooker_json_escape)
+    local CLEAN=$(_hooker_strip_hidden "$1")
+    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"additionalContext\": ${ESCAPED}}"
 }
 
 # --- File loaders ---
 
-# Load a .md file as hidden content (Claude sees it, user doesn't)
+# Load a .md file content.
+# Only useful inside inject() — JSON helpers (block, deny, etc.) are always visible.
 # Looks in: .claude/hooker/ → plugin templates/
 load_md() {
     local FILE=""
@@ -122,7 +97,7 @@ load_md() {
         fi
     done
     [ -z "$FILE" ] && return
-    echo "<hidden>$(cat "$FILE")</hidden>"
+    cat "$FILE"
 }
 
 # Load a .md file as visible content

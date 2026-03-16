@@ -47,22 +47,25 @@ Based on user's argument or ask them what they want:
 | **Dynamic** | `.match.sh` (with output) | Script handles everything — uses helpers |
 
 ## Action types reference
-| Type | Behavior | Best for |
-|------|----------|----------|
-| `inject` | Injects into Claude's context, hidden by default | SessionStart, PreCompact, SubagentStart |
-| `remind` | Blocks stop to remind, loop-safe | Stop |
-| `block` | Always blocks with reason | UserPromptSubmit (guardrails) |
-| `warn` | Shows warning but doesn't block | PreToolUse, PostToolUse |
-| `allow` | Auto-allows tool use | PreToolUse |
-| `deny` | Denies tool use | PreToolUse |
-| `ask` | Escalates to user for decision | PreToolUse |
-| `context` | Adds additionalContext JSON | PostToolUse |
+| Type | Visibility | Behavior | Best for |
+|------|------------|----------|----------|
+| `inject` | **hidden** | Injects into Claude's context via XML trick | SessionStart, PreCompact, SubagentStart |
+| `remind` | **visible** | Blocks stop with visible reminder, loop-safe | Stop |
+| `block` | **visible** | Always blocks with visible reason | UserPromptSubmit (guardrails) |
+| `warn` | **visible** | Shows warning but doesn't block | PreToolUse, PostToolUse |
+| `allow` | **visible** | Auto-allows tool use | PreToolUse |
+| `deny` | **visible** | Denies tool use | PreToolUse |
+| `ask` | **visible** | Escalates to user for decision | PreToolUse |
+| `context` | **visible** | Adds additionalContext JSON | PostToolUse |
+
+**Only `inject` supports hidden content.** All other types return JSON — Claude Code renders their reason/message as plaintext, so XML trick cannot escape JSON strings.
 
 ## Helpers available in match scripts
 After `source "${HOOKER_HELPERS}"`:
-- `warn "msg"`, `deny "msg"`, `allow "msg"`, `ask "msg"`, `block "msg"`, `remind "msg"`
-- `inject "text"`, `context "text"`, `visible "text"`
-- `load_md "file.md"` — loads file as hidden content (Claude sees, user doesn't)
-- `<hidden>...</hidden>` tags — hide parts of warn/deny/block messages from user
+- `warn "msg"`, `deny "msg"`, `allow "msg"`, `ask "msg"`, `block "msg"`, `remind "msg"` — always visible
+- `inject "text"` — hidden from user (XML trick), only Claude sees
+- `context "text"`, `visible "text"`
+- `load_md "file.md"` — only useful inside `inject()`, not inside JSON helpers
 - `<visible>...</visible>` tags — show parts of inject templates to user
+- `<hidden>` tags in JSON helpers are **stripped** (content discarded, not hidden)
 - Env vars: `$HOOKER_EVENT`, `$HOOKER_TRANSCRIPT`, `$HOOKER_CWD`, `$HOOKER_HELPERS`

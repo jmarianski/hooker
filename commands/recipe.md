@@ -102,7 +102,7 @@ Full dynamic control — script decides everything. Uses helpers for output.
 
 Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
 
-**JSON responses (visible to user by default):**
+**JSON responses (always visible to user):**
 | Helper | Effect |
 |--------|--------|
 | `warn "msg"` | Warning, doesn't block |
@@ -118,12 +118,13 @@ Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
 | `inject "text"` | Injects text into Claude's context (XML trick) |
 | `context "text"` | Adds as additionalContext JSON |
 | `visible "text"` | Outputs text visible to user |
-| `load_md "file.md"` | Loads file as `<hidden>` content (Claude sees, user doesn't) |
+| `load_md "file.md"` | Loads file content — only useful inside `inject()` |
 
-**Visibility tags in messages:**
-- `<hidden>...</hidden>` — inside warn/deny/block: hidden from user, only Claude sees
-- `<visible>...</visible>` — inside inject templates (.md): shown to user
-- `load_md "file.md"` — wraps file content in `<hidden>` automatically
+**Visibility rules:**
+- `inject()` is the **only** helper that hides content from user (via XML trick)
+- All JSON helpers (warn, deny, block, remind, etc.) are **always fully visible** — Claude Code renders JSON reason/message as plaintext, XML trick cannot escape JSON strings
+- `<visible>...</visible>` tags — inside inject templates (.md): shown to user
+- `<hidden>` tags in JSON helpers are **stripped** (content discarded, not hidden)
 
 **Environment variables (no JSON parsing needed):**
 - `$HOOKER_EVENT` — hook event name
@@ -169,7 +170,7 @@ inject "$CLAUDE_MD"
 exit 0
 ```
 
-**Conditional deny with visible + hidden message:**
+**Conditional deny (visible message):**
 ```bash
 #!/bin/bash
 source "${HOOKER_HELPERS}"
@@ -177,20 +178,21 @@ INPUT=$(cat)
 CMD=$(echo "$INPUT" | grep -oP '"command"\s*:\s*"\K[^"]+' || true)
 DAY=$(date +%u)
 if [ "$DAY" = "5" ] && echo "$CMD" | grep -qi 'deploy\|push'; then
-    deny "Piątek — nie robimy deployów. <hidden>Zaproponuj alternatywę na poniedziałek.</hidden>"
+    deny "Piątek — nie robimy deployów. Zaproponuj alternatywę na poniedziałek."
     exit 0
 fi
 exit 1
 ```
 
-**Remind with dynamic content:**
+**Remind with dynamic content (visible):**
 ```bash
 #!/bin/bash
 source "${HOOKER_HELPERS}"
-# Only fire if files were modified
+# Only fire if files were modified in last turn
 [ -z "$HOOKER_TRANSCRIPT" ] || [ ! -f "$HOOKER_TRANSCRIPT" ] && exit 1
-grep -qP '"tool_name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$HOOKER_TRANSCRIPT" || exit 1
-remind "Zmieniałeś pliki — sprawdź docs i testy. $(load_md 'checklist.md')"
+LAST_TURN=$(tac "$HOOKER_TRANSCRIPT" | sed -n '1,/"type"\s*:\s*"user"/p' 2>/dev/null) || true
+echo "$LAST_TURN" | grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' || exit 1
+remind "Zmieniałeś pliki — sprawdź docs i testy."
 exit 0
 ```
 

@@ -171,18 +171,16 @@ case "$ACTION" in
         ;;
 
     remind)
-        # Block stop + inject hidden content via XML trick inside JSON reason.
-        # Claude Code renders reason, which contains tag injection — content
-        # ends up in Claude's context but user sees empty/minimal reason.
+        # Block stop with visible reminder (loop-safe).
+        # Content is always fully visible — XML trick doesn't work inside
+        # JSON reason strings (Claude Code renders them as plaintext).
         if echo "$INPUT" | grep -qP '"stop_hook_active"\s*:\s*true'; then
             log "Stop hook already active, allowing"
             exit 0
         fi
-        # Build reason with XML trick embedded — hidden from user, visible to Claude
-        REASON=$(printf '</local-command-stdout>\n\n%s\n\n<local-command-stdout>' "$CONTENT")
-        ESCAPED=$(echo "$REASON" | json_escape)
+        ESCAPED=$(echo "$CONTENT" | json_escape)
         echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
-        log "Blocked stop with hidden reminder"
+        log "Blocked stop with reminder"
         ;;
 
     block)
