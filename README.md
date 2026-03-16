@@ -193,6 +193,12 @@ Env vars: `$HOOKER_EVENT`, `$HOOKER_TRANSCRIPT`, `$HOOKER_CWD`, `$HOOKER_HELPERS
 | MCP | Elicitation, ElicitationResult |
 | Other | Notification |
 
+## Known Issues
+
+- **Stop hook disabled after error:** If a Stop hook returns an error (e.g. malformed output, XML in JSON reason), Claude Code may silently disable the Stop hook for the rest of the session. `/reload-plugins` does not fix this. You must fully restart Claude Code (`/exit` and start a new session). This only affects Stop — other hooks (PreToolUse, UserPromptSubmit, etc.) continue working.
+- **XML trick doesn't work in JSON responses:** The `</local-command-stdout>` injection trick only works in raw stdout (e.g. `inject` type, PreCompact hooks). It does not work inside JSON `reason` or `systemMessage` fields — Claude Code renders them as literal text. This means `remind` and `block` content is always visible to the user.
+- **Transcript field name:** Claude Code transcript JSONL uses `"name"` for tool names, not `"tool_name"`. Match scripts that grep transcripts must use `"name"`.
+
 ## License
 
 MIT — see [NOTICES.md](NOTICES.md) for third-party attribution.
