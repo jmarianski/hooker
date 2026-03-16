@@ -126,6 +126,20 @@ Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
 - `<visible>...</visible>` tags — inside inject templates (.md): shown to user
 - `<hidden>` tags in JSON helpers are **stripped** (content discarded, not hidden)
 
+**User-editable messages (recommended pattern):**
+- Keep user-facing text in a `messages.yml` file alongside the match script, not hardcoded in bash
+- Match script reads messages via simple grep: `grep -oP "^key:\s*\"?\K[^\"]+" messages.yml`
+- User can customize messages without touching script logic
+- Script provides fallback defaults if yml is missing
+- Project-level `.claude/hooker/messages.yml` overrides recipe default
+
+Example `messages.yml`:
+```yaml
+code_changed: "You edited code — did you update docs and tests?"
+docs_changed: "Are your docs complete and up to date?"
+default: "Did you update docs, tests, and clean up TODOs?"
+```
+
 **Environment variables (no JSON parsing needed):**
 - `$HOOKER_EVENT` — hook event name
 - `$HOOKER_TRANSCRIPT` — path to transcript JSONL
@@ -184,7 +198,7 @@ fi
 exit 1
 ```
 
-**Remind with dynamic content (visible):**
+**Remind with messages from yml (visible):**
 ```bash
 #!/bin/bash
 source "${HOOKER_HELPERS}"
@@ -192,7 +206,10 @@ source "${HOOKER_HELPERS}"
 [ -z "$HOOKER_TRANSCRIPT" ] || [ ! -f "$HOOKER_TRANSCRIPT" ] && exit 1
 LAST_TURN=$(tac "$HOOKER_TRANSCRIPT" | sed -n '1,/"type"\s*:\s*"user"/p' 2>/dev/null) || true
 echo "$LAST_TURN" | grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' || exit 1
-remind "Zmieniałeś pliki — sprawdź docs i testy."
+# Load message from yml (user-editable), with fallback
+MSG=$(grep -oP '^default:\s*"?\K[^"]+' .claude/hooker/messages.yml 2>/dev/null \
+    || echo "Did you update docs, tests, and clean up TODOs?")
+remind "$MSG"
 exit 0
 ```
 

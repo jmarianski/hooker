@@ -1,5 +1,6 @@
 #!/bin/bash
 # Remind about docs/tests — block stop if last turn had file edits
+# Messages are loaded from messages.yml (user-editable)
 set -euo pipefail
 
 INPUT=$(cat)
@@ -11,9 +12,48 @@ echo "$INPUT" | grep -qP '"stop_hook_active"\s*:\s*true' && exit 1
 TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
 [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
 
-# Check for Edit/Write in last assistant turn only (since last user message)
 LAST_TURN=$(tac "$TRANSCRIPT" | sed -n '1,/"type"\s*:\s*"user"/p' 2>/dev/null) || true
 echo "$LAST_TURN" | grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' || exit 1
 
-echo '{"decision": "block", "reason": "Hooker reminder: Did you update docs, tests, and clean up TODOs?"}'
+# --- Determine what was edited ---
+EDITED_FILES=$(echo "$LAST_TURN" | grep -oP '"file_path"\s*:\s*"\K[^"]+' 2>/dev/null || true)
+
+HAS_DOCS=false
+HAS_TESTS=false
+HAS_CODE=false
+
+while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    case "$f" in
+        *docs/*|*doc/*|*.md|*README*) HAS_DOCS=true ;;
+        *test*|*spec*|*__tests__/*) HAS_TESTS=true ;;
+        *) HAS_CODE=true ;;
+    esac
+done <<< "$EDITED_FILES"
+
+# --- Load messages from yml ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Check project override first, then recipe default
+MSGS_FILE=".claude/hooker/messages.yml"
+[ -f "$MSGS_FILE" ] || MSGS_FILE="${SCRIPT_DIR}/messages.yml"
+
+yml_get() {
+    grep -oP "^${1}:\s*\"?\K[^\"]+" "$MSGS_FILE" 2>/dev/null || echo "$2"
+}
+
+# --- Pick message based on what was edited ---
+PARTS=()
+if $HAS_CODE && ! $HAS_DOCS && ! $HAS_TESTS; then
+    PARTS+=("$(yml_get code_changed 'You edited code — did you update docs and tests?')")
+elif $HAS_DOCS && ! $HAS_CODE; then
+    PARTS+=("$(yml_get docs_changed 'Are your docs complete and up to date?')")
+elif $HAS_TESTS && ! $HAS_CODE; then
+    PARTS+=("$(yml_get tests_changed 'Do your tests cover the new cases?')")
+else
+    PARTS+=("$(yml_get default 'Did you update docs, tests, and clean up TODOs?')")
+fi
+
+MSG=$(IFS=' '; echo "${PARTS[*]}")
+
+echo "{\"decision\": \"block\", \"reason\": \"Hooker: ${MSG}\"}"
 exit 0

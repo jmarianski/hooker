@@ -1,0 +1,4 @@
+code_changed: "You edited code — did you update docs and tests?"
+docs_changed: "Are your docs complete and up to date?"
+tests_changed: "Do your tests cover the new cases?"
+default: "Did you update docs, tests, and clean up TODOs?"

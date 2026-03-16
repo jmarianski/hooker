@@ -1,6 +1,6 @@
 {
   "name": "Remind To Update Docs",
-  "description": "Reminds about documentation, tests, and TODOs when stopping after file changes. Only fires if Edit/Write/NotebookEdit was used in the session.",
+  "description": "Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn.",
   "hooks": ["Stop"],
   "attribution": {
     "type": "original",
