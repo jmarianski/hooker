@@ -1,40 +1,69 @@
 ---
-description: "Enable a hook by creating its template and/or match script, or install a recipe"
-args: "[recipe:<name>] [<HookName> [type]]"
+description: "Browse, install, and combine Hooker recipes"
+args: "[recipe-name] [list|install|remove|installed]"
 ---
 
-# Enable a Hooker Hook
+# Hooker Recipes
 
-Create a template file and/or match script for the specified hook in `.claude/hooker/`.
-Or install a pre-built recipe.
+Browse and install pre-built hook configurations. Mix and match recipes to build your setup.
 
-## Arguments
-- `recipe:<name>` — install a named recipe (e.g. `recipe:remind-to-update-docs`)
-- `HookName` (required if no recipe): One of the 21 hook event names
-- `type` (optional): Template type — `inject`, `remind`, `block`, `warn`, `allow`, `deny`, `ask`, `context`
+## Without arguments
+1. Scan `${CLAUDE_PLUGIN_ROOT}/recipes/*/recipe.json` — read each `recipe.json`
+2. Scan `.claude/hooker/` to detect which recipes are already installed (match filenames against recipe contents)
+3. Show a list like:
 
-## Recipes
+```
+Available recipes:
 
-Pre-built hook configurations in `${CLAUDE_PLUGIN_ROOT}/recipes/`. Each recipe is a directory with:
-- `recipe.json` — metadata (name, description, hooks list)
-- Hook files (`.md` and/or `.match.sh`) ready to copy
+  [installed] remind-to-update-docs
+              Reminds about docs/tests when stopping after file changes
+              Hooks: Stop
 
-### Installing a recipe
-1. List available recipes: `ls ${CLAUDE_PLUGIN_ROOT}/recipes/`
-2. Read `recipe.json` to show user name + description
+  [  ready  ] agent-gets-claude-context
+              Injects CLAUDE.md + MEMORY.md into subagents
+              Hooks: SubagentStart
+
+  [  ready  ] no-friday-deploys
+              Blocks deploys and pushes on Fridays
+              Hooks: PreToolUse
+```
+
+4. Ask user which recipe(s) to install
+
+## With recipe name (e.g. `/hooker:recipe remind-to-update-docs`)
+Install that recipe directly:
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json`
+2. Show description and hooks
 3. Copy hook files to `.claude/hooker/`
 4. `chmod +x` any `.match.sh` files
-5. If target hook files already exist in `.claude/hooker/`, warn about conflict and ask user
+5. Confirm installation
 
-### Available recipes
-Scan `${CLAUDE_PLUGIN_ROOT}/recipes/*/recipe.json` and list them with descriptions.
-If user doesn't specify a recipe or hook name, show the list and ask what they want.
+## Subcommands
+- `list` — show all available recipes (same as no args)
+- `install <name> [name2...]` — install one or more recipes
+- `remove <name>` — remove a recipe's files from `.claude/hooker/`
+- `installed` — show only currently installed recipes
 
-### Combining recipes
-Multiple recipes can coexist if they target different hooks. If two recipes target the same hook, the skill should:
+## Combining recipes
+Multiple recipes can coexist if they target different hooks. If two recipes target the same hook:
 1. Warn the user about the conflict
-2. Offer to merge (if both are match scripts, create a combined script that runs both)
+2. Offer to merge (create a combined match script that runs both)
 3. Or let user pick one
+
+## Installing a recipe — steps
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` for metadata
+2. List files in the recipe directory (exclude `recipe.json`)
+3. For each file:
+   - Check if `.claude/hooker/{filename}` already exists → warn about conflict
+   - Copy to `.claude/hooker/`
+   - `chmod +x` if `.match.sh`
+4. Show what was installed and which hooks are now active
+
+## Removing a recipe — steps
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` for hook list
+2. List files in the recipe directory
+3. For each file, remove `.claude/hooker/{filename}` if it exists
+4. Confirm removal
 
 ## Architecture — THREE modes of operation
 

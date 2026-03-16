@@ -40,8 +40,8 @@ Read `${CLAUDE_PLUGIN_ROOT}/recipes/*/recipe.json` for recipe listing.
 
 ### 2. Ask what they want
 Offer options:
-- **"Chcę nowy hook"** → ask what they want to achieve, then create it (like `/hooker:enable`)
-- **"Zainstaluj recepturę"** → list recipes, let them pick, copy files to `.claude/hooker/`
+- **"Chcę nowy hook"** → ask what they want to achieve, then create files in `.claude/hooker/`
+- **"Zainstaluj recepturę"** → delegate to `/hooker:recipe` flow
 - **"Pokaż status"** → detailed status table (like `/hooker:status`)
 - **"Konfiguracja"** → logging, reference (like `/hooker:config`)
 
