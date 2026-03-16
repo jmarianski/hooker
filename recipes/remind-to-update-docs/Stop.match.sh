@@ -1,18 +1,19 @@
 #!/bin/bash
-# Match: fire only if files were modified (Edit, Write, or NotebookEdit used)
-# Receives hook input JSON on stdin, checks transcript for tool uses.
-
+# Remind about docs/tests — fires only if files were modified
 set -euo pipefail
 
 INPUT=$(cat)
 
-# Extract transcript path from input JSON
+# Prevent infinite loop
+echo "$INPUT" | grep -qP '"stop_hook_active"\s*:\s*true' && exit 1
+
+# Check transcript for file modifications
 TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
+[ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
+grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$TRANSCRIPT" 2>/dev/null || exit 1
 
-if [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ]; then
-    exit 1
-fi
-
-# Check if any file-modifying tools were used in this session
-# Transcript uses "name" field for tool names, not "tool_name"
-grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' "$TRANSCRIPT" 2>/dev/null
+# Block stop with visible reminder
+cat <<'EOF'
+{"decision": "block", "reason": "Hooker reminder: Did you update docs, tests, and clean up TODOs?"}
+EOF
+exit 0
