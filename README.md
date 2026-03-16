@@ -43,8 +43,7 @@ Template only? → always fires
 
 | Command | Description |
 |---------|-------------|
-| `/hooker` | Main hub — status, create hooks, browse recipes |
-| `/hooker:recipe` | Browse, install, combine recipes |
+| `/hooker:recipe` | Main hub — browse recipes, create hooks, install/remove |
 | `/hooker:status` | Show active hooks |
 | `/hooker:config` | Logging and reference |
 

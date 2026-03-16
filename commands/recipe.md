@@ -1,11 +1,22 @@
 ---
-description: "Browse, install, and combine Hooker recipes"
-args: "[recipe-name] [list|install|remove|installed]"
+description: "Hooker main hub — browse recipes, create hooks, show status"
+args: "[recipe-name | natural language description | list|install|remove|installed]"
 ---
 
-# Hooker Recipes
+# Hooker
 
-Browse and install pre-built hook configurations. Mix and match recipes to build your setup.
+Universal hook injection framework for Claude Code. This is the main entry point.
+
+## With natural language description
+If the user describes what they want (e.g. `/hooker:recipe block deploys on fridays`, `/hooker:recipe remind about docs`):
+1. Figure out which hook event(s) are needed
+2. Check if an existing recipe covers this — if so, offer to install it
+3. Otherwise, decide the best mode (static template, conditional, or dynamic match script)
+4. Create the files in `.claude/hooker/`
+5. Test it
+
+## Browse and install pre-built recipes
+Mix and match recipes to build your setup.
 
 ## Without arguments
 1. Scan `${CLAUDE_PLUGIN_ROOT}/recipes/*/recipe.json` — read each `recipe.json`
