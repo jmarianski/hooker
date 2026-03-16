@@ -38,15 +38,16 @@ log() {
 log "Hook triggered in $(pwd)"
 
 # --- Find template and/or match script ---
-# Priority: project override > plugin default
+# Priority: project > user global > plugin default
 # Standalone match scripts (no .md) are allowed — they handle everything via output
-WORKSPACE_DIR=".claude/hooker"
+PROJECT_DIR=".claude/hooker"
+USER_DIR="${HOME}/.claude/hooker"
 
 TEMPLATE_FILE=""
 MATCH_SCRIPT=""
 
-# Check workspace first, then plugin defaults
-for DIR in "$WORKSPACE_DIR" "${PLUGIN_DIR}/templates"; do
+# Check project first, then user global, then plugin defaults
+for DIR in "$PROJECT_DIR" "$USER_DIR" "${PLUGIN_DIR}/templates"; do
     if [ -f "${DIR}/${HOOK_EVENT}.md" ] && [ -z "$TEMPLATE_FILE" ]; then
         TEMPLATE_FILE="${DIR}/${HOOK_EVENT}.md"
         log "Using template: ${TEMPLATE_FILE}"
