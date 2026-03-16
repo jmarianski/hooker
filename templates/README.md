@@ -1,4 +1,4 @@
-# templates/ (intentionally empty)
+# templates/
 
 Plugin-level hook templates. Any `.md` or `.match.sh` file placed here will be **active for all projects** immediately after plugin install — no user action needed.
 

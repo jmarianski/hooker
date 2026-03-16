@@ -177,10 +177,11 @@ case "$ACTION" in
             log "Stop hook already active, allowing"
             exit 0
         fi
-        # Inject content hidden (XML trick) — Claude sees, user doesn't
-        output_with_visibility "$CONTENT"
-        # Block stop with generic visible reason
+        # JSON must come FIRST — Claude Code parses stdout for JSON.
+        # XML trick appended after, Claude Code processes tags separately.
         echo "{\"decision\": \"block\", \"reason\": \"Hooker: review before finishing.\"}"
+        # Then inject content hidden (XML trick) — Claude sees, user doesn't
+        output_with_visibility "$CONTENT"
         log "Blocked stop with hidden reminder"
         ;;
 
