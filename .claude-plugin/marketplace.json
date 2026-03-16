@@ -12,7 +12,7 @@
         "ref": "master"
       },
       "description": "Universal hook injection framework. Inject prompts, reminders, and guardrails into all 21 Claude Code hook events.",
-      "version": "0.5.2"
+      "version": "0.5.3"
     }
   ]
 }
