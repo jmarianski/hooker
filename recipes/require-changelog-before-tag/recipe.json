@@ -1,0 +1,10 @@
+{
+  "name": "Require Changelog Before Tag",
+  "description": "Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area.",
+  "hooks": ["PreToolUse"],
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}
