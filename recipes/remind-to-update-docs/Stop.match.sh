@@ -55,5 +55,6 @@ fi
 
 MSG=$(IFS=' '; echo "${PARTS[*]}")
 
-echo "{\"decision\": \"block\", \"reason\": \"Hooker: ${MSG}\"}"
+source "${HOOKER_HELPERS}"
+block "Hooker: ${MSG}"
 exit 0
