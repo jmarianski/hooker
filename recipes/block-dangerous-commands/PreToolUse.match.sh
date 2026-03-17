@@ -4,39 +4,39 @@
 source "${HOOKER_HELPERS}"
 
 INPUT=$(cat)
-TOOL=$(echo "$INPUT" | grep -oP '"tool_name"\s*:\s*"\K[^"]+' || true)
+TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" != "Bash" ] && exit 1
 
-CMD=$(echo "$INPUT" | grep -oP '"command"\s*:\s*"\K[^"]+' || true)
+CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$CMD" ] && exit 1
 
 # Dangerous patterns
-if echo "$CMD" | grep -qP 'rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|--force\s+)*(\/|\~|\$HOME|\.\.)'; then
+if echo "$CMD" | grep -q 'rm[[:space:]]\+\(-[a-zA-Z]*f[a-zA-Z]*[[:space:]]\+\|--force[[:space:]]\+\)*\(\/\|\~\|\$HOME\|\.\.\)'; then
     deny "Blocked: recursive/forced deletion of critical paths"
     exit 0
 fi
 
-if echo "$CMD" | grep -qP ':\(\)\{.*\|.*\}|fork\s*bomb'; then
+if echo "$CMD" | grep -q ':()\{.*|.*\}\|fork[[:space:]]*bomb'; then
     deny "Blocked: fork bomb detected"
     exit 0
 fi
 
-if echo "$CMD" | grep -qP 'curl\s.*\|\s*(ba)?sh|wget\s.*\|\s*(ba)?sh'; then
+if echo "$CMD" | grep -q 'curl[[:space:]].*|[[:space:]]*\(ba\)\{0,1\}sh\|wget[[:space:]].*|[[:space:]]*\(ba\)\{0,1\}sh'; then
     deny "Blocked: piping remote script to shell"
     exit 0
 fi
 
-if echo "$CMD" | grep -qiP '\b(DROP|TRUNCATE|DELETE\s+FROM)\b.*\b(TABLE|DATABASE)\b'; then
+if echo "$CMD" | grep -qi '\(DROP\|TRUNCATE\|DELETE[[:space:]]\+FROM\).*\(TABLE\|DATABASE\)'; then
     deny "Blocked: destructive SQL command"
     exit 0
 fi
 
-if echo "$CMD" | grep -qP 'mkfs\.|dd\s+if=.*of=/dev/|>\s*/dev/sd'; then
+if echo "$CMD" | grep -q 'mkfs\.\|dd[[:space:]]\+if=.*of=/dev/\|>[[:space:]]*/dev/sd'; then
     deny "Blocked: disk/filesystem destruction"
     exit 0
 fi
 
-if echo "$CMD" | grep -qP 'chmod\s+(-[a-zA-Z]*\s+)*777\s+/'; then
+if echo "$CMD" | grep -q 'chmod[[:space:]]\+\(-[a-zA-Z]*[[:space:]]\+\)*777[[:space:]]\+/'; then
     deny "Blocked: chmod 777 on root paths"
     exit 0
 fi

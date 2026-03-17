@@ -148,6 +148,16 @@ docs_changed: "Are your docs complete and up to date?"
 default: "Did you update docs, tests, and clean up TODOs?"
 ```
 
+**Cross-platform rules (MUST follow when writing scripts):**
+Scripts must work on Linux, macOS, and Windows (Git Bash). Rules:
+- **NO** `grep -P` or `grep -oP` (PCRE) — use `sed -n 's/.../p'` for extraction, `grep -q` with POSIX patterns for matching
+- **NO** `tac` — use `awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'`
+- **NO** `python3` or `perl` — use `awk` and `sed` for text processing
+- **NO** `\s` in patterns — use `[[:space:]]`
+- **NO** `\b` in patterns — use explicit context or `[[:space:]]` boundaries
+- Use `_hooker_json_escape`, `_hooker_json_field`, `_hooker_reverse` from helpers.sh
+- JSON field extraction: `echo "$INPUT" | sed -n 's/.*"field"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1`
+
 **Environment variables (no JSON parsing needed):**
 - `$HOOKER_EVENT` — hook event name
 - `$HOOKER_TRANSCRIPT` — path to transcript JSONL

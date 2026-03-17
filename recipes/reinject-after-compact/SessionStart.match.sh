@@ -4,7 +4,7 @@
 source "${HOOKER_HELPERS}"
 
 INPUT=$(cat)
-SOURCE=$(echo "$INPUT" | grep -oP '"source"\s*:\s*"\K[^"]+' || true)
+SOURCE=$(echo "$INPUT" | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
 # Only fire after compaction or resume (context was likely lost)
 case "$SOURCE" in

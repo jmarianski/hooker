@@ -6,17 +6,17 @@ set -euo pipefail
 INPUT=$(cat)
 
 # Prevent infinite loop
-echo "$INPUT" | grep -qP '"stop_hook_active"\s*:\s*true' && exit 1
+echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && exit 1
 
 # Check transcript for file modifications in last assistant turn
-TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
+TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
 
-LAST_TURN=$(tac "$TRANSCRIPT" | sed -n '1,/"type"\s*:\s*"user"/p' 2>/dev/null) || true
-echo "$LAST_TURN" | grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' || exit 1
+LAST_TURN=$(awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$TRANSCRIPT" | sed -n '1,/"type"[[:space:]]*:[[:space:]]*"user"/p' 2>/dev/null) || true
+echo "$LAST_TURN" | grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|NotebookEdit\)"' || exit 1
 
 # --- Determine what was edited ---
-EDITED_FILES=$(echo "$LAST_TURN" | grep -oP '"file_path"\s*:\s*"\K[^"]+' 2>/dev/null || true)
+EDITED_FILES=$(echo "$LAST_TURN" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' 2>/dev/null || true)
 
 HAS_DOCS=false
 HAS_TESTS=false
@@ -26,7 +26,7 @@ while IFS= read -r f; do
     [ -z "$f" ] && continue
     case "$f" in
         *docs/*|*doc/*|*.md|*README*) HAS_DOCS=true ;;
-        *test*|*spec*|*__tests__/*) HAS_TESTS=true ;;
+        *__tests__/*|*test*|*spec*) HAS_TESTS=true ;;
         *) HAS_CODE=true ;;
     esac
 done <<< "$EDITED_FILES"
@@ -38,7 +38,7 @@ MSGS_FILE=".claude/hooker/messages.yml"
 [ -f "$MSGS_FILE" ] || MSGS_FILE="${SCRIPT_DIR}/messages.yml"
 
 yml_get() {
-    grep -oP "^${1}:\s*\"?\K[^\"]+" "$MSGS_FILE" 2>/dev/null || echo "$2"
+    sed -n "s/^${1}:[[:space:]]*\"\{0,1\}\([^\"]*\).*/\1/p" "$MSGS_FILE" 2>/dev/null | head -1 || echo "$2"
 }
 
 # --- Pick message based on what was edited ---

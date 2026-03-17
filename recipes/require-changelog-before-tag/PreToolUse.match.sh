@@ -3,13 +3,13 @@
 source "${HOOKER_HELPERS}"
 
 INPUT=$(cat)
-TOOL=$(echo "$INPUT" | grep -oP '"tool_name"\s*:\s*"\K[^"]+' || true)
+TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" != "Bash" ] && exit 1
 
-CMD=$(echo "$INPUT" | grep -oP '"command"\s*:\s*"\K[^"]+' || true)
+CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
 # Only care about tagging or pushing tags
-echo "$CMD" | grep -qP 'git\s+(tag\s|push\s+.*--tags)' || exit 1
+echo "$CMD" | grep -q 'git[[:space:]]\+\(tag[[:space:]]\|push[[:space:]]\+.*--tags\)' || exit 1
 
 # Allow if CHANGELOG.md is staged
 git diff --cached --name-only 2>/dev/null | grep -q 'CHANGELOG.md' && exit 1

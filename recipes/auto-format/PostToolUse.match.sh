@@ -4,14 +4,14 @@
 source "${HOOKER_HELPERS}"
 
 INPUT=$(cat)
-TOOL=$(echo "$INPUT" | grep -oP '"tool_name"\s*:\s*"\K[^"]+' || true)
+TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
 case "$TOOL" in
     Edit|Write|NotebookEdit) ;;
     *) exit 1 ;;
 esac
 
-FILE=$(echo "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]+' || true)
+FILE=$(echo "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$FILE" ] || [ ! -f "$FILE" ] && exit 1
 
 EXT="${FILE##*.}"

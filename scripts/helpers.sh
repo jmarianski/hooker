@@ -3,6 +3,9 @@
 # Source this in your match script: source "${HOOKER_HELPERS}"
 # Then use: warn "message", deny "reason", allow, block "reason", etc.
 #
+# Cross-platform: works on Linux, macOS, and Windows (Git Bash).
+# No dependencies on python3, perl, or tac.
+#
 # Visibility:
 #   inject() — hidden from user by default (XML trick). Use <visible> tags to show parts.
 #   JSON helpers (warn, deny, block, remind, allow, ask) — ALWAYS VISIBLE to user.
@@ -10,56 +13,100 @@
 #     JSON reason/message as plaintext — XML trick cannot escape JSON strings).
 #   load_md "file.md" — only useful inside inject(), not inside JSON helpers.
 
-# --- Internal helpers ---
+# --- Portable utilities ---
 
+# Extract a JSON string field value. Usage: echo "$JSON" | _hooker_json_field "field_name"
+_hooker_json_field() {
+    sed -n 's/.*"'"$1"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
+# Check if JSON contains a field with a specific value. Usage: echo "$JSON" | _hooker_json_match "field" "value"
+_hooker_json_match() {
+    grep -q "\"$1\"[[:space:]]*:[[:space:]]*\"*$2" 2>/dev/null
+}
+
+# JSON-escape stdin. No python3/perl dependency.
 _hooker_json_escape() {
-    python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))" 2>/dev/null \
-        || printf '"%s"' "$(echo "$1" | sed 's/"/\\"/g' | tr '\n' ' ')"
+    awk '
+    BEGIN { ORS=""; first=1 }
+    {
+        if (!first) printf "\\n"
+        first=0
+        gsub(/\\/, "\\\\")
+        gsub(/"/, "\\\"")
+        gsub(/\t/, "\\t")
+        gsub(/\r/, "\\r")
+        print
+    }
+    END { }
+    ' | { IFS= read -r -d '' x || true; printf '"%s"' "$x"; }
+}
+
+# Reverse lines of a file. Portable replacement for tac.
+_hooker_reverse() {
+    awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'
 }
 
 # Strip <hidden> tags from a string, return visible part only.
 # Used by JSON helpers — hidden content is discarded because Claude Code
 # renders JSON reason/message as plaintext (XML trick doesn't work there).
+# Handles both single-line (<hidden>...</hidden> on one line) and multiline.
 _hooker_strip_hidden() {
-    perl -0777 -pe 's/\s*<hidden>.*?<\/hidden>\s*//gs' 2>/dev/null <<< "$1"
+    echo "$1" | sed 's/<hidden>[^<]*<\/hidden>//g' | awk '
+    /<hidden>/ { skip=1; next }
+    /<\/hidden>/ { skip=0; next }
+    !skip { print }
+    '
 }
 
 # --- Public helpers ---
 
 warn() {
     # <hidden> tags are stripped — JSON responses are always fully visible
-    local CLEAN=$(_hooker_strip_hidden "$1")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "$1")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"${HOOKER_EVENT}\", \"systemMessage\": ${ESCAPED}}}"
 }
 
 deny() {
-    local CLEAN=$(_hooker_strip_hidden "${1:-Denied by Hooker}")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "${1:-Denied by Hooker}")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": ${ESCAPED}}}"
 }
 
 allow() {
-    local CLEAN=$(_hooker_strip_hidden "${1:-Allowed by Hooker}")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "${1:-Allowed by Hooker}")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"allow\", \"permissionDecisionReason\": ${ESCAPED}}}"
 }
 
 ask() {
-    local CLEAN=$(_hooker_strip_hidden "${1:-Hooker requests confirmation}")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "${1:-Hooker requests confirmation}")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": ${ESCAPED}}}"
 }
 
 block() {
-    local CLEAN=$(_hooker_strip_hidden "${1:-Blocked by Hooker}")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "${1:-Blocked by Hooker}")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
 }
 
 remind() {
-    local CLEAN=$(_hooker_strip_hidden "$1")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "$1")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
 }
 
@@ -78,8 +125,10 @@ visible() {
 }
 
 context() {
-    local CLEAN=$(_hooker_strip_hidden "$1")
-    local ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
+    local CLEAN
+    CLEAN=$(_hooker_strip_hidden "$1")
+    local ESCAPED
+    ESCAPED=$(echo "$CLEAN" | _hooker_json_escape)
     echo "{\"additionalContext\": ${ESCAPED}}"
 }
 

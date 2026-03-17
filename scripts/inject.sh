@@ -1,14 +1,15 @@
 #!/bin/bash
 # Hooker - Universal Hook Injection Framework
 # Reads hook event from stdin, finds matching template, injects content.
+# Cross-platform: works on Linux, macOS, and Windows (Git Bash).
 
 set -euo pipefail
 
 # Read input JSON from stdin
 INPUT=$(cat)
 
-# Extract hook event name (no jq dependency)
-HOOK_EVENT=$(echo "$INPUT" | grep -oP '"hook_event_name"\s*:\s*"\K[^"]+' || true)
+# Extract hook event name — portable, no grep -P
+HOOK_EVENT=$(echo "$INPUT" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
 if [ -z "$HOOK_EVENT" ]; then
     exit 0
@@ -18,14 +19,16 @@ fi
 PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
 export HOOKER_HELPERS="${PLUGIN_DIR}/scripts/helpers.sh"
 export HOOKER_EVENT="$HOOK_EVENT"
-export HOOKER_CWD=$(echo "$INPUT" | grep -oP '"cwd"\s*:\s*"\K[^"]+' || true)
-export HOOKER_TRANSCRIPT=$(echo "$INPUT" | grep -oP '"transcript_path"\s*:\s*"\K[^"]+' || true)
+HOOKER_CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+export HOOKER_CWD
+HOOKER_TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+export HOOKER_TRANSCRIPT
 
 # --- Logging ---
 HOOKER_CONFIG=".claude/hooker.json"
 LOGGING_ENABLED="${HOOKER_LOG:-0}"
 if [ -f "$HOOKER_CONFIG" ]; then
-    grep -q '"logs"\s*:\s*true' "$HOOKER_CONFIG" 2>/dev/null && LOGGING_ENABLED="1"
+    grep -q '"logs"[[:space:]]*:[[:space:]]*true' "$HOOKER_CONFIG" 2>/dev/null && LOGGING_ENABLED="1"
 fi
 
 log() {
@@ -111,10 +114,21 @@ fi
 
 log "Action: $ACTION"
 
-# --- Helper: escape content for JSON ---
+# --- Helper: escape content for JSON (portable, no python3) ---
 json_escape() {
-    python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))" 2>/dev/null \
-        || printf '"%s"' "$(echo "$1" | sed 's/"/\\"/g' | tr '\n' ' ')"
+    awk '
+    BEGIN { ORS=""; first=1 }
+    {
+        if (!first) printf "\\n"
+        first=0
+        gsub(/\\/, "\\\\")
+        gsub(/"/, "\\\"")
+        gsub(/\t/, "\\t")
+        gsub(/\r/, "\\r")
+        print
+    }
+    END { }
+    ' | { IFS= read -r -d '' x || true; printf '"%s"' "$x"; }
 }
 
 # --- Helper: split visible/hidden content and output ---
@@ -125,17 +139,30 @@ output_with_visibility() {
 
     if echo "$TEXT" | grep -q '<visible>'; then
         # Has <visible> sections — extract and split
-        # Visible parts: shown in terminal. Hidden parts: XML trick.
         local VISIBLE=""
         local HIDDEN=""
 
-        # Extract visible parts (supports multiline via perl)
-        VISIBLE=$(echo "$TEXT" | perl -0777 -ne 'while(/<visible>(.*?)<\/visible>/gs){print "$1\n"}' 2>/dev/null \
-            || echo "$TEXT" | sed -n 's/.*<visible>\(.*\)<\/visible>.*/\1/p')
+        # Extract visible parts (awk, no perl dependency)
+        VISIBLE=$(echo "$TEXT" | awk '
+            /<visible>/ {
+                sub(/.*<visible>/, "")
+                p=1
+            }
+            /<\/visible>/ {
+                sub(/<\/visible>.*/, "")
+                if (p) print
+                p=0
+                next
+            }
+            p { print }
+        ')
 
         # Extract hidden parts (everything outside <visible> tags)
-        HIDDEN=$(echo "$TEXT" | perl -0777 -pe 's/<visible>.*?<\/visible>//gs' 2>/dev/null \
-            || echo "$TEXT" | sed 's/<visible>[^<]*<\/visible>//g')
+        HIDDEN=$(echo "$TEXT" | awk '
+            /<visible>/ { sub(/<visible>.*/, ""); if (length) print; skip=1; next }
+            /<\/visible>/ { skip=0; sub(/.*<\/visible>/, ""); if (length) print; next }
+            !skip { print }
+        ')
         HIDDEN=$(echo "$HIDDEN" | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba;}')
 
         # Output visible part normally (user sees it)
@@ -174,7 +201,7 @@ case "$ACTION" in
         # Block stop with visible reminder (loop-safe).
         # Content is always fully visible — XML trick doesn't work inside
         # JSON reason strings (Claude Code renders them as plaintext).
-        if echo "$INPUT" | grep -qP '"stop_hook_active"\s*:\s*true'; then
+        if echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true'; then
             log "Stop hook already active, allowing"
             exit 0
         fi
