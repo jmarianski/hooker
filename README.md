@@ -162,23 +162,27 @@ Source `"${HOOKER_HELPERS}"` in your `.match.sh` scripts:
 ```bash
 #!/bin/bash
 source "${HOOKER_HELPERS}"
-deny "Not allowed. <hidden>Suggest alternative to user.</hidden>"
+deny "Not allowed. Suggest alternative to user."
 ```
 
-| Helper | Effect |
-|--------|--------|
-| `warn "msg"` | Warning, doesn't block |
-| `deny "msg"` | Denies tool use |
-| `allow "msg"` | Auto-allows tool use |
-| `ask "msg"` | Escalates to user |
-| `block "msg"` | Blocks action |
-| `remind "msg"` | Blocks stop with reminder |
-| `inject "text"` | Injects into Claude's context (hidden) |
-| `load_md "file"` | Loads file as hidden content |
+| Helper | Visibility | Effect |
+|--------|------------|--------|
+| `warn "msg"` | visible | Warning, doesn't block |
+| `deny "msg"` | visible | Denies tool use |
+| `allow "msg"` | visible | Auto-allows tool use |
+| `ask "msg"` | visible | Escalates to user |
+| `block "msg"` | visible | Blocks action |
+| `remind "msg"` | visible | Blocks stop with reminder |
+| `inject "text"` | **hidden** | Injects into Claude's context |
+| `load_md "file"` | — | Loads file content (useful inside `inject()`) |
 
-Tags: `<hidden>` in JSON helpers hides from user. `<visible>` in .md templates shows to user.
+**Only `inject()` hides content from the user.** All JSON helpers (warn, deny, block, etc.) are always fully visible — Claude Code renders JSON fields as plaintext.
+
+`<visible>` tags in `.md` templates show selected parts to user (rest is hidden via XML trick).
 
 Env vars: `$HOOKER_EVENT`, `$HOOKER_TRANSCRIPT`, `$HOOKER_CWD`, `$HOOKER_HELPERS`
+
+All scripts are cross-platform (Linux, macOS, Windows/Git Bash). No dependencies on python3, perl, or tac.
 
 ## All 21 Hooks
 
@@ -192,6 +196,24 @@ Env vars: `$HOOKER_EVENT`, `$HOOKER_TRANSCRIPT`, `$HOOKER_CWD`, `$HOOKER_HELPERS
 | Config | ConfigChange, WorktreeCreate, WorktreeRemove |
 | MCP | Elicitation, ElicitationResult |
 | Other | Notification |
+
+## Project Structure
+
+```
+.claude-plugin/     Plugin manifest
+commands/           Skills (slash commands)
+hooks/              hooks.json → inject.sh
+scripts/            inject.sh, helpers.sh (core engine)
+recipes/            Pre-built hook configurations
+templates/          Plugin-level default templates (intentionally empty)
+src/                Build sources — NOT part of the runtime plugin
+```
+
+The `src/` directory contains build-time fragments and generators. It is not needed at runtime and should be excluded from plugin installation.
+
+### `.pluginignore` (proposed standard)
+
+No AI coding tool currently supports install-time file exclusion. We include a `.pluginignore` file as a proposed convention — see the file for details. If you're building a plugin installer or marketplace, please consider supporting it.
 
 ## Known Issues
 

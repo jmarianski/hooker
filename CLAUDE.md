@@ -14,8 +14,16 @@ Use semantic versioning:
 
 - `hooks/hooks.json` — registers all 21 hooks pointing to `scripts/inject.sh`
 - `scripts/inject.sh` — universal handler, reads template based on hook event name
+- `scripts/helpers.sh` — portable helper functions for match scripts
 - `templates/*.md` — default templates (filename = hook event name)
-- `commands/*.md` — user-facing skills (/hooker:config, /hooker:status, /hooker:enable)
+- `commands/*.md` — user-facing skills (/hooker:config, /hooker:status, /hooker:recipe)
+- `recipes/` — pre-built hook configurations
+- `src/` — build sources, NOT part of the runtime plugin (see `.pluginignore`)
+
+## Cross-platform
+
+All scripts must work on Linux, macOS, and Windows (Git Bash).
+No `grep -P`, `tac`, `python3`, `perl`. Use POSIX grep/sed/awk only.
 
 ## Template format
 
@@ -28,4 +36,9 @@ Templates use YAML frontmatter with `type` field:
 
 ## Override priority
 
-Project `.claude/hooker/{HookName}.md` > Plugin `templates/{HookName}.md`
+Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
+
+## Build
+
+When adding/changing recipes, update the recipe catalog table in `commands/recipe.md`.
+`src/` contains build fragments — not shipped to users at runtime.

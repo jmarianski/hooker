@@ -1,0 +1,18 @@
+# Directories excluded from plugin installation.
+#
+# NOTE: .pluginignore is NOT a standard Claude Code feature (as of March 2026).
+# No AI coding tool (Claude Code, Copilot, Cursor, OpenCode) supports build
+# phases or install-time file exclusion. This file serves as:
+#   1. Documentation of intent — these dirs are NOT part of the runtime plugin
+#   2. A convention we'd like to see adopted as a standard
+#   3. Input for a future build.sh if needed
+#
+# If you're building a plugin installer or marketplace, please consider
+# supporting this file format (one glob pattern per line, # comments).
+
+# Build sources — fragments, templates, generators
+src/
+
+# Development files
+*.test.sh
+.github/
