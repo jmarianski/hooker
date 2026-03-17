@@ -2,8 +2,19 @@
 
 Build-time sources for the Hooker plugin. This directory is NOT part of the runtime plugin — see `.pluginignore`.
 
-## fragments/
+## commands/
 
-Reusable text fragments that get compiled into skills (`commands/*.md`). Edit fragments here, then update the skills.
+Source templates for skills. Files here are compiled to `commands/` by `build.sh`.
 
-Currently manual — run the relevant parts of `commands/*.md` when fragments change. A `build.sh` may be added later if the process becomes unwieldy.
+Dynamic sections are marked with `<!-- BUILD:NAME:START -->` / `<!-- BUILD:NAME:END -->` HTML comments. The build script replaces content between markers with generated data.
+
+Skills without a source in `src/commands/` (e.g. config.md, status.md) are static and edited directly in `commands/`.
+
+## build.sh
+
+```bash
+bash src/build.sh
+```
+
+Generators:
+- `RECIPE_CATALOG` — table of all recipes from `recipes/*/recipe.json` + uncovered hooks list

@@ -1,13 +1,19 @@
 #!/bin/bash
-# Hooker build script — regenerates dynamic sections in skills.
-# Run after adding/changing recipes or modifying src/fragments.
+# Hooker build script — compiles src/commands/*.md → commands/*.md
+# Processes BUILD markers, replacing dynamic sections with generated content.
+# Static commands (without src/ source) are left untouched.
+#
+# Run: bash src/build.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR}/.."
 RECIPES_DIR="${ROOT_DIR}/recipes"
+SRC_COMMANDS="${SCRIPT_DIR}/commands"
+OUT_COMMANDS="${ROOT_DIR}/commands"
 
-# --- Generate recipe catalog table ---
+# --- Generators ---
+
 generate_recipe_catalog() {
     echo "| Recipe | Hook | Description |"
     echo "|--------|------|-------------|"
@@ -15,8 +21,6 @@ generate_recipe_catalog() {
         [ -f "$r" ] || continue
         local dir
         dir=$(basename "$(dirname "$r")")
-        local name
-        name=$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$r" | head -1)
         local desc
         desc=$(sed -n 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$r" | head -1)
         local hooks
@@ -25,7 +29,6 @@ generate_recipe_catalog() {
     done
 }
 
-# --- Generate uncovered hooks list ---
 generate_uncovered_hooks() {
     local ALL_HOOKS="PermissionRequest PostToolUseFailure Notification SubagentStop TeammateIdle TaskCompleted InstructionsLoaded ConfigChange WorktreeCreate WorktreeRemove PreCompact PostCompact Elicitation ElicitationResult SessionEnd"
     local covered=""
@@ -43,42 +46,67 @@ generate_uncovered_hooks() {
     echo "$uncovered"
 }
 
-# --- Inject into file between markers ---
-# Usage: inject_section "file" "MARKER_NAME" "content"
-inject_section() {
-    local file="$1"
-    local marker="$2"
-    local content="$3"
-    local start_marker="<!-- BUILD:${marker}:START -->"
-    local end_marker="<!-- BUILD:${marker}:END -->"
+# --- Process a single source file ---
+# Copies src → out, replacing BUILD marker sections with generated content.
+build_command() {
+    local src="$1"
+    local filename
+    filename=$(basename "$src")
+    local out="${OUT_COMMANDS}/${filename}"
 
-    if ! grep -q "$start_marker" "$file" 2>/dev/null; then
-        echo "  SKIP: no ${marker} markers in ${file}"
+    # Start with a copy of source
+    cp "$src" "$out"
+
+    # Process each BUILD marker found in the file
+    local markers
+    markers=$(grep -o '<!-- BUILD:[A-Z_]*:START -->' "$out" 2>/dev/null \
+        | sed 's/<!-- BUILD://;s/:START -->//' || true)
+
+    if [ -z "$markers" ]; then
+        echo "  ${filename}: copied (no markers)"
         return
     fi
 
-    # Build replacement: markers + content
-    local tmpfile
-    tmpfile=$(mktemp)
-    awk -v start="$start_marker" -v end="$end_marker" -v content="$content" '
-        $0 ~ start { print; printf "%s\n", content; skip=1; next }
-        $0 ~ end { skip=0 }
-        !skip { print }
-    ' "$file" > "$tmpfile"
-    mv "$tmpfile" "$file"
-    echo "  OK: ${marker} in ${file}"
+    for marker in $markers; do
+        local content=""
+        case "$marker" in
+            RECIPE_CATALOG)
+                local catalog
+                catalog=$(generate_recipe_catalog)
+                local uncovered
+                uncovered=$(generate_uncovered_hooks)
+                content="${catalog}
+
+**Hooks without recipes**: ${uncovered}"
+                ;;
+            *)
+                echo "  ${filename}: WARNING — unknown marker ${marker}, skipping"
+                continue
+                ;;
+        esac
+
+        # Replace content between markers
+        local start_marker="<!-- BUILD:${marker}:START -->"
+        local end_marker="<!-- BUILD:${marker}:END -->"
+        local tmpfile
+        tmpfile=$(mktemp)
+        awk -v start="$start_marker" -v end="$end_marker" -v content="$content" '
+            $0 ~ start { print; printf "%s\n", content; skip=1; next }
+            $0 ~ end { skip=0 }
+            !skip { print }
+        ' "$out" > "$tmpfile"
+        mv "$tmpfile" "$out"
+        echo "  ${filename}: ${marker} ✓"
+    done
 }
 
 # --- Main ---
 echo "Building Hooker skills..."
 
-CATALOG=$(generate_recipe_catalog)
-UNCOVERED=$(generate_uncovered_hooks)
-CATALOG_WITH_NOTE="${CATALOG}
-
-**Hooks without recipes**: ${UNCOVERED}"
-
-# Inject into recipe.md
-inject_section "${ROOT_DIR}/commands/recipe.md" "RECIPE_CATALOG" "$CATALOG_WITH_NOTE"
+# Process each source command
+for src in "${SRC_COMMANDS}"/*.md; do
+    [ -f "$src" ] || continue
+    build_command "$src"
+done
 
 echo "Done."

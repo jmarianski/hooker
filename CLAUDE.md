@@ -40,8 +40,12 @@ Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
 
 ## Build
 
-When adding/changing recipes, run `bash src/build.sh` to regenerate dynamic sections
-in skills. The build script reads `recipe.json` files and updates content between
-`<!-- BUILD:*:START -->` / `<!-- BUILD:*:END -->` markers in `commands/*.md`.
+Skills with dynamic content have source templates in `src/commands/`.
+Run `bash src/build.sh` to compile them → `commands/`.
 
-`src/` contains build scripts and fragments — not shipped to users at runtime (see `.pluginignore`).
+The build script copies `src/commands/*.md` to `commands/`, replacing content between
+`<!-- BUILD:*:START -->` / `<!-- BUILD:*:END -->` markers with generated data.
+
+Static skills (config.md, status.md) live directly in `commands/` — no source needed.
+
+**After adding/changing recipes:** run `bash src/build.sh` before committing.
