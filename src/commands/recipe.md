@@ -27,9 +27,13 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 
 Available recipes (no need to scan filesystem — this is the full list):
 
-{{ RECIPE_CATALOG }}
+| Recipe | Hook | Description |
+|--------|------|-------------|
+{% for r in recipes() %}
+| `{{ r.id }}` | {{ r.hooks | join(', ') }} | {{ r.description }} |
+{% endfor %}
 
-**Hooks without recipes**: {{ UNCOVERED_HOOKS }}
+**Hooks without recipes**: {{ uncoveredHooks() | join(', ') }}
 
 ## Without arguments
 1. Check `.claude/hooker/` to detect which recipes are already installed (match filenames against catalog above)

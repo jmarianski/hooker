@@ -1,20 +1,49 @@
 # src/
 
-Build-time sources for the Hooker plugin. This directory is NOT part of the runtime plugin — see `.pluginignore`.
+Build system for Hooker plugin skills. NOT part of the runtime plugin — see `.pluginignore`.
 
-## commands/
-
-Source templates for skills. Files here are compiled to `commands/` by `build.sh`.
-
-Dynamic sections are marked with `<!-- BUILD:NAME:START -->` / `<!-- BUILD:NAME:END -->` HTML comments. The build script replaces content between markers with generated data.
-
-Skills without a source in `src/commands/` (e.g. config.md, status.md) are static and edited directly in `commands/`.
-
-## build.sh
+## Setup
 
 ```bash
-bash src/build.sh
+cd src && npm install
 ```
 
-Generators:
-- `RECIPE_CATALOG` — table of all recipes from `recipes/*/recipe.json` + uncovered hooks list
+## Build
+
+```bash
+cd src && npm run build
+```
+
+Compiles `src/commands/*.md` (Nunjucks templates) → `commands/` (output).
+Static skills without a source in `src/commands/` are untouched.
+
+## Structure
+
+- `build.js` — main build script, auto-loads generators
+- `commands/*.md` — source templates (Nunjucks syntax)
+- `generators/*.js` — auto-loaded functions available in templates
+
+## Writing templates
+
+Templates use [Nunjucks](https://mozilla.github.io/nunjucks/) syntax:
+
+```markdown
+{% for r in recipes() %}
+| `{{ r.id }}` | {{ r.hooks | join(', ') }} | {{ r.description }} |
+{% endfor %}
+```
+
+## Adding a generator
+
+Create `generators/myfeature.js`:
+
+```js
+module.exports = {
+  myFunction() {
+    return 'computed value';
+  }
+};
+```
+
+All exported functions/values are auto-registered as Nunjucks globals.
+Use in templates: `{{ myFunction() }}`.

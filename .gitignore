@@ -1,3 +1,4 @@
 # Workspace-specific config
 .claude/hooker.json
 .claude/hooker/
+src/node_modules/
