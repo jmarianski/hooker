@@ -12,13 +12,15 @@ Use semantic versioning:
 
 ## Structure
 
-- `hooks/hooks.json` — registers all 21 hooks pointing to `scripts/inject.sh`
-- `scripts/inject.sh` — universal handler, reads template based on hook event name
-- `scripts/helpers.sh` — portable helper functions for match scripts
-- `templates/*.md` — default templates (filename = hook event name)
-- `commands/*.md` — user-facing skills (/hooker:config, /hooker:status, /hooker:recipe)
-- `recipes/` — pre-built hook configurations
-- `src/` — build sources, NOT part of the runtime plugin (see `.pluginignore`)
+Everything outside `src/` is a **build output**. Edit sources in `src/`, run the builder.
+
+- `src/commands/*.md` — skill templates (Gonja/Jinja2) → `commands/`
+- `src/scripts/*.sh` — shell scripts with `# @bundle` includes → `scripts/`
+- `src/scripts/helpers/` — modular helper functions bundled into `scripts/helpers.sh`
+- `src/recipes/` — pre-built hook configurations → `recipes/`
+- `src/hooks/` — hooks.json → `hooks/`
+- `src/templates/` — default templates → `templates/`
+- `src/generators/*.go` — Go functions providing template variables
 
 ## Cross-platform
 
@@ -40,12 +42,13 @@ Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
 
 ## Build
 
-Skills with dynamic content have source templates in `src/commands/` (Gonja/Jinja2 syntax).
-Run `cd src && go run .` to compile them → `commands/`.
+Run `cd src && go run .` to build all plugin files from sources.
 
-Generator functions live in `src/generators/*.go` — auto-loaded as template variables.
-Example: `{{ recipes }}` provides recipe list from `src/generators/recipes.go`.
+The builder:
+- **Commands**: Gonja templates (`src/commands/`) → `commands/`
+- **Scripts**: Shell bundling (`# @bundle` directives) → `scripts/`
+- **Static files**: Copies recipes, hooks, templates, plugin.json, .pluginignore
 
-Static skills (config.md, status.md) live directly in `commands/` — no source needed.
+Generator functions in `src/generators/*.go` provide template variables.
 
-**After adding/changing recipes:** run `cd src && go run .` before committing.
+**After ANY change in src/:** run `cd src && go run .` before committing.

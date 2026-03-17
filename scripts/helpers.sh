@@ -13,8 +13,6 @@
 #     JSON reason/message as plaintext — XML trick cannot escape JSON strings).
 #   load_md "file.md" — only useful inside inject(), not inside JSON helpers.
 
-# --- Portable utilities ---
-
 # Extract a JSON string field value. Usage: echo "$JSON" | _hooker_json_field "field_name"
 _hooker_json_field() {
     sed -n 's/.*"'"$1"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
@@ -48,8 +46,6 @@ _hooker_reverse() {
 }
 
 # Strip <hidden> tags from a string, return visible part only.
-# Used by JSON helpers — hidden content is discarded because Claude Code
-# renders JSON reason/message as plaintext (XML trick doesn't work there).
 # Handles both single-line (<hidden>...</hidden> on one line) and multiline.
 _hooker_strip_hidden() {
     echo "$1" | sed 's/<hidden>[^<]*<\/hidden>//g' | awk '
@@ -59,10 +55,10 @@ _hooker_strip_hidden() {
     '
 }
 
-# --- Public helpers ---
+# JSON response helpers — all ALWAYS VISIBLE to user.
+# <hidden> tags are stripped but content is NOT hidden.
 
 warn() {
-    # <hidden> tags are stripped — JSON responses are always fully visible
     local CLEAN
     CLEAN=$(_hooker_strip_hidden "$1")
     local ESCAPED
@@ -110,6 +106,9 @@ remind() {
     echo "{\"decision\": \"block\", \"reason\": ${ESCAPED}}"
 }
 
+# Context injection helpers.
+# inject() is the ONLY helper that hides content from user (via XML trick).
+
 inject() {
     cat <<INJECT_EOF
 </local-command-stdout>
@@ -132,10 +131,10 @@ context() {
     echo "{\"additionalContext\": ${ESCAPED}}"
 }
 
-# --- File loaders ---
+# File loaders.
+# Only useful inside inject() — JSON helpers (block, deny, etc.) are always visible.
 
 # Load a .md file content.
-# Only useful inside inject() — JSON helpers (block, deny, etc.) are always visible.
 # Looks in: .claude/hooker/ → plugin templates/
 load_md() {
     local FILE=""
@@ -161,3 +160,4 @@ load_md_visible() {
     [ -z "$FILE" ] && return
     cat "$FILE"
 }
+

@@ -1,0 +1,11 @@
+{
+  "name": "Re-inject After Compact",
+  "description": "Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss.",
+  "hooks": ["SessionStart"],
+  "attribution": {
+    "type": "inspired",
+    "author": "claudefa.st",
+    "license": "Blog post",
+    "url": "https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks"
+  }
+}
