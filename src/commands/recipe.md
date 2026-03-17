@@ -29,11 +29,11 @@ Available recipes (no need to scan filesystem — this is the full list):
 
 | Recipe | Hook | Description |
 |--------|------|-------------|
-{% for r in recipes() %}
-| `{{ r.id }}` | {{ r.hooks | join(', ') }} | {{ r.description }} |
-{% endfor %}
+{%- for r in recipes %}
+| `{{ r.ID }}` | {{ r.Hooks | join(d=", ") }} | {{ r.Description }} |
+{%- endfor %}
 
-**Hooks without recipes**: {{ uncoveredHooks() | join(', ') }}
+**Hooks without recipes**: {{ uncoveredHooks | join(d=", ") }}
 
 ## Without arguments
 1. Check `.claude/hooker/` to detect which recipes are already installed (match filenames against catalog above)

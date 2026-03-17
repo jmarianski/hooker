@@ -40,12 +40,12 @@ Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
 
 ## Build
 
-Skills with dynamic content have source templates in `src/commands/` (Nunjucks syntax).
-Run `cd src && npm run build` to compile them → `commands/`.
+Skills with dynamic content have source templates in `src/commands/` (Gonja/Jinja2 syntax).
+Run `cd src && go run .` to compile them → `commands/`.
 
-Generator functions live in `src/generators/*.js` — auto-loaded as Nunjucks globals.
-Example: `{{ recipes() }}` calls `recipes()` from `src/generators/recipes.js`.
+Generator functions live in `src/generators/*.go` — auto-loaded as template variables.
+Example: `{{ recipes }}` provides recipe list from `src/generators/recipes.go`.
 
 Static skills (config.md, status.md) live directly in `commands/` — no source needed.
 
-**After adding/changing recipes:** run `cd src && npm run build` before committing.
+**After adding/changing recipes:** run `cd src && go run .` before committing.

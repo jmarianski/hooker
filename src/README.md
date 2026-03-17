@@ -2,48 +2,32 @@
 
 Build system for Hooker plugin skills. NOT part of the runtime plugin — see `.pluginignore`.
 
-## Setup
-
-```bash
-cd src && npm install
-```
-
 ## Build
 
 ```bash
-cd src && npm run build
+cd src && go run .
 ```
 
-Compiles `src/commands/*.md` (Nunjucks templates) → `commands/` (output).
+Compiles `src/commands/*.md` (Gonja templates) → `commands/` (output).
 Static skills without a source in `src/commands/` are untouched.
 
 ## Structure
 
-- `build.js` — main build script, auto-loads generators
-- `commands/*.md` — source templates (Nunjucks syntax)
-- `generators/*.js` — auto-loaded functions available in templates
+- `build.go` — main build script
+- `commands/*.md` — source templates (Gonja/Jinja2 syntax)
+- `generators/*.go` — data loaders providing template variables
 
 ## Writing templates
 
-Templates use [Nunjucks](https://mozilla.github.io/nunjucks/) syntax:
+Templates use [Gonja](https://github.com/NikolaLohinski/gonja) (Jinja2 for Go):
 
 ```markdown
-{% for r in recipes() %}
-| `{{ r.id }}` | {{ r.hooks | join(', ') }} | {{ r.description }} |
-{% endfor %}
+{%- for r in recipes %}
+| `{{ r.ID }}` | {{ r.Hooks | join(d=", ") }} | {{ r.Description }} |
+{%- endfor %}
 ```
 
 ## Adding a generator
 
-Create `generators/myfeature.js`:
-
-```js
-module.exports = {
-  myFunction() {
-    return 'computed value';
-  }
-};
-```
-
-All exported functions/values are auto-registered as Nunjucks globals.
-Use in templates: `{{ myFunction() }}`.
+Add exported functions/data to `generators/*.go`. They're registered as template
+variables in `build.go`'s context map.
