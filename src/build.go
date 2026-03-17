@@ -44,8 +44,9 @@ func main() {
 	copyDir(filepath.Join(srcDir, "hooks"), filepath.Join(rootDir, "hooks"), "hooks")
 	copyDir(filepath.Join(srcDir, "templates"), filepath.Join(rootDir, "templates"), "templates")
 
-	// 4. Plugin manifest
+	// 4. Plugin manifest + marketplace
 	copyFile(filepath.Join(srcDir, "plugin.json"), filepath.Join(rootDir, ".claude-plugin", "plugin.json"), "plugin.json")
+	copyFile(filepath.Join(srcDir, "marketplace.json"), filepath.Join(rootDir, ".claude-plugin", "marketplace.json"), "marketplace.json")
 
 	// 5. .pluginignore
 	copyFile(filepath.Join(srcDir, ".pluginignore"), filepath.Join(rootDir, ".pluginignore"), ".pluginignore")
@@ -58,6 +59,8 @@ func main() {
 func buildCommands(srcDir, rootDir string, ctx *exec.Context) {
 	srcCommands := filepath.Join(srcDir, "commands")
 	outCommands := filepath.Join(rootDir, "commands")
+
+	os.MkdirAll(outCommands, 0755)
 
 	entries, err := os.ReadDir(srcCommands)
 	if err != nil {
