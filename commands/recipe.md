@@ -23,31 +23,31 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 4. Create the files in `.claude/hooker/`
 5. Test it
 
-## Browse and install pre-built recipes
-Mix and match recipes to build your setup.
+## Recipe catalog
+
+Available recipes (no need to scan filesystem — this is the full list):
+
+| Recipe | Hook | Description |
+|--------|------|-------------|
+| `agent-gets-claude-context` | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent |
+| `auto-checkpoint` | Stop | Creates git checkpoint commit when Claude stops |
+| `auto-format` | PostToolUse | Runs formatter (prettier, ruff, gofmt) after edits |
+| `block-dangerous-commands` | PreToolUse | Blocks rm -rf, fork bombs, curl\|sh, DROP TABLE |
+| `detect-lazy-code` | PostToolUse | Catches "// ... rest of implementation" laziness |
+| `git-context-on-start` | SessionStart | Injects git branch, status, recent commits |
+| `no-force-push-main` | PreToolUse | Blocks git push --force to main/master |
+| `protect-sensitive-files` | PreToolUse | Blocks access to .env, SSH keys, credentials |
+| `reinject-after-compact` | SessionStart | Re-injects context.md after compaction |
+| `remind-to-update-docs` | Stop | Context-aware reminder: checks what was edited |
+| `require-changelog-before-tag` | PreToolUse | Blocks git tag unless CHANGELOG.md updated |
+| `skip-acknowledgments` | UserPromptSubmit | Stops "Great question!" filler |
+
+**Hooks without recipes** (15 of 21): PermissionRequest, PostToolUseFailure, Notification, SubagentStop, TeammateIdle, TaskCompleted, InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove, PreCompact, PostCompact, Elicitation, ElicitationResult, SessionEnd
 
 ## Without arguments
-1. Scan `${CLAUDE_PLUGIN_ROOT}/recipes/*/recipe.json` — read each `recipe.json`
-2. Scan `.claude/hooker/` to detect which recipes are already installed (match filenames against recipe contents)
-3. Show a list like:
-
-```
-Available recipes:
-
-  [installed] remind-to-update-docs
-              Reminds about docs/tests when stopping after file changes
-              Hooks: Stop
-
-  [  ready  ] agent-gets-claude-context
-              Injects CLAUDE.md + MEMORY.md into subagents
-              Hooks: SubagentStart
-
-  [  ready  ] no-friday-deploys
-              Blocks deploys and pushes on Fridays
-              Hooks: PreToolUse
-```
-
-4. Ask user which recipe(s) to install
+1. Check `.claude/hooker/` to detect which recipes are already installed (match filenames against catalog above)
+2. Show the catalog with [installed] / [ready] status
+3. Ask user which recipe(s) to install
 
 ## With recipe name (e.g. `/hooker:recipe remind-to-update-docs`)
 Install that recipe directly:
