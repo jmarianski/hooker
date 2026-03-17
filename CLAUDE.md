@@ -43,8 +43,8 @@ Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
 Skills with dynamic content have source templates in `src/commands/`.
 Run `bash src/build.sh` to compile them → `commands/`.
 
-The build script copies `src/commands/*.md` to `commands/`, replacing content between
-`<!-- BUILD:*:START -->` / `<!-- BUILD:*:END -->` markers with generated data.
+The build script copies `src/commands/*.md` to `commands/`, replacing
+`{{ PLACEHOLDER }}` tags with generated content (Twig-like syntax).
 
 Static skills (config.md, status.md) live directly in `commands/` — no source needed.
 

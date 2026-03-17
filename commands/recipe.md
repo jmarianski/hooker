@@ -27,7 +27,6 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 
 Available recipes (no need to scan filesystem — this is the full list):
 
-<!-- BUILD:RECIPE_CATALOG:START -->
 | Recipe | Hook | Description |
 |--------|------|-------------|
 | `agent-gets-claude-context` | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
@@ -44,7 +43,6 @@ Available recipes (no need to scan filesystem — this is the full list):
 | `skip-acknowledgments` | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
 
 **Hooks without recipes**: PermissionRequest, PostToolUseFailure, Notification, SubagentStop, TeammateIdle, TaskCompleted, InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove, PreCompact, PostCompact, Elicitation, ElicitationResult, SessionEnd
-<!-- BUILD:RECIPE_CATALOG:END -->
 
 ## Without arguments
 1. Check `.claude/hooker/` to detect which recipes are already installed (match filenames against catalog above)
