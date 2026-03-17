@@ -30,6 +30,9 @@ If user describes what they want (e.g. "fix the stop hook", "disable remind", "s
 2. Read the file to understand current behavior
 3. Edit it to match what the user wants
 4. If it has a `messages.yml`, edit messages there instead of the script
+5. **Cross-platform**: all scripts must work on Linux, macOS, and Windows (Git Bash).
+   No `grep -P`, `tac`, `python3`, `perl`. Use POSIX grep/sed/awk only.
+   See `/hooker:recipe` for full cross-platform rules.
 
 ### `logs` or logging configuration
 - Toggle logging in `.claude/hooker.json`:
