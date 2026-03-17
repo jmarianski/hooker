@@ -1,1 +1,17 @@
+# Go build binary
 src/build
+
+# Go cache
+src/vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Debug logs
+/tmp/hooker-*.log
