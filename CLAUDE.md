@@ -40,5 +40,8 @@ Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
 
 ## Build
 
-When adding/changing recipes, update the recipe catalog table in `commands/recipe.md`.
-`src/` contains build fragments — not shipped to users at runtime.
+When adding/changing recipes, run `bash src/build.sh` to regenerate dynamic sections
+in skills. The build script reads `recipe.json` files and updates content between
+`<!-- BUILD:*:START -->` / `<!-- BUILD:*:END -->` markers in `commands/*.md`.
+
+`src/` contains build scripts and fragments — not shipped to users at runtime (see `.pluginignore`).
