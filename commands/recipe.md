@@ -56,14 +56,30 @@ Install that recipe:
 3. Check if `.claude/hooker/{HookName}.match.sh` already exists
 4. **If no conflict:** use the recipe script as reference, adapt it to the project if needed, write to `.claude/hooker/`
 5. **If conflict (same hook already has a script):** read the existing script, **merge both behaviors into one combined script** that runs both checks
-6. `chmod +x` any `.match.sh` files
-7. Confirm installation
+6. **Wrap each recipe's logic in `@recipe` markers** (see below)
+7. `chmod +x` any `.match.sh` files
+8. Confirm installation
+
+## Recipe markers
+Every recipe's logic MUST be wrapped in marker comments for traceability:
+```bash
+# @recipe remind-to-update-docs
+...recipe logic here...
+# @end-recipe remind-to-update-docs
+```
+
+This enables:
+- `installed` subcommand: grep for `# @recipe` in `.claude/hooker/*.sh` to list what's installed
+- `remove` subcommand: find and delete only the marked section, keep the rest
+- User inspection: easy to see which recipes contributed to a merged script
+
+**Always add markers** — even for single-recipe scripts (future merges depend on them).
 
 ## Subcommands
 - `list` — show all available recipes (same as no args)
 - `install <name> [name2...]` — install one or more recipes
-- `remove <name>` — remove a recipe's behavior from `.claude/hooker/` (if merged, remove only that recipe's logic from the combined script)
-- `installed` — show only currently installed recipes
+- `remove <name>` — find `# @recipe <name>` / `# @end-recipe <name>` markers in `.claude/hooker/`, remove only that section. If it was the last recipe in the file, remove the file.
+- `installed` — grep for `# @recipe <name>` in `.claude/hooker/*.sh` to list installed recipes
 
 ## IMPORTANT: recipes are REFERENCES, not copy-paste
 Recipe scripts in `${CLAUDE_PLUGIN_ROOT}/recipes/` are templates to learn from.
@@ -71,16 +87,11 @@ When installing:
 - **Read** the recipe script to understand the logic
 - **Adapt** paths, patterns, messages to the current project
 - **Merge** with existing scripts if the same hook is already in use
+- **Wrap** in `@recipe` markers for traceability
 - **Never blindly copy** — the script may need project-specific adjustments
 
 Multiple recipes targeting the same hook MUST be merged into one script.
 There can only be one `.match.sh` per hook event per directory.
-
-## Removing a recipe — steps
-1. Read `.claude/hooker/{HookName}.match.sh` — check if it's a merged script
-2. If merged: remove only the recipe's logic, keep the rest
-3. If standalone: remove the file
-4. Confirm removal
 
 ## Architecture — THREE modes of operation
 
