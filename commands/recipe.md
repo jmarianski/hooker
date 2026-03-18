@@ -93,6 +93,22 @@ When installing:
 Multiple recipes targeting the same hook MUST be merged into one script.
 There can only be one `.match.sh` per hook event per directory.
 
+## Merge strategy for different modes
+
+Some recipes are Mode 2 (match script + `.md` template) or Mode 1 (`.md` only).
+When merging, **always convert to Mode 3** (standalone script with output):
+
+- If a recipe has a `.md` template, inline its content into the script's output
+  (e.g. use `inject "..."` or `block "..."` instead of relying on the `.md` file)
+- If a recipe's match script exits 0 without output (relying on `.md`), rewrite it
+  to produce the output directly
+- After merge, there should be **no `.md` template** — the combined script handles everything
+
+This is necessary because:
+- There can only be one `.md` file per hook — merging two `.md` files is ambiguous
+- Mode 3 is the only mode that scales to multiple behaviors in one hook
+- The combined script can decide which recipe's behavior to apply based on context
+
 ## Architecture — THREE modes of operation
 
 ### Mode 1: Template only (`.md`, no `.match.sh`)
