@@ -1,0 +1,6 @@
+include_user_messages: true
+include_assistant_text: true
+include_errors: true
+include_tool_calls: false
+include_tool_results: false
+output: .claude/hooker/session-notes.md

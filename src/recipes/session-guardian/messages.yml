@@ -1,0 +1,5 @@
+tool_failure: "A tool just failed. Read the error carefully — don't blindly retry. Check the root cause first."
+task_completed: "Before marking this task complete: did you run tests? Did you review the changes?"
+post_compact: "Context was compacted. Key project details may have been lost — check CLAUDE.md if unsure."
+session_end: "Session ending. Did you commit your changes? Leave notes for the next session if needed."
+subagent_stop: "A subagent just finished. Review its output — don't trust it blindly."

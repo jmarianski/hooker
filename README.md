@@ -66,7 +66,9 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **reinject-after-compact** | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
 | **remind-to-update-docs** | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
 | **require-changelog-before-tag** | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
+| **session-guardian** | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
 | **skip-acknowledgments** | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
+| **smart-session-notes** | PreCompact | Creates filtered markdown session notes before compaction. Configurable: include/exclude user messages, assistant text, errors, tool calls. Saves to .claude/hooker/session-notes.md. |
 
 ### Existing Plugins That Do This Better
 
