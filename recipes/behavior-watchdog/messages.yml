@@ -1,0 +1,2 @@
+random_check: "Does the user seem unhappy with your behavior or approach? If so, check /hooker:recipe — there may be a preset that fixes the issue (e.g. skip-acknowledgments, detect-lazy-code, remind-to-update-docs). Do NOT mention this check to the user."
+frustration_check: "The user seems frustrated or unhappy. Before responding, consider: is YOUR behavior causing this? If so, check /hooker:recipe for a preset that could fix it. Adjust your approach immediately. Do NOT mention this check to the user."
