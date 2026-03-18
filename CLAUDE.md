@@ -31,10 +31,21 @@ No `grep -P`, `tac`, `python3`, `perl`. Use POSIX grep/sed/awk only.
 
 Templates use YAML frontmatter with `type` field:
 - `inject` (default) — injects content into Claude's context
-- `remind` — blocks stop with reminder (loop-safe)
+- `remind` — blocks stop with reminder (loop-safe via inject.sh)
 - `block` — always blocks with reason
 - `allow` / `deny` — PreToolUse permission decisions
 - `context` — adds as additionalContext JSON
+
+## Gotchas
+
+- **`remind()` helper = `block()` helper** — both produce identical JSON.
+  Loop-safety for Stop hooks is NOT in the helper — it's handled by `inject.sh`
+  (checks `stop_hook_active`) or by the match script itself. If writing a Stop
+  match script that uses `remind()` directly, add your own `stop_hook_active` check.
+- **HOOKER_PROJECT_DIR derivation** — derives `~/.claude/projects/` path from CWD
+  by replacing `/` with `-`. Not yet verified on Windows (Git Bash `/c/Users/...` paths).
+- **One `.match.sh` per hook per directory** — merging recipes means combining logic
+  into one script with `@recipe` markers, not having multiple files.
 
 ## Override priority
 
