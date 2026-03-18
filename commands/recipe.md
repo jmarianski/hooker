@@ -109,6 +109,22 @@ This is necessary because:
 - Mode 3 is the only mode that scales to multiple behaviors in one hook
 - The combined script can decide which recipe's behavior to apply based on context
 
+## Supporting files (messages.yml, config, etc.)
+
+Recipes may ship with supporting files (e.g. `messages.yml`). These are **per-recipe**,
+not merged. When installing, prefix the filename with the recipe name:
+
+```
+.claude/hooker/
+  Stop.match.sh                              ← merged script with @recipe markers
+  remind-to-update-docs.messages.yml         ← this recipe's editable messages
+  auto-checkpoint.config.yml                 ← another recipe's config
+```
+
+Convention: `{recipe-name}.{original-filename}` — prevents conflicts between recipes.
+The script references its own file by recipe name. Users can edit any `.yml` file
+independently without affecting other recipes.
+
 ## Architecture — THREE modes of operation
 
 ### Mode 1: Template only (`.md`, no `.match.sh`)
