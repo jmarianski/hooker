@@ -49,7 +49,7 @@ Templates use YAML frontmatter with `type` field:
 - **One `.match.sh` per hook per directory** — merging recipes means combining logic
   into one script with `@recipe` markers, not having multiple files.
 - **Notification/TeammateIdle hooks** — don't build recipes for these. The
-  [claude-notifications-go](https://github.com/anthropics/claude-code/tree/main/plugins/claude-notifications-go)
+  [claude-notifications-go](https://github.com/777genius/claude-notifications-go)
   plugin handles desktop notifications already. Duplicating it would be pointless.
 
 ## Override priority
