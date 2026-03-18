@@ -1,11 +1,6 @@
 #!/bin/bash
 # Inject CLAUDE.md + MEMORY.md into every subagent's context
 # Standalone match script (no .md template needed)
-#
-# Usage: copy to .claude/hooker/SubagentStart.match.sh and chmod +x
-# The script reads project instructions and memory, then injects them
-# so subagents have the same context as the main session.
-
 set -euo pipefail
 
 CWD="${HOOKER_CWD:-.}"
@@ -13,9 +8,9 @@ CWD="${HOOKER_CWD:-.}"
 # Project instructions
 CLAUDE_MD="${CWD}/CLAUDE.md"
 
-# Memory index — adjust path to match your project
-# Find yours with: ls ~/.claude/projects/*/memory/MEMORY.md
-MEMORY_MD="${HOME}/.claude/projects/YOUR_PROJECT_PATH/memory/MEMORY.md"
+# Memory index — auto-detect from CWD
+PROJECT_SLUG=$(echo "$CWD" | sed 's|/|-|g; s|^-||')
+MEMORY_MD="${HOME}/.claude/projects/-${PROJECT_SLUG}/memory/MEMORY.md"
 
 OUTPUT=""
 
