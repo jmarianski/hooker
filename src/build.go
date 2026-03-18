@@ -51,6 +51,9 @@ func main() {
 	// 5. .pluginignore
 	copyFile(filepath.Join(srcDir, ".pluginignore"), filepath.Join(rootDir, ".pluginignore"), ".pluginignore")
 
+	// 6. README.md — gonja template at root level
+	buildFile(filepath.Join(srcDir, "README.md"), filepath.Join(rootDir, "README.md"), "README.md", ctx)
+
 	fmt.Println("Done.")
 }
 
@@ -168,6 +171,40 @@ func bundleShell(path, baseDir string) (string, error) {
 	}
 
 	return out.String(), scanner.Err()
+}
+
+// --- Single file: gonja template or copy ---
+
+func buildFile(srcPath, outPath, label string, ctx *exec.Context) {
+	data, err := os.ReadFile(srcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		fatal(label, "reading", err)
+	}
+
+	src := string(data)
+	hasTemplating := regexp.MustCompile(`\{[{%#]`).MatchString(src)
+
+	if !hasTemplating {
+		writeFile(outPath, data)
+		fmt.Printf("  %s: copied\n", label)
+		return
+	}
+
+	tpl, err := gonja.FromString(src)
+	if err != nil {
+		fatal(label, "parsing", err)
+	}
+
+	result, err := tpl.ExecuteToString(ctx)
+	if err != nil {
+		fatal(label, "rendering", err)
+	}
+
+	writeFile(outPath, []byte(result))
+	fmt.Printf("  %s: built\n", label)
 }
 
 // --- Static copy ---

@@ -55,17 +55,18 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 
 | Recipe | Hook | What it does |
 |--------|------|-------------|
-| **remind-to-update-docs** | Stop | Reminds about docs/tests when files were modified |
-| **agent-gets-claude-context** | SubagentStart | Injects CLAUDE.md + MEMORY.md into subagents |
-| **block-dangerous-commands** | PreToolUse | Blocks rm -rf, fork bombs, curl\|sh, DROP TABLE |
-| **no-force-push-main** | PreToolUse | Blocks git push --force to main/master |
-| **protect-sensitive-files** | PreToolUse | Blocks access to .env, SSH keys, credentials |
-| **auto-format** | PostToolUse | Runs formatter (prettier/ruff/gofmt) after edits |
-| **auto-checkpoint** | Stop | Git commit checkpoint after each Claude response |
-| **git-context-on-start** | SessionStart | Injects branch, status, recent commits |
-| **skip-acknowledgments** | UserPromptSubmit | Stops Claude from saying "Great question!" |
-| **detect-lazy-code** | PostToolUse | Catches `// ... rest` and vague TODO/FIXME placeholders |
-| **reinject-after-compact** | SessionStart | Re-injects context lost during compaction |
+| **agent-gets-claude-context** | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
+| **auto-checkpoint** | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
+| **auto-format** | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
+| **block-dangerous-commands** | PreToolUse | Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands. |
+| **detect-lazy-code** | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
+| **git-context-on-start** | SessionStart | Injects current git branch, status, and recent commits on session start. |
+| **no-force-push-main** | PreToolUse | Blocks git push --force to main/master branches. |
+| **protect-sensitive-files** | PreToolUse | Blocks reading or editing .env, SSH keys, credentials, and other sensitive files. |
+| **reinject-after-compact** | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
+| **remind-to-update-docs** | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
+| **require-changelog-before-tag** | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
+| **skip-acknowledgments** | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
 
 ### Existing Plugins That Do This Better
 
