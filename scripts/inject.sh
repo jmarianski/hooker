@@ -23,6 +23,10 @@ HOOKER_CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\
 export HOOKER_CWD
 HOOKER_TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 export HOOKER_TRANSCRIPT
+# TODO: verify project dir derivation works on Windows (Git Bash gives /c/Users/... paths)
+HOOKER_PROJECT_SLUG=$(echo "$HOOKER_CWD" | sed 's|/|-|g; s|^-||')
+HOOKER_PROJECT_DIR="${HOME}/.claude/projects/-${HOOKER_PROJECT_SLUG}"
+export HOOKER_PROJECT_SLUG HOOKER_PROJECT_DIR
 
 # --- Logging ---
 HOOKER_CONFIG=".claude/hooker.json"

@@ -8,9 +8,8 @@ CWD="${HOOKER_CWD:-.}"
 # Project instructions
 CLAUDE_MD="${CWD}/CLAUDE.md"
 
-# Memory index — auto-detect from CWD
-PROJECT_SLUG=$(echo "$CWD" | sed 's|/|-|g; s|^-||')
-MEMORY_MD="${HOME}/.claude/projects/-${PROJECT_SLUG}/memory/MEMORY.md"
+# Memory index — uses HOOKER_PROJECT_DIR from inject.sh
+MEMORY_MD="${HOOKER_PROJECT_DIR}/memory/MEMORY.md"
 
 OUTPUT=""
 
