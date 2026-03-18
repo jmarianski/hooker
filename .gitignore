@@ -15,3 +15,6 @@ Thumbs.db
 
 # Debug logs
 /tmp/hooker-*.log
+
+# Generated session notes
+.claude/hooker/session-notes.md
