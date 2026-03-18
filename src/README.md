@@ -59,15 +59,28 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **{{ r.ID }}** | {{ r.Hooks | join(d=", ") }} | {{ r.Description }} |
 {%- endfor %}
 
-### Existing Plugins That Do This Better
+### Hooker vs Hookify
 
-Some dedicated plugins cover specific hook use cases with more depth than a simple recipe.
-They all use the same hook mechanism — technically reimplementable with Hooker, but the originals are more mature.
+[Hookify](https://github.com/anthropics/claude-code/tree/main/plugins/hookify) is Anthropic's official guardrail plugin. It's the closest thing to Hooker — here's how they differ:
+
+| | Hooker | Hookify |
+|---|---|---|
+| **Approach** | Imperative (bash scripts) | Declarative (markdown + regex) |
+| **Hook coverage** | All 21 hooks | 5 events (bash, file, prompt, stop, all) |
+| **Logic** | Arbitrary bash — read files, check state, call APIs | Regex matching on predefined fields |
+| **Context injection** | Yes (XML trick, hidden/visible) | No (warn/block only, always visible) |
+| **AI-powered** | No | Yes (`/hookify` auto-generates rules from conversation) |
+| **Dependencies** | None (POSIX sh/awk/sed) | Python 3 |
+| **Config format** | Shell scripts + messages.yml | Markdown + YAML frontmatter |
+| **Best for** | Complex workflows, context injection, lifecycle management | Quick guardrails, no-code rules |
+
+**They're complementary, not competing.** Use hookify for simple "block this regex" rules. Use Hooker when you need scripting, context injection, transcript analysis, or hooks beyond PreToolUse/Stop.
+
+### Other Plugins Worth Knowing
 
 | Plugin | What it does | Hooks used | License |
 |--------|-------------|------------|---------|
 | [safety-net](https://github.com/kenryu42/claude-code-safety-net) | Production-grade bash guardrails. Python AST parser, recursive `sudo`/`bash -c` unwrapping, semantic git analysis, custom rules via JSON config, audit logging. 1285 lines of battle-tested logic. | PreToolUse (Bash) | MIT |
-| [hookify](https://github.com/anthropics/claude-code/tree/main/plugins/hookify) | Official Anthropic guardrail engine. Markdown rule files, regex matching on fields, AI-powered rule creation from conversation analysis. | PreToolUse, PostToolUse, Stop, UserPromptSubmit | Anthropic Commercial |
 | [kompakt](https://gitlab.com/treetank/kompakt) | Custom summarization for `/compact`. Preserves conversation language, verbatim user messages, configurable presets. | PreCompact | MIT |
 | [claudekit](https://github.com/carlrannaberg/claudekit) | Toolkit: typecheck, eslint, file-guard (195+ patterns), self-review, ban-any, codebase-map, thinking-level. | PreToolUse, PostToolUse, SessionStart, UserPromptSubmit, Stop | MIT |
 | [parry](https://github.com/vaporif/parry) | ML-based prompt injection scanner using DeBERTa v3. Six-stage detection pipeline. | PreToolUse, PostToolUse, UserPromptSubmit | MIT |
