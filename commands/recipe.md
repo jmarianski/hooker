@@ -33,6 +33,7 @@ Available recipes (no need to scan filesystem — this is the full list):
 | `auto-checkpoint` | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
 | `auto-format` | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
 | `block-dangerous-commands` | PreToolUse | Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands. |
+| `compact-context` | PreCompact | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
 | `detect-lazy-code` | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
 | `git-context-on-start` | SessionStart | Injects current git branch, status, and recent commits on session start. |
 | `no-force-push-main` | PreToolUse | Blocks git push --force to main/master branches. |
