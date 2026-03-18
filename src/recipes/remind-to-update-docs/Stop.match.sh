@@ -34,7 +34,7 @@ done <<< "$EDITED_FILES"
 # --- Load messages from yml ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Check project override first, then recipe default
-MSGS_FILE=".claude/hooker/messages.yml"
+MSGS_FILE=".claude/hooker/remind-to-update-docs.messages.yml"
 [ -f "$MSGS_FILE" ] || MSGS_FILE="${SCRIPT_DIR}/messages.yml"
 
 yml_get() {

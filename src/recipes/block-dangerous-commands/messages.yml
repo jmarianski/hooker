@@ -1,0 +1,6 @@
+rm_critical: "Blocked: recursive/forced deletion of critical paths"
+fork_bomb: "Blocked: fork bomb detected"
+pipe_to_shell: "Blocked: piping remote script to shell"
+destructive_sql: "Blocked: destructive SQL command"
+disk_destroy: "Blocked: disk/filesystem destruction"
+chmod_root: "Blocked: chmod 777 on root paths"

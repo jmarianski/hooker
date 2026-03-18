@@ -1,0 +1,3 @@
+rest_of_slash: "Lazy code detected in {file}: found '// ... rest of' pattern. Write the actual implementation."
+rest_of_hash: "Lazy code detected in {file}: found '# ... rest of' pattern. Write the actual implementation."
+placeholder: "Placeholder detected in {file}: vague TODO/FIXME. Be specific or implement it now."

@@ -1,0 +1,6 @@
+bash_sensitive: "Blocked: bash command accesses sensitive files"
+env_files: "Blocked: .env files are protected"
+ssh_keys: "Blocked: SSH keys are protected"
+cert_files: "Blocked: certificate/key files are protected"
+credential_files: "Blocked: credential files are protected"
+git_credentials: "Blocked: git credential files are protected"
