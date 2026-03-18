@@ -9,6 +9,8 @@ CWD="${HOOKER_CWD:-.}"
 CLAUDE_MD="${CWD}/CLAUDE.md"
 
 # Memory index — uses HOOKER_PROJECT_DIR from inject.sh
+# If HOOKER_PROJECT_DIR doesn't work, uncomment and set manually:
+# HOOKER_PROJECT_DIR="${HOME}/.claude/projects/-your-project-path-here"
 MEMORY_MD="${HOOKER_PROJECT_DIR}/memory/MEMORY.md"
 
 OUTPUT=""
