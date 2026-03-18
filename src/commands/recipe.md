@@ -41,38 +41,36 @@ Available recipes (no need to scan filesystem — this is the full list):
 3. Ask user which recipe(s) to install
 
 ## With recipe name (e.g. `/hooker:recipe remind-to-update-docs`)
-Install that recipe directly:
-1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json`
+Install that recipe:
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` and the recipe's `.match.sh`
 2. Show description and hooks
-3. Copy hook files to `.claude/hooker/`
-4. `chmod +x` any `.match.sh` files
-5. Confirm installation
+3. Check if `.claude/hooker/{HookName}.match.sh` already exists
+4. **If no conflict:** use the recipe script as reference, adapt it to the project if needed, write to `.claude/hooker/`
+5. **If conflict (same hook already has a script):** read the existing script, **merge both behaviors into one combined script** that runs both checks
+6. `chmod +x` any `.match.sh` files
+7. Confirm installation
 
 ## Subcommands
 - `list` — show all available recipes (same as no args)
 - `install <name> [name2...]` — install one or more recipes
-- `remove <name>` — remove a recipe's files from `.claude/hooker/`
+- `remove <name>` — remove a recipe's behavior from `.claude/hooker/` (if merged, remove only that recipe's logic from the combined script)
 - `installed` — show only currently installed recipes
 
-## Combining recipes
-Multiple recipes can coexist if they target different hooks. If two recipes target the same hook:
-1. Warn the user about the conflict
-2. Offer to merge (create a combined match script that runs both)
-3. Or let user pick one
+## IMPORTANT: recipes are REFERENCES, not copy-paste
+Recipe scripts in `${CLAUDE_PLUGIN_ROOT}/recipes/` are templates to learn from.
+When installing:
+- **Read** the recipe script to understand the logic
+- **Adapt** paths, patterns, messages to the current project
+- **Merge** with existing scripts if the same hook is already in use
+- **Never blindly copy** — the script may need project-specific adjustments
 
-## Installing a recipe — steps
-1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` for metadata
-2. List files in the recipe directory (exclude `recipe.json`)
-3. For each file:
-   - Check if `.claude/hooker/{filename}` already exists → warn about conflict
-   - Copy to `.claude/hooker/`
-   - `chmod +x` if `.match.sh`
-4. Show what was installed and which hooks are now active
+Multiple recipes targeting the same hook MUST be merged into one script.
+There can only be one `.match.sh` per hook event per directory.
 
 ## Removing a recipe — steps
-1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` for hook list
-2. List files in the recipe directory
-3. For each file, remove `.claude/hooker/{filename}` if it exists
+1. Read `.claude/hooker/{HookName}.match.sh` — check if it's a merged script
+2. If merged: remove only the recipe's logic, keep the rest
+3. If standalone: remove the file
 4. Confirm removal
 
 ## Architecture — THREE modes of operation
