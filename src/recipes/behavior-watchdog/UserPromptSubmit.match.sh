@@ -21,9 +21,9 @@ yml_get() {
 # Extract keywords from yml (multiline value after "keywords: |")
 # Each non-empty, non-comment line is a keyword
 KEYWORDS=$(awk '
-    /^keywords:[[:space:]]*\|/ { capture=1; next }
-    capture && /^[[:space:]]+[^#]/ { gsub(/^[[:space:]]+/, ""); gsub(/[[:space:]]+$/, ""); if (length) print }
-    capture && /^[^[:space:]]/ { exit }
+    /^keywords:/ { capture=1; next }
+    capture && /^  / { s=$0; gsub(/^  /, "", s); gsub(/[[:space:]]*$/, "", s); if (s != "" && substr(s,1,1) != "#") print s }
+    capture && /^[a-z]/ { exit }
 ' "$MSGS_FILE" 2>/dev/null)
 
 # Check for frustration signals (case-insensitive)
