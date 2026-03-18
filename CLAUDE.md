@@ -12,7 +12,9 @@ Use semantic versioning:
 
 ## Structure
 
-Everything outside `src/` is a **build output**. Edit sources in `src/`, run the builder.
+**⚠ DO NOT edit files outside `src/` directly** — they are auto-generated build outputs.
+All changes go into `src/`, then `cd src && go run .` regenerates everything.
+Editing root files directly will be overwritten on next build.
 
 - `src/commands/*.md` — skill templates (Gonja/Jinja2) → `commands/`
 - `src/scripts/*.sh` — shell scripts with `# @bundle` includes → `scripts/`

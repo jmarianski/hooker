@@ -172,7 +172,10 @@ templates/          Plugin-level default templates (intentionally empty)
 src/                Build sources — NOT part of the runtime plugin
 ```
 
-The `src/` directory contains build-time fragments and generators. It is not needed at runtime and should be excluded from plugin installation.
+Most files in this repo (including this README) are **auto-generated** from sources in `src/`.
+To make changes, edit files in `src/` and run `cd src && go run .` — do not edit root files directly.
+
+The `src/` directory is not needed at runtime and should be excluded from plugin installation.
 
 ### `.pluginignore` (proposed standard)
 
