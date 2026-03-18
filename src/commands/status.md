@@ -11,7 +11,7 @@ Show the user which hooks are active (have templates/scripts) and which are inac
 1. Check for plugin-level files in `${CLAUDE_PLUGIN_ROOT}/templates/` — list all `*.md` and `*.match.sh` files
 2. Check for user-global overrides in `~/.claude/hooker/` — list all `*.md` and `*.match.sh` files
 3. Check for project-level overrides in `.claude/hooker/` — list all `*.md` and `*.match.sh` files
-3. For each of the 21 hooks, show status:
+4. For each of the 21 hooks, show status:
 
 Format output as a table:
 

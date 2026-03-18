@@ -168,7 +168,7 @@ Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
 
 **User-editable messages (recommended pattern):**
 - Keep user-facing text in a `messages.yml` file alongside the match script, not hardcoded in bash
-- Match script reads messages via simple grep: `grep -oP "^key:\s*\"?\K[^\"]+" messages.yml`
+- Match script reads messages via `yml_get` helper using portable `sed`
 - User can customize messages without touching script logic
 - Script provides fallback defaults if yml is missing
 - Project-level `.claude/hooker/messages.yml` overrides recipe default
@@ -239,10 +239,10 @@ exit 0
 #!/bin/bash
 source "${HOOKER_HELPERS}"
 INPUT=$(cat)
-CMD=$(echo "$INPUT" | grep -oP '"command"\s*:\s*"\K[^"]+' || true)
+CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 DAY=$(date +%u)
 if [ "$DAY" = "5" ] && echo "$CMD" | grep -qi 'deploy\|push'; then
-    deny "Piątek — nie robimy deployów. Zaproponuj alternatywę na poniedziałek."
+    deny "Friday — no deploys. Suggest an alternative for Monday."
     exit 0
 fi
 exit 1
@@ -254,11 +254,15 @@ exit 1
 source "${HOOKER_HELPERS}"
 # Only fire if files were modified in last turn
 [ -z "$HOOKER_TRANSCRIPT" ] || [ ! -f "$HOOKER_TRANSCRIPT" ] && exit 1
-LAST_TURN=$(tac "$HOOKER_TRANSCRIPT" | sed -n '1,/"type"\s*:\s*"user"/p' 2>/dev/null) || true
-echo "$LAST_TURN" | grep -qP '"name"\s*:\s*"(Edit|Write|NotebookEdit)"' || exit 1
+LAST_TURN=$(awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$HOOKER_TRANSCRIPT" \
+    | sed -n '1,/"type"[[:space:]]*:[[:space:]]*"user"/p' 2>/dev/null) || true
+echo "$LAST_TURN" | grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|NotebookEdit\)"' || exit 1
 # Load message from yml (user-editable), with fallback
-MSG=$(grep -oP '^default:\s*"?\K[^"]+' .claude/hooker/messages.yml 2>/dev/null \
-    || echo "Did you update docs, tests, and clean up TODOs?")
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MSGS_FILE=".claude/hooker/my-recipe.messages.yml"
+[ -f "$MSGS_FILE" ] || MSGS_FILE="${SCRIPT_DIR}/messages.yml"
+MSG=$(sed -n 's/^default:[[:space:]]*"\{0,1\}\([^"]*\).*/\1/p' "$MSGS_FILE" 2>/dev/null | head -1)
+[ -z "$MSG" ] && MSG="Did you update docs, tests, and clean up TODOs?"
 remind "$MSG"
 exit 0
 ```
@@ -268,10 +272,10 @@ exit 0
 #!/bin/bash
 source "${HOOKER_HELPERS}"
 INPUT=$(cat)
-FILE=$(echo "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]+' || true)
+FILE=$(echo "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 LINES=$(wc -l < "$FILE" 2>/dev/null || echo 0)
 if [ "$LINES" -gt 500 ]; then
-    warn "Plik $FILE ma ${LINES} linii — rozważ podział."
+    warn "File $FILE has ${LINES} lines — consider splitting."
     exit 0
 fi
 exit 1

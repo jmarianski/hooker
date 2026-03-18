@@ -1,6 +1,6 @@
 {
   "name": "Detect Lazy Code",
-  "description": "Catches when Claude replaces code with comments like '// ... rest of implementation' or prefixes unused params with underscores.",
+  "description": "Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders.",
   "hooks": ["PostToolUse"],
   "attribution": {
     "type": "adapted",

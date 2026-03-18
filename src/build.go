@@ -22,7 +22,7 @@ func main() {
 
 	rootDir := filepath.Join(srcDir, "..")
 
-	recipes := generators.LoadRecipes(rootDir)
+	recipes := generators.LoadRecipes(srcDir)
 
 	ctx := exec.NewContext(map[string]any{
 		"recipes":        recipes,

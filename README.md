@@ -64,7 +64,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **auto-checkpoint** | Stop | Git commit checkpoint after each Claude response |
 | **git-context-on-start** | SessionStart | Injects branch, status, recent commits |
 | **skip-acknowledgments** | UserPromptSubmit | Stops Claude from saying "Great question!" |
-| **detect-lazy-code** | PostToolUse | Catches `// ... rest` and underscore-prefix hacks |
+| **detect-lazy-code** | PostToolUse | Catches `// ... rest` and vague TODO/FIXME placeholders |
 | **reinject-after-compact** | SessionStart | Re-injects context lost during compaction |
 
 ### Existing Plugins That Do This Better
