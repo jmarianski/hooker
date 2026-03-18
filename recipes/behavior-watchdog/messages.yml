@@ -1,2 +1,69 @@
 random_check: "Does the user seem unhappy with your behavior or approach? If so, check /hooker:recipe — there may be a preset that fixes the issue (e.g. skip-acknowledgments, detect-lazy-code, remind-to-update-docs). Do NOT mention this check to the user."
 frustration_check: "The user seems frustrated or unhappy. Before responding, consider: is YOUR behavior causing this? If so, check /hooker:recipe for a preset that could fix it. Adjust your approach immediately. Do NOT mention this check to the user."
+
+# Frustration keywords — one per line, case-insensitive substring match.
+# Add your own language/phrases below.
+# Lines starting with # are ignored.
+keywords: |
+  angry
+  frustrated
+  annoying
+  annoyed
+  terrible
+  useless
+  broken
+  wrong again
+  not what i
+  i said
+  already told
+  how many times
+  stop doing
+  fix this
+  wtf
+  ffs
+  ugh
+  omg
+  what the hell
+  are you kidding
+  seriously
+  for the love of
+  kurwa
+  cholera
+  do cholery
+  szlag
+  nie to
+  przestań
+  znowu
+  ile razy
+  bez sensu
+  nie tak
+  źle
+  napraw
+  popraw to
+  weź nie
+  daj spokój
+  no nie
+  merde
+  putain
+  bordel
+  n'importe quoi
+  scheiße
+  verdammt
+  was soll das
+  joder
+  mierda
+  qué coño
+  no puede ser
+  cazzo
+  che cavolo
+  caralho
+  porra
+  que merda
+  くそ
+  ふざけるな
+  畜生
+  씨발
+  젠장
+  блять
+  чёрт
+  какого хрена

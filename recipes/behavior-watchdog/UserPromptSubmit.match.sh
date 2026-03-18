@@ -9,7 +9,7 @@ INPUT=$(cat)
 PROMPT=$(echo "$INPUT" | sed -n 's/.*"user_prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$PROMPT" ] && exit 1
 
-# Load messages
+# Load config
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MSGS_FILE=".claude/hooker/behavior-watchdog.messages.yml"
 [ -f "$MSGS_FILE" ] || MSGS_FILE="${SCRIPT_DIR}/messages.yml"
@@ -18,15 +18,25 @@ yml_get() {
     sed -n "s/^${1}:[[:space:]]*\"\{0,1\}\([^\"]*\).*/\1/p" "$MSGS_FILE" 2>/dev/null | head -1 || echo "$2"
 }
 
+# Extract keywords from yml (multiline value after "keywords: |")
+# Each non-empty, non-comment line is a keyword
+KEYWORDS=$(awk '
+    /^keywords:[[:space:]]*\|/ { capture=1; next }
+    capture && /^[[:space:]]+[^#]/ { gsub(/^[[:space:]]+/, ""); gsub(/[[:space:]]+$/, ""); if (length) print }
+    capture && /^[^[:space:]]/ { exit }
+' "$MSGS_FILE" 2>/dev/null)
+
 # Check for frustration signals (case-insensitive)
 LOWER_PROMPT=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 FRUSTRATED=false
 
-for word in angry frustrated annoying stop doing that wrong again "not what i" "i said" "already told" "how many times" kurwa cholera "nie to" "przestań" "znowu" "ile razy"; do
+while IFS= read -r keyword; do
+    [ -z "$keyword" ] && continue
+    lower_keyword=$(echo "$keyword" | tr '[:upper:]' '[:lower:]')
     case "$LOWER_PROMPT" in
-        *"$word"*) FRUSTRATED=true; break ;;
+        *"$lower_keyword"*) FRUSTRATED=true; break ;;
     esac
-done
+done <<< "$KEYWORDS"
 
 if [ "$FRUSTRATED" = "true" ]; then
     MSG=$(yml_get frustration_check "The user seems frustrated. Check /hooker:recipe for fixes.")
