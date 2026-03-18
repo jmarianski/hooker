@@ -83,77 +83,39 @@ They all use the same hook mechanism — technically reimplementable with Hooker
 
 Our included recipes (block-dangerous-commands, protect-sensitive-files) are lightweight alternatives for users who don't need the full power of these plugins.
 
-### Recipe Catalog — Community Inspirations
+### Community Inspirations — Not Yet Implemented
 
-These hooks exist in the community and can be implemented with Hooker.
-All are technically achievable with a `.match.sh` script + helpers.
+Ideas from the community that could become Hooker recipes.
 See [NOTICES.md](NOTICES.md) for full attribution and license details.
-
-#### Security & Safety
 
 | Idea | Hook | Source | License |
 |------|------|--------|---------|
-| Block dangerous bash commands | PreToolUse | [karanb192/claude-code-hooks](https://github.com/karanb192/claude-code-hooks) | MIT |
-| Protect sensitive files (195+ patterns) | PreToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
-| Block force push to main | PreToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
 | Block hardcoded secrets in code | PostToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
 | Branch protection (no commits to main) | PreToolUse | [Cameron Westland](https://cameronwestland.com/building-my-first-claude-code-hooks-automating-the-workflow-i-actually-want/) | Blog |
 | Production keyword warning | PreToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
-
-#### Code Quality
-
-| Idea | Hook | Source | License |
-|------|------|--------|---------|
-| Auto-format after edit (multi-lang) | PostToolUse | [ryanlewis/claude-format-hook](https://github.com/ryanlewis/claude-format-hook) | MIT |
 | Ruff lint + format for Python | PostToolUse | [TMYuan/ruff-claude-hook](https://github.com/TMYuan/ruff-claude-hook) | MIT |
 | TypeScript type checking after edit | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
 | Ban `any` types in TypeScript | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
-| Detect comment-replaced code | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
-| Detect lazy underscore params | PostToolUse | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
 | Lint gate before commit | PreToolUse | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
 | Enforce package manager (pnpm/npm) | PreToolUse | [Steve Kinney](https://stevekinney.com/courses/ai-development/claude-code-hook-examples) | Blog |
 | Warn on test file modification | PostToolUse | [paddo.dev](https://paddo.dev/blog/claude-code-hooks-guardrails/) | Blog |
-
-#### Testing
-
-| Idea | Hook | Source | License |
-|------|------|--------|---------|
 | Auto-run tests after edit | PostToolUse | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
 | Block PR unless tests pass | PreToolUse | [Official docs](https://code.claude.com/docs/en/hooks-guide) | Docs |
 | Full test suite before stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
 | Require tests before task complete | TaskCompleted | [Official docs](https://code.claude.com/docs/en/hooks) | Docs |
-
-#### Git Automation
-
-| Idea | Hook | Source | License |
-|------|------|--------|---------|
-| Auto-commit checkpoint on stop | Stop | [schacon gist](https://gist.github.com/schacon/a3683d51175f0240b900d4c224dbc676) | No license |
 | Auto-commit with prompt as message | Stop | [GitButler blog](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks/) | Blog |
 | Auto-commit after every file edit | PostToolUse | [bleepingswift](https://bleepingswift.com/blog/claude-code-auto-commit) | Blog |
 | Session-isolated git branches | Pre/PostToolUse + Stop | [GitButler blog](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks/) | Blog |
-
-#### Context & Session
-
-| Idea | Hook | Source | License |
-|------|------|--------|---------|
-| Git status on session start | SessionStart | [claudefa.st](https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks) | Blog |
-| Re-inject context after compaction | SessionStart (compact) | [claudefa.st](https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks) | Blog |
 | Codebase map injection | UserPromptSubmit | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
 | Auto-refresh context every N prompts | UserPromptSubmit | [John Lindquist gist](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) | No license |
-| Skip acknowledgments | UserPromptSubmit | [ChrisWiles/claude-code-showcase](https://github.com/ChrisWiles/claude-code-showcase) | MIT |
 | Transcript backup before compaction | PreCompact | [disler/hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) | No license |
-
-#### Review & Notifications
-
-| Idea | Hook | Source | License |
-|------|------|--------|---------|
 | Self-review on stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
 | Desktop notification on stop | Stop | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
 | Slack notification on idle | Notification | [karanb192/claude-code-hooks](https://github.com/karanb192/claude-code-hooks) | MIT |
 | Check TODOs on stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
 
 All of these can be implemented as Hooker recipes using `.match.sh` scripts with helpers.
-See `/hooker` to create your own or `/hooker:recipe` to install included ones.
+See `/hooker:recipe` to create your own or install included ones.
 
 ## Match Script Helpers
 
