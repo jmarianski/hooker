@@ -11,6 +11,9 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" = "Bash" ] || exit 1
 
+# Skip refactoring if explicitly disabled
+[ "${HOOKER_NO_REFACTOR:-}" = "1" ] && exit 1
+
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 

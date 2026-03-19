@@ -1,0 +1,3 @@
+updated: "Updated namespace/use statements in {count} files after move."
+no_refs: "File moved, no PHP namespace/use references found to update."
+no_phpactor: "phpactor not found — install with 'composer global require phpactor/phpactor' for AST-aware refactoring. Falling back to sed."
