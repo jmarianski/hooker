@@ -53,13 +53,96 @@ Available recipes (no need to scan filesystem — this is the full list):
 **Hooks without recipes**: PermissionRequest, Notification, TeammateIdle, InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove, Elicitation, ElicitationResult
 
 ## Without arguments
-1. Check `.claude/hooker/` to detect which recipes are already installed (match filenames against catalog above)
+1. Check `.claude/hooker/` to detect which recipes are already installed:
+   - **Isolated mode**: check for subdirectories in `.claude/hooker/*/`
+   - **Merged mode**: grep for `# @recipe` markers in `.claude/hooker/*.sh`
 2. Show the catalog with [installed] / [ready] status
 3. Ask user which recipe(s) to install
 
+## Installation modes
+
+When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:
+
+### Merged mode (stable, default)
+
+Traditional approach. All recipes sharing the same hook are merged into one script.
+
+**How it works:**
+- Files go directly in `.claude/hooker/{HookName}.match.sh`
+- Multiple recipes for the same hook → merged into one script with `@recipe` markers
+- Hooker's `inject.sh` (registered in the plugin's hooks.json) dispatches to them
+
+**Pros:** Relies only on the plugin's hooks.json. Stable, no workarounds.
+**Cons:** Merging recipes is complex. One `.match.sh` per hook — can't have independent behaviors.
+
+**Structure:**
+```
+.claude/hooker/
+  Stop.match.sh                              ← merged script with @recipe markers
+  remind-to-update-docs.messages.yml         ← recipe's editable messages
+  auto-checkpoint.messages.yml               ← another recipe's messages
+```
+
+### Isolated mode (experimental)
+
+Each recipe gets its own subdirectory. No merging needed.
+
+**How it works:**
+- Files go in `.claude/hooker/{recipe-name}/`
+- A `run.sh` bridge script is created in `.claude/hooker/`
+- Hook entries are added to `.claude/settings.json` pointing to `run.sh`
+- Each recipe = separate hook command, Claude Code orchestrates independently
+
+**Pros:** Clean separation. No merging. Each recipe can use `.md` templates independently.
+**Cons:** Relies on `.claude/settings.json` hooks — this is an **unofficial workaround** that may
+stop working in future Claude Code versions. If Anthropic changes how settings.json hooks
+interact with plugin hooks, isolated recipes may break.
+
+**Structure:**
+```
+.claude/hooker/
+  run.sh                                     ← bridge (finds hooker, delegates to inject.sh)
+  refactor-move-ts-smart/
+    PostToolUse.match.sh
+    PostCompact.md
+    SessionStart.md
+    update-imports.cjs
+    messages.yml
+  auto-format/
+    PostToolUse.match.sh
+    messages.yml
+```
+
+**settings.json entries:**
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/refactor-move-ts-smart/PostToolUse" }] },
+      { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/auto-format/PostToolUse" }] }
+    ]
+  }
+}
+```
+
+### Decision guide (present to user)
+
+| | Merged (stable) | Isolated (experimental) |
+|---|---|---|
+| Multiple recipes, same hook | Merged into one script | Each runs independently |
+| `.md` templates | Only one per hook (must inline in merged script) | Each recipe keeps its own |
+| Supporting files | Prefixed: `{recipe}.messages.yml` | In subdirectory: `{recipe}/messages.yml` |
+| Dependency | Plugin hooks.json only | Plugin hooks.json + `.claude/settings.json` |
+| Stability | Proven, stable | **Experimental** — relies on settings.json hook support |
+| Removal | Delete `@recipe` section from merged script | Delete subdirectory + settings.json entry |
+
+**Recommendation:** Use merged mode for stability. Use isolated mode only if you need multiple
+independent behaviors on the same hook and understand the risk.
+
 ## With recipe name (e.g. `/hooker:recipe remind-to-update-docs`)
-Install that recipe:
-1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` and the recipe's `.match.sh`
+
+### Merged mode installation
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` and the recipe's files
 2. Show description and hooks
 3. Check if `.claude/hooker/{HookName}.match.sh` already exists
 4. **If no conflict:** use the recipe script as reference, adapt it to the project if needed, write to `.claude/hooker/`
@@ -68,7 +151,23 @@ Install that recipe:
 7. `chmod +x` any `.match.sh` files
 8. Confirm installation
 
-## Recipe markers
+### Isolated mode installation
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` and the recipe's files
+2. Show description and hooks
+3. Create `.claude/hooker/{recipe-name}/` directory
+4. Copy/adapt recipe files into the subdirectory
+5. Ensure `.claude/hooker/run.sh` exists (create from `${CLAUDE_PLUGIN_ROOT}/scripts/run.sh` if not)
+6. `chmod +x run.sh` and any `.match.sh` files
+7. Add hook entries to `.claude/settings.json` for each hook in the recipe:
+   ```json
+   { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/{recipe-name}/{HookName}" }] }
+   ```
+8. **Warn the user:** "Isolated mode adds hooks to `.claude/settings.json`. This is an
+   unofficial workaround — if Claude Code changes how settings.json hooks work alongside
+   plugin hooks, these entries may need to be updated or removed."
+9. Confirm installation
+
+## Recipe markers (merged mode only)
 Every recipe's logic MUST be wrapped in marker comments for traceability:
 ```bash
 # @recipe remind-to-update-docs
@@ -85,23 +184,22 @@ This enables:
 
 ## Subcommands
 - `list` — show all available recipes (same as no args)
-- `install <name> [name2...]` — install one or more recipes
-- `remove <name>` — find `# @recipe <name>` / `# @end-recipe <name>` markers in `.claude/hooker/`, remove only that section. If it was the last recipe in the file, remove the file.
-- `installed` — grep for `# @recipe <name>` in `.claude/hooker/*.sh` to list installed recipes
+- `install <name> [name2...]` — install one or more recipes (asks which mode)
+- `remove <name>` — **merged:** find `# @recipe <name>` / `# @end-recipe <name>` markers in `.claude/hooker/`, remove only that section. If it was the last recipe in the file, remove the file. **isolated:** delete `.claude/hooker/{name}/` directory and remove corresponding entries from `.claude/settings.json`.
+- `installed` — detect installed recipes from both modes:
+  - **Merged:** grep for `# @recipe <name>` in `.claude/hooker/*.sh`
+  - **Isolated:** list subdirectories in `.claude/hooker/*/` that contain hook files
 
 ## IMPORTANT: recipes are REFERENCES, not copy-paste
 Recipe scripts in `${CLAUDE_PLUGIN_ROOT}/recipes/` are templates to learn from.
 When installing:
 - **Read** the recipe script to understand the logic
 - **Adapt** paths, patterns, messages to the current project
-- **Merge** with existing scripts if the same hook is already in use
-- **Wrap** in `@recipe` markers for traceability
+- **Merged mode:** merge with existing scripts if the same hook is already in use, wrap in `@recipe` markers
+- **Isolated mode:** copy into subdirectory, add settings.json hooks
 - **Never blindly copy** — the script may need project-specific adjustments
 
-Multiple recipes targeting the same hook MUST be merged into one script.
-There can only be one `.match.sh` per hook event per directory.
-
-## Merge strategy for different modes
+## Merge strategy for different modes (merged mode only)
 
 Some recipes are Mode 2 (match script + `.md` template) or Mode 1 (`.md` only).
 When merging, **always convert to Mode 3** (standalone script with output):
@@ -119,19 +217,25 @@ This is necessary because:
 
 ## Supporting files (messages.yml, config, etc.)
 
-Recipes may ship with supporting files (e.g. `messages.yml`). These are **per-recipe**,
-not merged. When installing, prefix the filename with the recipe name:
-
+**Merged mode:** prefix with recipe name to prevent conflicts:
 ```
 .claude/hooker/
   Stop.match.sh                              ← merged script with @recipe markers
   remind-to-update-docs.messages.yml         ← this recipe's editable messages
-  auto-checkpoint.config.yml                 ← another recipe's config
+  auto-checkpoint.messages.yml               ← another recipe's config
 ```
-
 Convention: `{recipe-name}.{original-filename}` — prevents conflicts between recipes.
-The script references its own file by recipe name. Users can edit any `.yml` file
-independently without affecting other recipes.
+
+**Isolated mode:** files stay in their recipe subdirectory — no prefixing needed:
+```
+.claude/hooker/
+  remind-to-update-docs/
+    Stop.match.sh
+    messages.yml
+  auto-checkpoint/
+    Stop.match.sh
+    messages.yml
+```
 
 ## Architecture — THREE modes of operation
 
@@ -282,20 +386,6 @@ MSG=$(sed -n 's/^default:[[:space:]]*"\{0,1\}\([^"]*\).*/\1/p' "$MSGS_FILE" 2>/d
 [ -z "$MSG" ] && MSG="Did you update docs, tests, and clean up TODOs?"
 remind "$MSG"
 exit 0
-```
-
-**Conditional warn (PostToolUse):**
-```bash
-#!/bin/bash
-source "${HOOKER_HELPERS}"
-INPUT=$(cat)
-FILE=$(echo "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-LINES=$(wc -l < "$FILE" 2>/dev/null || echo 0)
-if [ "$LINES" -gt 500 ]; then
-    warn "File $FILE has ${LINES} lines — consider splitting."
-    exit 0
-fi
-exit 1
 ```
 
 ### 4. Create files

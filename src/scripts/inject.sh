@@ -5,11 +5,28 @@
 
 set -euo pipefail
 
+# --- Parse arguments ---
+# Usage: inject.sh                         (default: dispatch by hook event)
+#        inject.sh --recipe path/to/Hook   (recipe mode: path = recipe dir + hook name)
+RECIPE_PATH=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --recipe) RECIPE_PATH="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
 # Read input JSON from stdin
 INPUT=$(cat)
 
-# Extract hook event name — portable, no grep -P
-HOOK_EVENT=$(echo "$INPUT" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+# Determine hook event — from --recipe path or stdin JSON
+if [ -n "$RECIPE_PATH" ]; then
+    HOOK_EVENT=$(basename "$RECIPE_PATH")
+    RECIPE_DIR=$(dirname "$RECIPE_PATH")
+else
+    HOOK_EVENT=$(echo "$INPUT" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    RECIPE_DIR=""
+fi
 
 if [ -z "$HOOK_EVENT" ]; then
     exit 0
@@ -42,10 +59,11 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$HOOK_EVENT] $*" >> "$LOG_FILE"
 }
 
-log "Hook triggered in $(pwd)"
+log "Hook triggered in $(pwd)${RECIPE_DIR:+ (recipe: $RECIPE_DIR)}"
 
 # --- Find template and/or match script ---
-# Priority: project > user global > plugin default
+# With --recipe path/Hook: look only in that directory for Hook.md / Hook.match.sh
+# Without --recipe: priority: project > user global > plugin default
 # Standalone match scripts (no .md) are allowed — they handle everything via output
 PROJECT_DIR=".claude/hooker"
 USER_DIR="${HOME}/.claude/hooker"
@@ -53,17 +71,29 @@ USER_DIR="${HOME}/.claude/hooker"
 TEMPLATE_FILE=""
 MATCH_SCRIPT=""
 
-# Check project first, then user global, then plugin defaults
-for DIR in "$PROJECT_DIR" "$USER_DIR" "${PLUGIN_DIR}/templates"; do
-    if [ -f "${DIR}/${HOOK_EVENT}.md" ] && [ -z "$TEMPLATE_FILE" ]; then
-        TEMPLATE_FILE="${DIR}/${HOOK_EVENT}.md"
-        log "Using template: ${TEMPLATE_FILE}"
+if [ -n "$RECIPE_DIR" ]; then
+    # Recipe mode — look in recipe directory only
+    if [ -f "${RECIPE_DIR}/${HOOK_EVENT}.md" ]; then
+        TEMPLATE_FILE="${RECIPE_DIR}/${HOOK_EVENT}.md"
+        log "Using recipe template: ${TEMPLATE_FILE}"
     fi
-    if [ -x "${DIR}/${HOOK_EVENT}.match.sh" ] && [ -z "$MATCH_SCRIPT" ]; then
-        MATCH_SCRIPT="${DIR}/${HOOK_EVENT}.match.sh"
-        log "Using match script: ${MATCH_SCRIPT}"
+    if [ -x "${RECIPE_DIR}/${HOOK_EVENT}.match.sh" ]; then
+        MATCH_SCRIPT="${RECIPE_DIR}/${HOOK_EVENT}.match.sh"
+        log "Using recipe match script: ${MATCH_SCRIPT}"
     fi
-done
+else
+    # Default mode — check project first, then user global, then plugin defaults
+    for DIR in "$PROJECT_DIR" "$USER_DIR" "${PLUGIN_DIR}/templates"; do
+        if [ -f "${DIR}/${HOOK_EVENT}.md" ] && [ -z "$TEMPLATE_FILE" ]; then
+            TEMPLATE_FILE="${DIR}/${HOOK_EVENT}.md"
+            log "Using template: ${TEMPLATE_FILE}"
+        fi
+        if [ -x "${DIR}/${HOOK_EVENT}.match.sh" ] && [ -z "$MATCH_SCRIPT" ]; then
+            MATCH_SCRIPT="${DIR}/${HOOK_EVENT}.match.sh"
+            log "Using match script: ${MATCH_SCRIPT}"
+        fi
+    done
+fi
 
 if [ -z "$TEMPLATE_FILE" ] && [ -z "$MATCH_SCRIPT" ]; then
     log "No template or match script found, skipping"

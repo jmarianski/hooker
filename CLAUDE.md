@@ -89,6 +89,19 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
   [claude-notifications-go](https://github.com/777genius/claude-notifications-go)
   plugin handles desktop notifications already. Duplicating it would be pointless.
 
+## Installation modes
+
+Recipes can be installed in two modes:
+
+**Merged (stable, default):** Files in `.claude/hooker/{HookName}.match.sh` with `@recipe`
+markers. Multiple recipes for same hook merged into one script. Relies only on plugin hooks.json.
+
+**Isolated (experimental):** Files in `.claude/hooker/{recipe-name}/`. Each recipe = separate
+hook command via `.claude/hooker/run.sh` bridge + `.claude/settings.json` entries.
+No merging needed but relies on settings.json hook support which is **unofficial** and may break.
+
+Always ask user which mode. Always warn about isolated mode's experimental nature.
+
 ## Override priority
 
 Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
