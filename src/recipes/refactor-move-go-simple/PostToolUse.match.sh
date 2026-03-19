@@ -7,14 +7,18 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" = "Bash" ] || exit 1
 
-# Skip refactoring if explicitly disabled
-[ "${HOOKER_NO_REFACTOR:-}" = "1" ] && exit 1
-
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
+# Strip leading env vars (VAR=val), cd chains (cd dir &&), and mv flags
+MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
+
 # Detect: mv old.go new.go
-OLD_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+\([^[:space:]]\+\.go\)[[:space:]]\+.*/\1/p')
-NEW_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
+OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\.go\)[[:space:]]\+.*/\1/p')
+NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
 [ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
 
 if [ -d "$NEW_PATH" ]; then
@@ -61,7 +65,7 @@ COUNT=0
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if grep -q "\"${OLD_IMPORT}\"" "$file" 2>/dev/null; then
-        sed -i "s|\"${OLD_IMPORT}\"|\"${NEW_IMPORT}\"|g" "$file" 2>/dev/null
+        _hooker_sed_i "s|\"${OLD_IMPORT}\"|\"${NEW_IMPORT}\"|g" "$file" 2>/dev/null
         COUNT=$((COUNT + 1))
     fi
 done <<< "$AFFECTED_FILES"
@@ -70,7 +74,7 @@ if [ "$COUNT" -gt 0 ]; then
     # Run goimports if available (cleans up unused imports, adds missing ones)
     GOIMPORTS_MSG=""
     if command -v goimports >/dev/null 2>&1; then
-        goimports -w . 2>/dev/null && GOIMPORTS_MSG=" goimports applied."
+        echo "$AFFECTED_FILES" | xargs goimports -w 2>/dev/null && GOIMPORTS_MSG=" goimports applied."
     fi
     inject "Refactor Move: updated Go imports in ${COUNT} files (${OLD_IMPORT} → ${NEW_IMPORT}).${GOIMPORTS_MSG}"
 else

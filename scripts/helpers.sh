@@ -40,6 +40,15 @@ _hooker_json_escape() {
     ' | { IFS= read -r -d '' x || true; printf '"%s"' "$x"; }
 }
 
+# Portable sed-in-place. macOS sed requires '' after -i, GNU sed does not.
+_hooker_sed_i() {
+    if [ "$(uname)" = "Darwin" ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # Reverse lines of a file. Portable replacement for tac.
 _hooker_reverse() {
     awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'

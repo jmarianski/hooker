@@ -10,15 +10,19 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" = "Bash" ] || exit 1
 
-# Skip refactoring if explicitly disabled
-[ "${HOOKER_NO_REFACTOR:-}" = "1" ] && exit 1
-
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
+# Strip leading env vars (VAR=val), cd chains (cd dir &&), and mv flags
+MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
+
 # Detect: mv old.php new.php (or directory move)
-OLD_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
-NEW_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
+OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
+NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
 [ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
 
 # Must be a .php file OR a directory containing .php files
@@ -111,7 +115,7 @@ OLD_NS_ESCAPED=$(echo "$OLD_NS" | sed 's|\\|\\\\|g')
 NEW_NS_ESCAPED=$(echo "$NEW_NS" | sed 's|\\|\\\\|g')
 
 if [ -f "$NEW_PATH" ] && [ "$OLD_NS" != "$NEW_NS" ]; then
-    sed -i "s|namespace ${OLD_NS_ESCAPED};|namespace ${NEW_NS_ESCAPED};|g" "$NEW_PATH" 2>/dev/null
+    _hooker_sed_i "s|namespace ${OLD_NS_ESCAPED};|namespace ${NEW_NS_ESCAPED};|g" "$NEW_PATH" 2>/dev/null
 fi
 
 # Find PHP files referencing old FQCN
@@ -129,7 +133,7 @@ while IFS= read -r file; do
     [ -z "$file" ] && continue
     if grep -q "${OLD_GREP}" "$file" 2>/dev/null; then
         # Update use statements and fully qualified references
-        sed -i "s|${OLD_ESCAPED}|${NEW_ESCAPED}|g" "$file" 2>/dev/null
+        _hooker_sed_i "s|${OLD_ESCAPED}|${NEW_ESCAPED}|g" "$file" 2>/dev/null
         COUNT=$((COUNT + 1))
     fi
 done <<< "$AFFECTED_FILES"

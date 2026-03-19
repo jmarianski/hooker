@@ -12,15 +12,19 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" = "Bash" ] || exit 1
 
-# Skip refactoring if explicitly disabled
-[ "${HOOKER_NO_REFACTOR:-}" = "1" ] && exit 1
-
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
+# Strip leading env vars (VAR=val), cd chains (cd dir &&), and mv flags
+MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
+
 # Detect: mv old_path new_path (two-arg mv)
-OLD_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
-NEW_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
+OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
+NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
 [ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
 
 # Must be a JS/TS file OR a directory containing JS/TS files
@@ -94,12 +98,12 @@ COUNT=0
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     FILE_DIR=$(dirname "$file")
-    OLD_REL=$(python3 -c "import os.path; print(os.path.relpath('$OLD_IMPORT_CLEAN', '$FILE_DIR'))" 2>/dev/null) || OLD_REL="$OLD_IMPORT_CLEAN"
-    NEW_REL=$(python3 -c "import os.path; print(os.path.relpath('$NEW_IMPORT_CLEAN', '$FILE_DIR'))" 2>/dev/null) || NEW_REL="$NEW_IMPORT_CLEAN"
+    OLD_REL=$(python3 -c "import sys,os.path; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "$OLD_IMPORT_CLEAN" "$FILE_DIR" 2>/dev/null) || OLD_REL="$OLD_IMPORT_CLEAN"
+    NEW_REL=$(python3 -c "import sys,os.path; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "$NEW_IMPORT_CLEAN" "$FILE_DIR" 2>/dev/null) || NEW_REL="$NEW_IMPORT_CLEAN"
     case "$OLD_REL" in ./*|../*) ;; *) OLD_REL="./${OLD_REL}" ;; esac
     case "$NEW_REL" in ./*|../*) ;; *) NEW_REL="./${NEW_REL}" ;; esac
     if grep -q "['\"]\(${OLD_REL}\)['\"]" "$file" 2>/dev/null; then
-        sed -i "s|'${OLD_REL}'|'${NEW_REL}'|g; s|\"${OLD_REL}\"|\"${NEW_REL}\"|g" "$file" 2>/dev/null
+        _hooker_sed_i "s|'${OLD_REL}'|'${NEW_REL}'|g; s|\"${OLD_REL}\"|\"${NEW_REL}\"|g" "$file" 2>/dev/null
         COUNT=$((COUNT + 1))
     fi
 done <<< "$AFFECTED_FILES"

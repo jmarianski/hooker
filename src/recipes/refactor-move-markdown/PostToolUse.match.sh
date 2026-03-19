@@ -10,15 +10,19 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ "$TOOL" = "Bash" ] || exit 1
 
-# Skip refactoring if explicitly disabled
-[ "${HOOKER_NO_REFACTOR:-}" = "1" ] && exit 1
-
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
+# Strip leading env vars (VAR=val), cd chains (cd dir &&), and mv flags
+MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
+MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
+
 # Detect: mv old_path new_path
-OLD_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
-NEW_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
+OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
+NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
 [ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
 
 # If new path is a directory, append the filename
@@ -57,8 +61,8 @@ while IFS= read -r mdfile; do
     # Old relative path (what the link currently says)
     # New relative path (what it should say)
     if command -v python3 >/dev/null 2>&1; then
-        OLD_REL=$(python3 -c "import os.path; print(os.path.relpath('$OLD_CLEAN', '$MD_DIR'))" 2>/dev/null)
-        NEW_REL=$(python3 -c "import os.path; print(os.path.relpath('$NEW_CLEAN', '$MD_DIR'))" 2>/dev/null)
+        OLD_REL=$(python3 -c "import sys,os.path; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "$OLD_CLEAN" "$MD_DIR" 2>/dev/null)
+        NEW_REL=$(python3 -c "import sys,os.path; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "$NEW_CLEAN" "$MD_DIR" 2>/dev/null)
     else
         # Without python3, try direct path if in same/child directory
         OLD_REL="$OLD_CLEAN"
@@ -68,14 +72,18 @@ while IFS= read -r mdfile; do
     [ -z "$OLD_REL" ] || [ -z "$NEW_REL" ] && continue
     [ "$OLD_REL" = "$NEW_REL" ] && continue
 
+    # Escape dots in paths for sed regex
+    OLD_REL_ESC=$(echo "$OLD_REL" | sed 's/\./\\./g')
+
     # Match markdown link patterns: [text](path) and ![alt](path)
     # Also handle paths with anchors: [text](path#section)
     if grep -q "\](\(\.*/\)*${OLD_BASENAME}" "$mdfile" 2>/dev/null; then
         # Replace exact relative path in markdown links (preserve anchors/query strings)
-        sed -i "s|\](${OLD_REL})|](${NEW_REL})|g; s|\](${OLD_REL}#|\](${NEW_REL}#|g; s|\](${OLD_REL}?|\](${NEW_REL}?|g" "$mdfile" 2>/dev/null
+        _hooker_sed_i "s|\](${OLD_REL_ESC})|](${NEW_REL})|g; s|\](${OLD_REL_ESC}#|\](${NEW_REL}#|g; s|\](${OLD_REL_ESC}?|\](${NEW_REL}?|g" "$mdfile" 2>/dev/null
 
         # Also try with ./ prefix
-        sed -i "s|\](./${OLD_REL})|](./${NEW_REL})|g" "$mdfile" 2>/dev/null
+        OLD_REL_ESC_DOT=$(echo "./${OLD_REL}" | sed 's/\./\\./g')
+        _hooker_sed_i "s|\](${OLD_REL_ESC_DOT})|](./${NEW_REL})|g" "$mdfile" 2>/dev/null
 
         COUNT=$((COUNT + 1))
     fi

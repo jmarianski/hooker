@@ -64,7 +64,11 @@ try:
         if os.path.exists(old_abs) and os.path.exists(new_abs):
             os.remove(old_abs)
 
-        print(json.dumps({"count": len(changed_files), "files": changed_files}))
+        # Validate the file ended up at new_path
+        result = {"count": len(changed_files), "files": changed_files}
+        if not os.path.exists(new_abs):
+            result["warning"] = f"Expected file at {new_path} but it does not exist. Rope may have moved it elsewhere."
+        print(json.dumps(result))
     finally:
         # Clean up: remove temporary old file if still there
         if os.path.exists(old_abs) and old_abs != new_abs:
