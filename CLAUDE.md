@@ -58,6 +58,9 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
     }
   }
   ```
+  When installing a recipe (any mode), the skill should add `"installed_from": "hooker@X.Y.Z"`
+  to the project's copy of recipe.json. This lets users check if their installed recipes
+  are outdated compared to the current hooker version.
 - `{HookName}.match.sh` — bash match script (one per hook)
 - `messages.yml` — user-customizable messages/strings (optional)
 
