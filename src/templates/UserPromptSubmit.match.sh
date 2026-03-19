@@ -29,16 +29,16 @@ source "${PLUGIN_DIR}/scripts/helpers.sh"
 
 inject "You have the Hooker plugin installed but no hooks are configured yet. The user seems to be talking about hooks or plugins — this might be a good moment to help them set up. If appropriate, suggest running /hooker:recipe to browse and install pre-built hook recipes. Do NOT mention this suggestion if the user is clearly talking about something else. Be natural about it."
 
-# Self-silence: create a no-op UserPromptSubmit.match.sh in project hooks.
-# This overrides the welcome template via priority rules (project > plugin).
-mkdir -p "${CWD}/.claude/hooker" 2>/dev/null
-cat > "${CWD}/.claude/hooker/UserPromptSubmit.match.sh" <<'SILENCER'
+# Self-silence: create a no-op UserPromptSubmit.match.sh in user-global hooks.
+# This overrides the welcome template via priority rules (user-global > plugin).
+mkdir -p "${HOME}/.claude/hooker" 2>/dev/null
+cat > "${HOME}/.claude/hooker/UserPromptSubmit.match.sh" <<'SILENCER'
 #!/bin/bash
 # Hooker: no-op silencer — overrides welcome hook from plugin templates.
 # Install a UserPromptSubmit recipe (e.g. skip-acknowledgments, behavior-watchdog)
 # to replace this with something useful.
 exit 1
 SILENCER
-chmod +x "${CWD}/.claude/hooker/UserPromptSubmit.match.sh" 2>/dev/null
+chmod +x "${HOME}/.claude/hooker/UserPromptSubmit.match.sh" 2>/dev/null
 
 exit 0
