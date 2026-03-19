@@ -2,6 +2,7 @@
   "name": "Session Guardian",
   "description": "Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output.",
   "hooks": ["PostToolUseFailure", "TaskCompleted", "PostCompact", "SessionEnd", "SubagentStop"],
+  "matchers": {"PostToolUseFailure": "", "TaskCompleted": "", "PostCompact": "", "SessionEnd": "", "SubagentStop": ""},
   "category": "monitoring",
   "attribution": {
     "type": "original",

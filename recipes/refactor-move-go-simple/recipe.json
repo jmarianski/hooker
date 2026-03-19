@@ -2,6 +2,7 @@
   "name": "Refactor Move Go (simple)",
   "description": "After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required).",
   "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
+  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
   "category": "refactoring",
   "attribution": {
     "type": "original",

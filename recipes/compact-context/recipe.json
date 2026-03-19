@@ -2,6 +2,7 @@
   "name": "Compact Context",
   "description": "Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves.",
   "hooks": ["PreCompact"],
+  "matchers": {"PreCompact": ""},
   "category": "context",
   "attribution": {
     "type": "original",

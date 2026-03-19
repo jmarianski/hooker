@@ -2,6 +2,7 @@
   "name": "Refactor Move Python (smart)",
   "description": "After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable.",
   "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
+  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
   "category": "refactoring",
   "dependencies": ["rope (pip)"],
   "attribution": {

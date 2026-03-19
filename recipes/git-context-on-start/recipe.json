@@ -2,6 +2,7 @@
   "name": "Git Context on Start",
   "description": "Injects current git branch, status, and recent commits on session start.",
   "hooks": ["SessionStart"],
+  "matchers": {"SessionStart": ""},
   "category": "context",
   "attribution": {
     "type": "inspired",

@@ -2,6 +2,7 @@
   "name": "Detect Lazy Code",
   "description": "Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders.",
   "hooks": ["PostToolUse"],
+  "matchers": {"PostToolUse": "Edit"},
   "category": "quality",
   "attribution": {
     "type": "adapted",
