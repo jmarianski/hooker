@@ -91,6 +91,18 @@ Session lifecycle management and observation.
 2. Show the catalog with [installed] / [ready] status
 3. Ask user which recipe(s) to install
 
+## Shared vs Local installation
+
+Before choosing a mode, ask if the recipe should be **shared** (committed to repo) or **local** (per-developer, not committed):
+
+- **Shared**: files in `.claude/hooker/{recipe}/`, hooks in `.claude/settings.json` — version-controlled, team-wide
+- **Local**: files in `.claude/hooker/local/{recipe}/`, hooks in `.claude/settings.local.json` — gitignored, personal
+
+When installing local recipes:
+1. Ensure `.claude/hooker/.gitignore` exists with `local/` entry (create if not)
+2. Put recipe files in `.claude/hooker/local/{recipe-name}/`
+3. Wire hooks in `.claude/settings.local.json` (not settings.json)
+
 ## Installation modes
 
 When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:

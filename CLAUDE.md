@@ -99,6 +99,14 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
   [claude-notifications-go](https://github.com/777genius/claude-notifications-go)
   plugin handles desktop notifications already. Duplicating it would be pointless.
 
+## Shared vs Local
+
+Recipes can be shared (team-wide) or local (per-developer):
+- **Shared**: `.claude/hooker/{recipe}/` + `.claude/settings.json` — committed to repo
+- **Local**: `.claude/hooker/local/{recipe}/` + `.claude/settings.local.json` — gitignored
+
+The skill creates `.claude/hooker/.gitignore` with `local/` on first local install.
+
 ## Installation modes
 
 Recipes can be installed in three modes:
