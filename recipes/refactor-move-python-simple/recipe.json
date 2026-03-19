@@ -1,5 +1,5 @@
 {
-  "name": "Refactor Move (Python)",
+  "name": "Refactor Move Python (simple)",
   "description": "After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook.",
   "hooks": ["PostToolUse"],
   "attribution": {

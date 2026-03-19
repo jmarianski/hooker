@@ -39,9 +39,9 @@ Available recipes (no need to scan filesystem — this is the full list):
 | `git-context-on-start` | SessionStart | Injects current git branch, status, and recent commits on session start. |
 | `no-force-push-main` | PreToolUse | Blocks git push --force to main/master branches. |
 | `protect-sensitive-files` | PreToolUse | Blocks reading or editing .env, SSH keys, credentials, and other sensitive files. |
-| `refactor-move-go` | PostToolUse | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
-| `refactor-move-python` | PostToolUse | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
-| `refactor-move-ts` | PostToolUse | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
+| `refactor-move-go-simple` | PostToolUse | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
+| `refactor-move-python-simple` | PostToolUse | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
+| `refactor-move-ts-simple` | PostToolUse | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
 | `reinject-after-compact` | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
 | `remind-to-update-docs` | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
 | `require-changelog-before-tag` | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |

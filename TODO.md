@@ -83,21 +83,38 @@
 
 ### Refactoring-aware file moves
 
-Intercept `mv` commands and update imports/references automatically. This is a **category of recipes**, not one recipe — each language/toolchain needs its own approach.
+Three tiers of recipes — each builds on the previous:
 
-Architecture:
-- **PreToolUse** (Bash) — detect `mv *.ts`, parse old/new paths, store in env/tempfile
-- **PostToolUse** (Bash) — after move, scan and update imports/references
+#### Tier 1: Simple (done ✓)
+Pure bash/sed, zero dependencies. Current recipes:
+- [x] `refactor-move-ts-simple` — sed on import/require, reads tsconfig baseUrl
+- [x] `refactor-move-python-simple` — sed on from/import
+- [x] `refactor-move-go-simple` — sed on Go imports, reads go.mod
 
-Per-language approaches:
-- [ ] **JS/TS** — parse tsconfig for path aliases, update `import`/`require` with sed, handle barrel exports (`index.ts`), relative paths. Could use `ts-morph` for complex cases but sed covers 80%
-- [ ] **Python** — update `from X import Y` and `import X`, handle `__init__.py`, relative imports. `rope` library for complex cases, sed for simple
-- [ ] **Go** — `gorename`/`gomvpkg` exist but could be reimplemented with sed for import paths in `go.mod` and `.go` files
-- [ ] **Generic** — grep old filename across repo, warn about unreplaced references
+#### Tier 2: Smart (TODO)
+External language-specific tools for accurate refactoring:
+- [ ] `refactor-move-ts-smart` — uses `ts-morph` (npm) for AST-aware import updates, handles path aliases, barrel exports, re-exports
+- [ ] `refactor-move-python-smart` — uses `rope` (pip) for AST-aware refactoring, handles `__init__.py`, relative imports, namespace packages
+- [ ] `refactor-move-go-smart` — uses `gorename`/`gomvpkg` for proper package-aware moves
+- [ ] `refactor-move-php-smart` — uses composer.json PSR-4 autoload mappings for namespace updates
+- [ ] `refactor-move-rust-smart` — updates `mod` declarations and `use` paths
 
-**Important:** the recipe skill should suggest this as a **project-specific custom hook**, not a generic recipe. Each project has different tsconfig, import conventions, monorepo structure. The recipe provides a starting point, user adapts to their setup.
+#### Tier 3: Universal (TODO)
+One recipe to rule them all:
+- [ ] `refactor-move-universal` — **PreToolUse** hook that:
+  1. Parses bash command to extract `mv` operations (even from compound commands like `cmd1 && mv x y && cmd2`)
+  2. Detects file types being moved
+  3. For each file: dispatches to the best available tool (ts-morph > sed, rope > sed, etc.)
+  4. Handles directory moves (recursive — move each file individually with import updates)
+  5. Sequences operations: move file → update imports → verify no broken refs
+  6. Respects other plugins (e.g. safety-net may block the `mv` — don't fight it)
 
-Could also integrate with LSP servers (if available via plugin) for accurate rename refactoring.
+**Key challenges for Tier 3:**
+- Parsing compound bash commands (`&&`, `;`, `|`, subshells) to extract `mv` — basically needs an AST parser like Dippy's Parable
+- Sequencing: must move files one at a time and update imports after each move (not batch)
+- Directory moves: `mv src/utils/ src/lib/` affects ALL files inside — need to enumerate and handle each
+- Interaction with other hooks: if safety-net blocks the `mv`, our PostToolUse never fires (correct behavior)
+- Rollback: if import update fails, should we revert the move? Probably not — just warn
 
 ### Integration with other plugins
 
