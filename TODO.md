@@ -93,10 +93,11 @@ Pure bash/sed, zero dependencies. Current recipes:
 
 #### Tier 2: Smart (TODO)
 External language-specific tools for accurate refactoring:
-- [x] `refactor-move-ts-smart` — uses `ts-morph` (npm) for AST-aware import updates, handles path aliases, barrel exports, re-exports
-- [ ] `refactor-move-python-smart` — uses `rope` (pip) for AST-aware refactoring, handles `__init__.py`, relative imports, namespace packages
-- [ ] `refactor-move-go-smart` — uses `gorename`/`gomvpkg` for proper package-aware moves
-- [ ] `refactor-move-php-smart` — uses composer.json PSR-4 autoload mappings for namespace updates
+- [x] `refactor-move-ts-smart` — TypeScript Language Service API (`getEditsForFileRename`)
+- [x] `refactor-move-python-smart` — uses `rope` (pip) for AST-aware refactoring, handles `__init__.py`, relative imports
+- [x] `refactor-move-php-smart` — uses `phpactor` (composer) for namespace/use rewriting, composer.json PSR-4 + sed fallback
+- [x] `refactor-move-markdown` — updates `[text](path)` links in .md files after any file move
+- [ ] `refactor-move-go-smart` — no good CLI tool exists (gomvpkg legacy, gopls no CLI move). Simple recipe enhanced with optional `goimports -w .`
 - [ ] `refactor-move-rust-smart` — updates `mod` declarations and `use` paths
 
 #### Tier 3: Universal (TODO)

@@ -1,0 +1,11 @@
+{
+  "name": "Refactor Move Markdown Links",
+  "description": "After mv of any file, updates relative links in .md files ([text](path) and image refs). Pure bash/sed — no external dependencies.",
+  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
+  "category": "refactoring",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

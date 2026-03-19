@@ -67,7 +67,12 @@ while IFS= read -r file; do
 done <<< "$AFFECTED_FILES"
 
 if [ "$COUNT" -gt 0 ]; then
-    inject "Refactor Move: updated Go imports in ${COUNT} files (${OLD_IMPORT} → ${NEW_IMPORT})."
+    # Run goimports if available (cleans up unused imports, adds missing ones)
+    GOIMPORTS_MSG=""
+    if command -v goimports >/dev/null 2>&1; then
+        goimports -w . 2>/dev/null && GOIMPORTS_MSG=" goimports applied."
+    fi
+    inject "Refactor Move: updated Go imports in ${COUNT} files (${OLD_IMPORT} → ${NEW_IMPORT}).${GOIMPORTS_MSG}"
 else
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. Found references but could not auto-update — check imports manually."
 fi
