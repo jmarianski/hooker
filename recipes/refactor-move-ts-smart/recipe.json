@@ -1,0 +1,12 @@
+{
+  "name": "Refactor Move JS/TS (smart)",
+  "description": "After mv of .ts/.tsx/.js/.jsx files, uses ts-morph for AST-aware import/export rewriting. Handles path aliases, re-exports, barrel files, and index.ts. Falls back to simple sed if ts-morph unavailable.",
+  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
+  "category": "refactoring",
+  "dependencies": ["ts-morph (npm)"],
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

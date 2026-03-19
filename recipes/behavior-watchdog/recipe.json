@@ -2,6 +2,7 @@
   "name": "Behavior Watchdog",
   "description": "Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix.",
   "hooks": ["UserPromptSubmit"],
+  "category": "monitoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",

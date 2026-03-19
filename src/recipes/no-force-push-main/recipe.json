@@ -2,6 +2,7 @@
   "name": "No Force Push to Main",
   "description": "Blocks git push --force to main/master branches.",
   "hooks": ["PreToolUse"],
+  "category": "safety",
   "attribution": {
     "type": "inspired",
     "author": "Common pattern (paddo.dev, Cameron Westland)",

@@ -93,7 +93,7 @@ Pure bash/sed, zero dependencies. Current recipes:
 
 #### Tier 2: Smart (TODO)
 External language-specific tools for accurate refactoring:
-- [ ] `refactor-move-ts-smart` — uses `ts-morph` (npm) for AST-aware import updates, handles path aliases, barrel exports, re-exports
+- [x] `refactor-move-ts-smart` — uses `ts-morph` (npm) for AST-aware import updates, handles path aliases, barrel exports, re-exports
 - [ ] `refactor-move-python-smart` — uses `rope` (pip) for AST-aware refactoring, handles `__init__.py`, relative imports, namespace packages
 - [ ] `refactor-move-go-smart` — uses `gorename`/`gomvpkg` for proper package-aware moves
 - [ ] `refactor-move-php-smart` — uses composer.json PSR-4 autoload mappings for namespace updates

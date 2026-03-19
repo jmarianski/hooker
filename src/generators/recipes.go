@@ -13,6 +13,7 @@ type Recipe struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Hooks       []string `json:"hooks"`
+	Category    string   `json:"category"`
 }
 
 var allHooks = []string{
@@ -88,6 +89,59 @@ func UncoveredHooks(recipes []Recipe) []string {
 
 func AllHooks() []string {
 	return allHooks
+}
+
+type CategoryGroup struct {
+	ID      string   `json:"id"`
+	Label   string   `json:"label"`
+	Recipes []Recipe `json:"recipes"`
+}
+
+var categoryLabels = map[string]string{
+	"safety":      "Safety",
+	"refactoring": "Refactoring",
+	"workflow":    "Workflow",
+	"context":     "Context",
+	"quality":     "Quality",
+	"monitoring":  "Monitoring",
+}
+
+var categoryOrder = []string{"safety", "refactoring", "workflow", "context", "quality", "monitoring"}
+
+func GroupByCategory(recipes []Recipe) []CategoryGroup {
+	groups := map[string][]Recipe{}
+	for _, r := range recipes {
+		cat := r.Category
+		if cat == "" {
+			cat = "other"
+		}
+		groups[cat] = append(groups[cat], r)
+	}
+
+	var out []CategoryGroup
+	for _, id := range categoryOrder {
+		if rs, ok := groups[id]; ok {
+			label := categoryLabels[id]
+			if label == "" {
+				label = id
+			}
+			out = append(out, CategoryGroup{ID: id, Label: label, Recipes: rs})
+		}
+	}
+	// Any uncategorized
+	for cat, rs := range groups {
+		found := false
+		for _, id := range categoryOrder {
+			if id == cat {
+				found = true
+				break
+			}
+		}
+		if !found {
+			out = append(out, CategoryGroup{ID: cat, Label: cat, Recipes: rs})
+		}
+	}
+	return out
 }
 
 // JoinStrings for use in templates

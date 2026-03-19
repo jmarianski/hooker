@@ -38,6 +38,43 @@ Templates use YAML frontmatter with `type` field:
 - `allow` / `deny` — PreToolUse permission decisions
 - `context` — adds as additionalContext JSON
 
+## Recipe structure
+
+Each recipe lives in `src/recipes/{recipe-name}/` with these files:
+
+- `recipe.json` — metadata (required):
+  ```json
+  {
+    "name": "Human-Readable Name",
+    "description": "One-line description of what it does.",
+    "hooks": ["PostToolUse"],
+    "category": "refactoring",
+    "dependencies": ["ts-morph (npm)"],
+    "attribution": {
+      "type": "original|inspired|adapted",
+      "author": "Author Name",
+      "license": "MIT",
+      "url": "https://..."
+    }
+  }
+  ```
+- `{HookName}.match.sh` — bash match script (one per hook)
+- `messages.yml` — user-customizable messages/strings (optional)
+
+**Categories** (used for grouping in README/recipe catalog):
+- `safety` — guardrails, blocking dangerous commands, protecting files
+- `refactoring` — code moves, import updates, rename support
+- `workflow` — git operations, formatting, changelog enforcement
+- `context` — session context injection, compaction, re-injection
+- `quality` — code quality checks, lazy code detection, docs reminders
+- `monitoring` — behavior watchdog, session notes, lifecycle management
+
+**Fields in recipe.json:**
+- `hooks` — array of hook names this recipe uses
+- `category` — one of the categories above
+- `dependencies` — optional array of external tools needed (e.g. `["ts-morph (npm)"]`)
+- `attribution.type`: `original` (we wrote it), `inspired` (clean-room from idea), `adapted` (derived from code)
+
 ## Gotchas
 
 - **`remind()` helper = `block()` helper** — both produce identical JSON.

@@ -2,6 +2,7 @@
   "name": "Auto Format",
   "description": "Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit.",
   "hooks": ["PostToolUse"],
+  "category": "workflow",
   "attribution": {
     "type": "adapted",
     "author": "Ryan Lewis",

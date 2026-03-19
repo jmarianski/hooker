@@ -2,6 +2,7 @@
   "name": "Remind To Update Docs",
   "description": "Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn.",
   "hooks": ["Stop"],
+  "category": "quality",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",

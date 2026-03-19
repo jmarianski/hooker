@@ -26,6 +26,7 @@ func main() {
 
 	ctx := exec.NewContext(map[string]any{
 		"recipes":        recipes,
+		"categories":     generators.GroupByCategory(recipes),
 		"uncoveredHooks": generators.UncoveredHooks(recipes),
 		"coveredHooks":   generators.CoveredHooks(recipes),
 		"allHooks":       generators.AllHooks(),

@@ -2,6 +2,7 @@
   "name": "Protect Sensitive Files",
   "description": "Blocks reading or editing .env, SSH keys, credentials, and other sensitive files.",
   "hooks": ["PreToolUse"],
+  "category": "safety",
   "attribution": {
     "type": "adapted",
     "author": "Carl Rannaberg (claudekit), karanb192",

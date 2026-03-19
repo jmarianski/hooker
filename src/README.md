@@ -53,11 +53,16 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 
 ### Included Recipes
 
+{% for cat in categories -%}
+#### {{ cat.Label }}
+
 | Recipe | Hook | What it does |
 |--------|------|-------------|
-{%- for r in recipes %}
+{%- for r in cat.Recipes %}
 | **{{ r.ID }}** | {{ r.Hooks | join(d=", ") }} | {{ r.Description }} |
 {%- endfor %}
+
+{% endfor -%}
 
 ### Hooker vs Hookify
 

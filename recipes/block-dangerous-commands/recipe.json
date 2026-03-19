@@ -2,6 +2,7 @@
   "name": "Block Dangerous Commands",
   "description": "Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands.",
   "hooks": ["PreToolUse"],
+  "category": "safety",
   "attribution": {
     "type": "adapted",
     "author": "karanb192",
