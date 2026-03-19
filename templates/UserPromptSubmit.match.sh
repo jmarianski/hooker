@@ -10,7 +10,7 @@ CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1
 [ -z "$CWD" ] && CWD="."
 
 # Extract user prompt
-PROMPT=$(echo "$INPUT" | sed -n 's/.*"user_prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+PROMPT=$(echo "$INPUT" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$PROMPT" ] && exit 1
 
 # Check if user mentions hooker/plugin/skill (case-insensitive)

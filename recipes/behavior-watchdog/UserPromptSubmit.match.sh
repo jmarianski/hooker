@@ -6,7 +6,7 @@ source "${HOOKER_HELPERS}"
 INPUT=$(cat)
 
 # Extract user prompt
-PROMPT=$(echo "$INPUT" | sed -n 's/.*"user_prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+PROMPT=$(echo "$INPUT" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$PROMPT" ] && exit 1
 
 # Load config
