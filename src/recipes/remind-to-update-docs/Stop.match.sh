@@ -12,10 +12,11 @@ echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && exi
 TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
 
-# Get last turn: reverse transcript, skip progress/hook entries, stop at user message
+# Get last turn: reverse transcript, skip noise, stop at real user prompt
+# Real user prompt = has "type":"user" but NOT "tool_result" on same line
 LAST_TURN=$(awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$TRANSCRIPT" \
     | grep -v '"type":"progress"' | grep -v '"type":"hook_progress"' \
-    | sed -n '1,/"type"[[:space:]]*:[[:space:]]*"user"/p' 2>/dev/null) || true
+    | awk '/"type":"user"/ && !/tool_result/{found=1} found{exit} {print}' 2>/dev/null) || true
 echo "$LAST_TURN" | grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|NotebookEdit\)"' || exit 1
 
 # --- Determine what was edited ---
