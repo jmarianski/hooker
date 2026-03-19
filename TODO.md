@@ -81,6 +81,24 @@
   - Each iteration = clean context (the whole point of Ralph), hooks provide memory across iterations
   - See: ghuntley.com/ralph for original concept, official plugin's architectural flaw is using Stop hook to keep single session alive instead of fresh sessions
 
+### Refactoring-aware file moves
+
+Intercept `mv` commands and update imports/references automatically. This is a **category of recipes**, not one recipe — each language/toolchain needs its own approach.
+
+Architecture:
+- **PreToolUse** (Bash) — detect `mv *.ts`, parse old/new paths, store in env/tempfile
+- **PostToolUse** (Bash) — after move, scan and update imports/references
+
+Per-language approaches:
+- [ ] **JS/TS** — parse tsconfig for path aliases, update `import`/`require` with sed, handle barrel exports (`index.ts`), relative paths. Could use `ts-morph` for complex cases but sed covers 80%
+- [ ] **Python** — update `from X import Y` and `import X`, handle `__init__.py`, relative imports. `rope` library for complex cases, sed for simple
+- [ ] **Go** — `gorename`/`gomvpkg` exist but could be reimplemented with sed for import paths in `go.mod` and `.go` files
+- [ ] **Generic** — grep old filename across repo, warn about unreplaced references
+
+**Important:** the recipe skill should suggest this as a **project-specific custom hook**, not a generic recipe. Each project has different tsconfig, import conventions, monorepo structure. The recipe provides a starting point, user adapts to their setup.
+
+Could also integrate with LSP servers (if available via plugin) for accurate rename refactoring.
+
 ### Integration with other plugins
 
 - [ ] **Kompakt coexistence** — detect if kompakt is installed, skip PreCompact if kompakt handles it (or offer to replace kompakt's functionality)
