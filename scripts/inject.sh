@@ -109,8 +109,10 @@ fi
 if [ -n "$MATCH_SCRIPT" ]; then
     log "Running match script: $MATCH_SCRIPT"
     MATCH_STDERR=$(mktemp 2>/dev/null || echo "/tmp/hooker_stderr_$$")
+    set +e
     MATCH_OUTPUT=$(echo "$INPUT" | "$MATCH_SCRIPT" 2>"$MATCH_STDERR")
     MATCH_EXIT=$?
+    set -e
     MATCH_ERR=$(cat "$MATCH_STDERR" 2>/dev/null)
     rm -f "$MATCH_STDERR" 2>/dev/null
 
