@@ -98,7 +98,10 @@ markers. Multiple recipes for same hook merged into one script. Relies only on p
 
 **Isolated (experimental):** Files in `.claude/hooker/{recipe-name}/`. Each recipe = separate
 hook command via `.claude/hooker/run.sh` bridge + `.claude/settings.json` entries.
-No merging needed but relies on settings.json hook support which is **unofficial** and may break.
+No merging needed. settings.json hooks are official Claude Code functionality, but `run.sh`
+relies on finding the hooker plugin in known cache paths (`~/.claude/plugins/cache/...`) and
+calling its `inject.sh` — this internal path structure is **not guaranteed by Anthropic** and
+may change between Claude Code versions.
 
 Always ask user which mode. Always warn about isolated mode's experimental nature.
 

@@ -77,9 +77,10 @@ Each recipe gets its own subdirectory. No merging needed.
 - Each recipe = separate hook command, Claude Code orchestrates independently
 
 **Pros:** Clean separation. No merging. Each recipe can use `.md` templates independently.
-**Cons:** Relies on `.claude/settings.json` hooks — this is an **unofficial workaround** that may
-stop working in future Claude Code versions. If Anthropic changes how settings.json hooks
-interact with plugin hooks, isolated recipes may break.
+**Cons:** `run.sh` finds the hooker plugin by scanning known cache paths
+(`~/.claude/plugins/cache/hooker-marketplace/hooker/`) and calling its `inject.sh`.
+This internal path structure is **not guaranteed by Anthropic** and may change between
+Claude Code versions. If the plugin cache layout changes, `run.sh` must be updated.
 
 **Structure:**
 ```
@@ -115,8 +116,8 @@ interact with plugin hooks, isolated recipes may break.
 | Multiple recipes, same hook | Merged into one script | Each runs independently |
 | `.md` templates | Only one per hook (must inline in merged script) | Each recipe keeps its own |
 | Supporting files | Prefixed: `{recipe}.messages.yml` | In subdirectory: `{recipe}/messages.yml` |
-| Dependency | Plugin hooks.json only | Plugin hooks.json + `.claude/settings.json` |
-| Stability | Proven, stable | **Experimental** — relies on settings.json hook support |
+| Dependency | Plugin hooks.json only | Plugin hooks.json + settings.json + `run.sh` cache path lookup |
+| Stability | Proven, stable | **Experimental** — `run.sh` depends on plugin cache path structure |
 | Removal | Delete `@recipe` section from merged script | Delete subdirectory + settings.json entry |
 
 **Recommendation:** Use merged mode for stability. Use isolated mode only if you need multiple
@@ -145,9 +146,10 @@ independent behaviors on the same hook and understand the risk.
    ```json
    { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/{recipe-name}/{HookName}" }] }
    ```
-8. **Warn the user:** "Isolated mode adds hooks to `.claude/settings.json`. This is an
-   unofficial workaround — if Claude Code changes how settings.json hooks work alongside
-   plugin hooks, these entries may need to be updated or removed."
+8. **Warn the user:** "Isolated mode uses a `run.sh` bridge that locates the hooker plugin
+   by scanning known cache paths (`~/.claude/plugins/cache/...`). This internal path
+   structure is not guaranteed by Anthropic — if the plugin cache layout changes in a
+   future Claude Code version, `run.sh` will need to be updated."
 9. Confirm installation
 
 ## Recipe markers (merged mode only)
