@@ -65,6 +65,9 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **git-context-on-start** | SessionStart | Injects current git branch, status, and recent commits on session start. |
 | **no-force-push-main** | PreToolUse | Blocks git push --force to main/master branches. |
 | **protect-sensitive-files** | PreToolUse | Blocks reading or editing .env, SSH keys, credentials, and other sensitive files. |
+| **refactor-move-go** | PostToolUse | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
+| **refactor-move-python** | PostToolUse | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
+| **refactor-move-ts** | PostToolUse | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
 | **reinject-after-compact** | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
 | **remind-to-update-docs** | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
 | **require-changelog-before-tag** | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
@@ -131,14 +134,8 @@ See [NOTICES.md](NOTICES.md) for full attribution and license details.
 | Desktop notification on stop | Stop | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
 | Slack notification on idle | Notification | [karanb192/claude-code-hooks](https://github.com/karanb192/claude-code-hooks) | MIT |
 | Check TODOs on stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
-| Refactoring-aware `mv` (JS/TS) | Pre+PostToolUse | — | Idea |
-| Refactoring-aware `mv` (Python) | Pre+PostToolUse | — | Idea |
-| Refactoring-aware `mv` (Go) | Pre+PostToolUse | — | Idea |
-
 All of these can be implemented as Hooker recipes using `.match.sh` scripts with helpers.
 See `/hooker:recipe` to create your own or install included ones.
-
-**Note on refactoring moves:** intercepting `mv` to update imports is best done as a **project-specific custom hook** — each project has different tsconfig, import conventions, and tooling. The recipe skill can help you build one tailored to your setup.
 
 ## Match Script Helpers
 

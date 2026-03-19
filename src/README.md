@@ -118,14 +118,8 @@ See [NOTICES.md](NOTICES.md) for full attribution and license details.
 | Desktop notification on stop | Stop | [Blake Crosley](https://blakecrosley.com/blog/claude-code-hooks-tutorial) | Blog |
 | Slack notification on idle | Notification | [karanb192/claude-code-hooks](https://github.com/karanb192/claude-code-hooks) | MIT |
 | Check TODOs on stop | Stop | [claudekit](https://github.com/carlrannaberg/claudekit) | MIT |
-| Refactoring-aware `mv` (JS/TS) | Pre+PostToolUse | — | Idea |
-| Refactoring-aware `mv` (Python) | Pre+PostToolUse | — | Idea |
-| Refactoring-aware `mv` (Go) | Pre+PostToolUse | — | Idea |
-
 All of these can be implemented as Hooker recipes using `.match.sh` scripts with helpers.
 See `/hooker:recipe` to create your own or install included ones.
-
-**Note on refactoring moves:** intercepting `mv` to update imports is best done as a **project-specific custom hook** — each project has different tsconfig, import conventions, and tooling. The recipe skill can help you build one tailored to your setup.
 
 ## Match Script Helpers
 

@@ -1,0 +1,11 @@
+{
+  "name": "Refactor Move (JS/TS)",
+  "description": "After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook.",
+  "hooks": ["PostToolUse"],
+  "dependencies": ["python3 (recommended)"],
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

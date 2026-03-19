@@ -1,0 +1,10 @@
+{
+  "name": "Refactor Move (Python)",
+  "description": "After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook.",
+  "hooks": ["PostToolUse"],
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

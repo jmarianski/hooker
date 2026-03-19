@@ -1,0 +1,2 @@
+updated: "Go imports updated after file move: {count} files changed."
+no_refs: "File moved, no Go import references found to update."
