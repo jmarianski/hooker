@@ -10,9 +10,10 @@ CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1
 [ -z "$CWD" ] && CWD="."
 
 # If user already has hooks configured — self-silence, don't interfere
+# Only count actual hook files (*.match.sh or hook-named .md), not session-notes etc.
 HOOK_DIR="${CWD}/.claude/hooker"
 if [ -d "$HOOK_DIR" ]; then
-    HOOK_COUNT=$(find "$HOOK_DIR" -maxdepth 1 \( -name '*.sh' -o -name '*.md' -o -name '*.yml' \) 2>/dev/null | wc -l)
+    HOOK_COUNT=$(find "$HOOK_DIR" -maxdepth 1 \( -name '*.match.sh' -o -name '*.messages.yml' -o -name '*.config.yml' \) 2>/dev/null | wc -l)
     [ "$HOOK_COUNT" -gt 0 ] && exit 1
 fi
 
