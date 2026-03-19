@@ -1,9 +1,9 @@
 {
   "name": "Refactor Move JS/TS (smart)",
-  "description": "After mv of .ts/.tsx/.js/.jsx files, uses ts-morph for AST-aware import/export rewriting. Handles path aliases, re-exports, barrel files, and index.ts. Falls back to simple sed if ts-morph unavailable.",
+  "description": "After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed.",
   "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
   "category": "refactoring",
-  "dependencies": ["ts-morph (npm)"],
+  "dependencies": ["typescript (npm, global or local)"],
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",

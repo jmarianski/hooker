@@ -68,7 +68,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **refactor-move-go-simple** | PostToolUse, PostCompact, SessionStart | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
 | **refactor-move-python-simple** | PostToolUse, PostCompact, SessionStart | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
 | **refactor-move-ts-simple** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
-| **refactor-move-ts-smart** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses ts-morph for AST-aware import/export rewriting. Handles path aliases, re-exports, barrel files, and index.ts. Falls back to simple sed if ts-morph unavailable. |
+| **refactor-move-ts-smart** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
 
 #### Workflow
 
