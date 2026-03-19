@@ -12,7 +12,18 @@
 
 set -euo pipefail
 
+# Override: set HOOKER_ROOT env var or edit this line to skip auto-detection.
+# Useful if plugin cache structure changes in a future Claude Code version.
+HOOKER_ROOT_OVERRIDE=""
+
 find_hooker() {
+    # 0. Explicit override (env var or hardcoded above)
+    local OVERRIDE="${HOOKER_ROOT:-${HOOKER_ROOT_OVERRIDE}}"
+    if [ -n "$OVERRIDE" ] && [ -f "${OVERRIDE}/scripts/inject.sh" ]; then
+        echo "$OVERRIDE"
+        return
+    fi
+
     # 1. CLAUDE_PLUGIN_ROOT already set (running inside plugin context)
     if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh" ]; then
         echo "$CLAUDE_PLUGIN_ROOT"
@@ -20,6 +31,9 @@ find_hooker() {
     fi
 
     # 2. Plugin cache — find latest installed version
+    #    Path structure: ~/.claude/plugins/cache/{marketplace-name}/{plugin-name}/{version}/
+    #    WARNING: this path structure is not guaranteed by Anthropic.
+    #    If it changes, set HOOKER_ROOT env var or edit HOOKER_ROOT_OVERRIDE above.
     local CACHE_DIR="${HOME}/.claude/plugins/cache/hooker-marketplace/hooker"
     if [ -d "$CACHE_DIR" ]; then
         local LATEST
@@ -34,6 +48,14 @@ find_hooker() {
     local MP="${HOME}/.claude/plugins/marketplaces/hooker-marketplace"
     if [ -f "${MP}/scripts/inject.sh" ]; then
         echo "$MP"
+        return
+    fi
+
+    # 4. Brute-force: find inject.sh anywhere in plugin cache
+    local FOUND
+    FOUND=$(find "${HOME}/.claude/plugins" -path "*/hooker/scripts/inject.sh" -type f 2>/dev/null | head -1)
+    if [ -n "$FOUND" ]; then
+        echo "$(dirname "$(dirname "$FOUND")")"
         return
     fi
 
