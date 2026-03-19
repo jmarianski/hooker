@@ -367,6 +367,7 @@ default: "Did you update docs, tests, and clean up TODOs?"
 
 **Cross-platform rules (MUST follow when writing scripts):**
 Scripts must work on Linux, macOS, and Windows (Git Bash). Rules:
+- **NO** `set -euo pipefail` in match scripts — `pipefail` causes SIGPIPE (exit 141) when helper pipelines use `awk '{exit}'`. inject.sh handles exit codes; match scripts should control flow explicitly with `|| exit 1`.
 - **NO** `grep -P` or `grep -oP` (PCRE) — use `sed -n 's/.../p'` for extraction, `grep -q` with POSIX patterns for matching
 - **NO** `tac` — use `awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'`
 - **NO** `python3` or `perl` — use `awk` and `sed` for text processing
