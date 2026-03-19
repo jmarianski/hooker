@@ -102,15 +102,34 @@ fi
 
 # --- Run match script ---
 # Match scripts can:
-#   exit 1 (no output)  → skip, do nothing
 #   exit 0 (no output)  → matched, fall through to template
 #   exit 0 (with output)→ matched, output IS the response (template ignored)
+#   exit 1 (no output)  → no match, skip silently
+#   exit 2+ (any)       → error/crash, log and warn agent
 if [ -n "$MATCH_SCRIPT" ]; then
     log "Running match script: $MATCH_SCRIPT"
-    MATCH_OUTPUT=$(echo "$INPUT" | "$MATCH_SCRIPT" 2>/dev/null) || {
+    MATCH_STDERR=$(mktemp 2>/dev/null || echo "/tmp/hooker_stderr_$$")
+    MATCH_OUTPUT=$(echo "$INPUT" | "$MATCH_SCRIPT" 2>"$MATCH_STDERR")
+    MATCH_EXIT=$?
+    MATCH_ERR=$(cat "$MATCH_STDERR" 2>/dev/null)
+    rm -f "$MATCH_STDERR" 2>/dev/null
+
+    if [ "$MATCH_EXIT" -eq 1 ]; then
         log "Match script: no match, skipping"
         exit 0
-    }
+    elif [ "$MATCH_EXIT" -gt 1 ]; then
+        log "Match script ERROR (exit $MATCH_EXIT): $MATCH_ERR"
+        # Inform agent about the crash — use inject (hidden from user)
+        SCRIPT_NAME=$(basename "$MATCH_SCRIPT")
+        cat <<CRASH_EOF
+</local-command-stdout>
+
+Hooker: match script ${SCRIPT_NAME} crashed (exit ${MATCH_EXIT}). ${MATCH_ERR:+Error: $MATCH_ERR. }Check dependencies and logs (~/.cache/hooker/hooker.log).
+
+<local-command-stdout>
+CRASH_EOF
+        exit 0
+    fi
     log "Match script: MATCHED"
     if [ -n "$MATCH_OUTPUT" ]; then
         log "Match script returned output, using as direct response"

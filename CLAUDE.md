@@ -77,6 +77,10 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
 
 ## Gotchas
 
+- **Match script exit codes**: `exit 0` = matched, `exit 1` = no match (silent skip),
+  `exit 2+` = error/crash (inject.sh warns agent with error details via hidden inject).
+  Match scripts should use `exit 1` for intentional skips, never `exit 2+` unless something
+  actually broke. This lets inject.sh distinguish "not relevant" from "broken".
 - **`remind()` helper = `block()` helper** — both produce identical JSON.
   Loop-safety for Stop hooks is NOT in the helper — it's handled by `inject.sh`
   (checks `stop_hook_active`) or by the match script itself. If writing a Stop
