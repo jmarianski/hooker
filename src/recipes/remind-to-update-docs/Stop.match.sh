@@ -1,7 +1,7 @@
 #!/bin/bash
 # Remind about docs/tests — block stop if last turn had file edits
 # Messages are loaded from messages.yml (user-editable)
-set -euo pipefail
+# No set -e — match scripts must control exit codes explicitly
 
 INPUT=$(cat)
 

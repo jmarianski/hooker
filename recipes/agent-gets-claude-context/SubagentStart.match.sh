@@ -1,7 +1,7 @@
 #!/bin/bash
 # Inject CLAUDE.md + MEMORY.md into every subagent's context
 # Standalone match script (no .md template needed)
-set -euo pipefail
+# No set -e — match scripts must control exit codes explicitly
 
 CWD="${HOOKER_CWD:-.}"
 

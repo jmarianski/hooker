@@ -1,4 +1,4 @@
-# Hooker — Roadmap
+# Hooker — Roadmap & TODO
 
 ## v0.1.0 (current) — Foundation
 
@@ -97,8 +97,9 @@ External language-specific tools for accurate refactoring:
 - [x] `refactor-move-python-smart` — uses `rope` (pip) for AST-aware refactoring, handles `__init__.py`, relative imports
 - [x] `refactor-move-php-smart` — uses `phpactor` (composer) for namespace/use rewriting, composer.json PSR-4 + sed fallback
 - [x] `refactor-move-markdown` — updates `[text](path)` links in .md files after any file move
-- [ ] `refactor-move-go-smart` — no good CLI tool exists (gomvpkg legacy, gopls no CLI move). Simple recipe enhanced with optional `goimports -w .`
+- [x] `refactor-move-go-simple` — enhanced with optional `goimports -w .` (no smart variant — gomvpkg legacy, gopls no CLI move)
 - [ ] `refactor-move-rust-smart` — updates `mod` declarations and `use` paths
+- [ ] Stop hook: consider scanning last N turns instead of just the last one
 
 #### Tier 3: Universal (TODO)
 One recipe to rule them all:

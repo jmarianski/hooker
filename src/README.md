@@ -1,6 +1,6 @@
 # Hooker - Universal Hook Injection Framework for Claude Code
 
-Inject custom prompts, reminders, guardrails, and context into any of Claude Code's 21 hook events. Mix and match pre-built recipes or create your own with simple shell scripts.
+Inject custom prompts, reminders, guardrails, and context into any of Claude Code's 21 hook events. Mix and match pre-built recipes or create your own with simple shell scripts. Now with standalone mode — recipes work without hooker installed.
 
 ## Installation
 

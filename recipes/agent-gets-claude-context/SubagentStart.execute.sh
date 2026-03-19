@@ -67,13 +67,17 @@ _hooker_reverse() {
 }
 
 # Get last assistant turn from transcript. Filters noise (progress, hook_progress),
-# stops at real user prompt (not tool_result). Usage: _hooker_last_turn "$TRANSCRIPT_PATH"
+# stops at real user prompt (not tool_result).
+# Real user prompts have "type":"user" WITHOUT "sourceToolAssistantUUID" on the same line.
+# Usage: _hooker_last_turn "$TRANSCRIPT_PATH"
 _hooker_last_turn() {
     local TRANSCRIPT="$1"
     [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && return 1
+    # Note: || true prevents SIGPIPE (141) when awk exits early and breaks the pipe.
+    # Without it, set -o pipefail in callers treats SIGPIPE as failure.
     awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$TRANSCRIPT" \
         | grep -v '"type":"progress"' | grep -v '"type":"hook_progress"' \
-        | awk '/"type":"user"/ && !/tool_result/{found=1} found{exit} {print}'
+        | awk '/"type":"user"/ && !/sourceToolAssistantUUID/{exit} {print}' || true
 }
 
 # Strip <hidden> tags from a string, return visible part only.
@@ -182,7 +186,7 @@ load_md() {
 # --- Recipe logic ---
 # Inject CLAUDE.md + MEMORY.md into every subagent's context
 # Standalone match script (no .md template needed)
-set -euo pipefail
+# No set -e — match scripts must control exit codes explicitly
 
 CWD="${HOOKER_CWD:-.}"
 
