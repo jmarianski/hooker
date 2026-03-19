@@ -129,19 +129,57 @@ Claude Code versions. If the plugin cache layout changes, `run.sh` must be updat
 }
 ```
 
+### Standalone mode (recommended for independence)
+
+Each recipe uses pre-compiled `*.execute.sh` scripts with helpers inlined. **Zero dependency on hooker plugin at runtime.**
+
+**How it works:**
+- Files go in `.claude/hooker/{recipe-name}/` (execute.sh + supporting files)
+- Hook entries point directly to execute.sh in `.claude/settings.json`
+- No run.sh, no inject.sh, no plugin cache lookup
+
+**Pros:** Completely independent of hooker. Works even if hooker is uninstalled. No fragile cache paths.
+**Cons:** execute.sh is larger (helpers inlined). Updating helpers requires recompiling. No hooker logging/management.
+
+**Structure:**
+```
+.claude/hooker/
+  refactor-move-ts-smart/
+    PostToolUse.execute.sh           ← self-contained (helpers inlined)
+    SessionStart.execute.sh          ← compiled from .md template
+    PostCompact.execute.sh           ← compiled from .md template
+    update-imports.cjs               ← supporting file
+    messages.yml                     ← user-editable messages
+```
+
+**settings.json entries:**
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/refactor-move-ts-smart/PostToolUse.execute.sh" }] }
+    ],
+    "SessionStart": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/refactor-move-ts-smart/SessionStart.execute.sh" }] }
+    ]
+  }
+}
+```
+
 ### Decision guide (present to user)
 
-| | Merged (stable) | Isolated (experimental) |
-|---|---|---|
-| Multiple recipes, same hook | Merged into one script | Each runs independently |
-| `.md` templates | Only one per hook (must inline in merged script) | Each recipe keeps its own |
-| Supporting files | Prefixed: `{recipe}.messages.yml` | In subdirectory: `{recipe}/messages.yml` |
-| Dependency | Plugin hooks.json only | Plugin hooks.json + settings.json + `run.sh` cache path lookup |
-| Stability | Proven, stable | **Experimental** — `run.sh` depends on plugin cache path structure |
-| Removal | Delete `@recipe` section from merged script | Delete subdirectory + settings.json entry |
+| | Merged (stable) | Isolated (experimental) | Standalone (independent) |
+|---|---|---|---|
+| Multiple recipes, same hook | Merged into one script | Each runs independently | Each runs independently |
+| `.md` templates | Only one per hook (must inline) | Each recipe keeps its own | Compiled into execute.sh |
+| Supporting files | Prefixed: `{recipe}.messages.yml` | In subdirectory | In subdirectory |
+| Dependency | Hooker plugin (hooks.json) | Hooker plugin + `run.sh` cache lookup | **None** — fully self-contained |
+| Stability | Proven, stable | `run.sh` depends on cache paths | Stable — no external dependencies |
+| Removal | Delete `@recipe` section | Delete subdir + settings.json entry | Delete subdir + settings.json entry |
 
-**Recommendation:** Use merged mode for stability. Use isolated mode only if you need multiple
-independent behaviors on the same hook and understand the risk.
+**Recommendation:** Use standalone for new installations — zero dependency on hooker at runtime.
+Use merged if you want hooker's management features and logging. Use isolated only if you need
+hooker's inject.sh features (e.g. template system) with independent recipes.
 
 ## With recipe name (e.g. `/hooker:recipe remind-to-update-docs`)
 
@@ -179,6 +217,19 @@ independent behaviors on the same hook and understand the risk.
    auto-detection picks the latest version from cache, but this relies on a cache path
    structure not guaranteed by Anthropic."
 10. Confirm installation
+
+### Standalone mode installation
+1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` and the recipe's files
+2. Show description and hooks
+3. Create `.claude/hooker/{recipe-name}/` directory
+4. Copy `*.execute.sh` files from `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/` into the subdirectory
+5. Copy supporting files (messages.yml, update-imports.cjs, rope-move.py, .md templates — whatever the recipe needs)
+6. `chmod +x` all `.execute.sh` files
+7. Add hook entries to `.claude/settings.json` for each hook, pointing directly to execute.sh:
+   ```json
+   { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/{recipe-name}/{HookName}.execute.sh" }] }
+   ```
+8. Confirm installation. Note: hooker plugin is not needed at runtime — execute.sh is self-contained.
 
 ## Recipe markers (merged mode only)
 Every recipe's logic MUST be wrapped in marker comments for traceability:

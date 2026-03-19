@@ -95,7 +95,7 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
 
 ## Installation modes
 
-Recipes can be installed in two modes:
+Recipes can be installed in three modes:
 
 **Merged (stable, default):** Files in `.claude/hooker/{HookName}.match.sh` with `@recipe`
 markers. Multiple recipes for same hook merged into one script. Relies only on plugin hooks.json.
@@ -107,7 +107,12 @@ relies on finding the hooker plugin in known cache paths (`~/.claude/plugins/cac
 calling its `inject.sh` — this internal path structure is **not guaranteed by Anthropic** and
 may change between Claude Code versions.
 
-Always ask user which mode. Always warn about isolated mode's experimental nature.
+**Standalone:** Files in `.claude/hooker/{recipe-name}/` using compiled `*.execute.sh` scripts.
+Helpers are inlined, zero runtime dependency on hooker. Wired directly in `.claude/settings.json`.
+Build system compiles `match.sh` + helpers → `execute.sh` automatically.
+
+Always ask user which mode. Warn about isolated mode's cache path dependency.
+Recommend standalone for users who want recipes without hooker plugin dependency.
 
 ## Override priority
 
