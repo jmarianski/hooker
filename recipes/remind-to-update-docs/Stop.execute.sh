@@ -66,6 +66,16 @@ _hooker_reverse() {
     awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'
 }
 
+# Get last assistant turn from transcript. Filters noise (progress, hook_progress),
+# stops at real user prompt (not tool_result). Usage: _hooker_last_turn "$TRANSCRIPT_PATH"
+_hooker_last_turn() {
+    local TRANSCRIPT="$1"
+    [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && return 1
+    awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$TRANSCRIPT" \
+        | grep -v '"type":"progress"' | grep -v '"type":"hook_progress"' \
+        | awk '/"type":"user"/ && !/tool_result/{found=1} found{exit} {print}'
+}
+
 # Strip <hidden> tags from a string, return visible part only.
 # Handles both single-line (<hidden>...</hidden> on one line) and multiline.
 _hooker_strip_hidden() {
@@ -179,13 +189,7 @@ echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && exi
 
 # Check transcript for file modifications in last assistant turn
 TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 1
-
-# Get last turn: reverse transcript, skip noise, stop at real user prompt
-# Real user prompt = has "type":"user" but NOT "tool_result" on same line
-LAST_TURN=$(awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$TRANSCRIPT" \
-    | grep -v '"type":"progress"' | grep -v '"type":"hook_progress"' \
-    | awk '/"type":"user"/ && !/tool_result/{found=1} found{exit} {print}' 2>/dev/null) || true
+LAST_TURN=$(_hooker_last_turn "$TRANSCRIPT") || exit 1
 echo "$LAST_TURN" | grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|NotebookEdit\)"' || exit 1
 
 # --- Determine what was edited ---
