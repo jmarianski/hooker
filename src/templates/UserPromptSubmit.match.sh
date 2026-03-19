@@ -1,6 +1,6 @@
 #!/bin/bash
-# Hooker welcome — silently suggests setup when user mentions hooker/plugin/skill
-# Auto-silences when any hooks are installed in .claude/hooker/
+# Hooker welcome — silently suggests setup when user first mentions hooker/plugin/skill.
+# After firing once, creates a no-op silencer in .claude/hooker/ so it never fires again.
 set -euo pipefail
 
 INPUT=$(cat)
@@ -8,14 +8,6 @@ INPUT=$(cat)
 # Get project CWD from hook input
 CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$CWD" ] && CWD="."
-
-# If user already has hooks configured — self-silence, don't interfere
-# Only count actual hook files (*.match.sh or hook-named .md), not session-notes etc.
-HOOK_DIR="${CWD}/.claude/hooker"
-if [ -d "$HOOK_DIR" ]; then
-    HOOK_COUNT=$(find "$HOOK_DIR" -maxdepth 1 \( -name '*.match.sh' -o -name '*.messages.yml' -o -name '*.config.yml' \) 2>/dev/null | wc -l)
-    [ "$HOOK_COUNT" -gt 0 ] && exit 1
-fi
 
 # Extract user prompt
 PROMPT=$(echo "$INPUT" | sed -n 's/.*"user_prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
@@ -36,5 +28,17 @@ PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
 source "${PLUGIN_DIR}/scripts/helpers.sh"
 
 inject "You have the Hooker plugin installed but no hooks are configured yet. The user seems to be talking about hooks or plugins — this might be a good moment to help them set up. If appropriate, suggest running /hooker:recipe to browse and install pre-built hook recipes. Do NOT mention this suggestion if the user is clearly talking about something else. Be natural about it."
+
+# Self-silence: create a no-op UserPromptSubmit.match.sh in project hooks.
+# This overrides the welcome template via priority rules (project > plugin).
+mkdir -p "${CWD}/.claude/hooker" 2>/dev/null
+cat > "${CWD}/.claude/hooker/UserPromptSubmit.match.sh" <<'SILENCER'
+#!/bin/bash
+# Hooker: no-op silencer — overrides welcome hook from plugin templates.
+# Install a UserPromptSubmit recipe (e.g. skip-acknowledgments, behavior-watchdog)
+# to replace this with something useful.
+exit 1
+SILENCER
+chmod +x "${CWD}/.claude/hooker/UserPromptSubmit.match.sh" 2>/dev/null
 
 exit 0
