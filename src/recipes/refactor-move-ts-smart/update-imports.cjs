@@ -18,7 +18,40 @@ if (!oldPath || !newPath) {
 const oldAbsolute = path.resolve(oldPath);
 const newAbsolute = path.resolve(newPath);
 
-// Find tsconfig.json — walk up from file location, then cwd
+// Collect file rename pairs — single file or directory of files
+function collectRenamePairs(oldAbs, newAbs) {
+  const stat = fs.existsSync(newAbs) && fs.statSync(newAbs);
+  if (!stat || !stat.isDirectory()) {
+    // Single file rename
+    return [{ old: oldAbs, new: newAbs }];
+  }
+  // Directory rename — pair each TS/JS file by relative path
+  const pairs = [];
+  function walk(dir, relBase) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const rel = path.join(relBase, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules" || entry.name === ".git") continue;
+        walk(path.join(dir, entry.name), rel);
+      } else if (/\.[jt]sx?$/.test(entry.name)) {
+        pairs.push({
+          old: path.join(oldAbs, rel),
+          new: path.join(newAbs, rel),
+        });
+      }
+    }
+  }
+  walk(newAbs, "");
+  return pairs;
+}
+
+const renamePairs = collectRenamePairs(oldAbsolute, newAbsolute);
+if (renamePairs.length === 0) {
+  console.log(JSON.stringify({ count: 0, files: [] }));
+  process.exit(0);
+}
+
+// Find tsconfig.json
 function findTsConfig(startDir) {
   let dir = startDir;
   while (dir !== path.dirname(dir)) {
@@ -29,6 +62,7 @@ function findTsConfig(startDir) {
   return null;
 }
 
+// Search from file location first, then cwd
 const tsConfigPath = findTsConfig(path.dirname(newAbsolute)) || findTsConfig(process.cwd());
 if (!tsConfigPath) {
   console.error(JSON.stringify({ error: "No tsconfig.json found" }));
@@ -69,28 +103,47 @@ const serviceHost = {
 // Create Language Service
 const service = ts.createLanguageService(serviceHost, ts.createDocumentRegistry());
 
-// Get edits for file rename — same API as VS Code
-const edits = service.getEditsForFileRename(
-  oldAbsolute,
-  newAbsolute,
-  ts.getDefaultFormatCodeSettings(),
-  { quotePreference: "auto" }
-);
+// Get edits for all rename pairs — same API as VS Code
+const allEdits = new Map(); // filePath → textChanges[]
 
-if (!edits || edits.length === 0) {
+for (const pair of renamePairs) {
+  const edits = service.getEditsForFileRename(
+    pair.old,
+    pair.new,
+    ts.getDefaultFormatCodeSettings(),
+    { quotePreference: "auto" }
+  );
+  if (!edits) continue;
+  for (const fileEdit of edits) {
+    const existing = allEdits.get(fileEdit.fileName) || [];
+    existing.push(...fileEdit.textChanges);
+    allEdits.set(fileEdit.fileName, existing);
+  }
+}
+
+if (allEdits.size === 0) {
   console.log(JSON.stringify({ count: 0, files: [] }));
   process.exit(0);
 }
 
-// Apply edits in reverse order (to preserve offsets)
+// Apply edits per file
 const modifiedFiles = [];
-for (const fileEdit of edits) {
-  const filePath = fileEdit.fileName;
+for (const [filePath, textChanges] of allEdits) {
   if (!fs.existsSync(filePath)) continue;
 
   let content = fs.readFileSync(filePath, "utf8");
 
-  const changes = [...fileEdit.textChanges].sort((a, b) => b.span.start - a.span.start);
+  // Deduplicate and sort in reverse order (to preserve offsets)
+  const seen = new Set();
+  const changes = textChanges
+    .filter((c) => {
+      const key = `${c.span.start}:${c.span.length}:${c.newText}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.span.start - a.span.start);
+
   for (const change of changes) {
     content =
       content.substring(0, change.span.start) +

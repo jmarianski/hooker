@@ -2,6 +2,7 @@
 # Refactor Move JS/TS (smart) — TypeScript Language Service API
 # PostToolUse hook: fires after Bash tool completes
 # Uses getEditsForFileRename() — same mechanism as VS Code
+# Handles single files and directory moves.
 # Falls back to simple sed if typescript is not available.
 source "${HOOKER_HELPERS}"
 
@@ -14,54 +15,65 @@ TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
-# Detect: mv old_path new_path (simple two-arg mv on JS/TS files)
-OLD_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+\([^[:space:]]\+\.[jt]sx\{0,1\}\)[[:space:]]\+.*/\1/p')
+# Detect: mv old_path new_path (two-arg mv)
+OLD_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$CMD" | sed -n 's/^mv[[:space:]]\+[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
 [ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
 
-# If new path is a directory, append the filename
-if [ -d "$NEW_PATH" ]; then
-    NEW_PATH="${NEW_PATH%/}/$(basename "$OLD_PATH")"
+# Must be a JS/TS file OR a directory containing JS/TS files
+is_ts_file() { echo "$1" | grep -q '\.[jt]sx\{0,1\}$'; }
+has_ts_files() { [ -d "$1" ] && find "$1" -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' 2>/dev/null | head -1 | grep -q .; }
+
+if is_ts_file "$OLD_PATH"; then
+    # Single file move — if new path is a directory, append filename
+    if [ -d "$NEW_PATH" ]; then
+        NEW_PATH="${NEW_PATH%/}/$(basename "$OLD_PATH")"
+    fi
+elif [ -d "$NEW_PATH" ] && ! [ -d "$OLD_PATH" ]; then
+    # OLD was a directory (now at NEW) — check if it has TS files
+    has_ts_files "$NEW_PATH" || exit 1
+else
+    exit 1
 fi
 
-# Strip extensions for comparison
-strip_ext() {
-    echo "$1" | sed 's/\.\(ts\|tsx\|js\|jsx\)$//'
-}
+# For single files: strip extensions for comparison
+strip_ext() { echo "$1" | sed 's/\.\(ts\|tsx\|js\|jsx\)$//'; }
 
-OLD_IMPORT=$(strip_ext "$OLD_PATH")
-NEW_IMPORT=$(strip_ext "$NEW_PATH")
-[ "$OLD_IMPORT" = "$NEW_IMPORT" ] && exit 1
+if is_ts_file "$OLD_PATH"; then
+    OLD_IMPORT=$(strip_ext "$OLD_PATH")
+    NEW_IMPORT=$(strip_ext "$NEW_PATH")
+    [ "$OLD_IMPORT" = "$NEW_IMPORT" ] && exit 1
+fi
+
+RECIPE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Load messages
-RECIPE_DIR="$(cd "$(dirname "$0")" && pwd)"
 MSG_UPDATED=$(sed -n 's/^updated:[[:space:]]*"\(.*\)"/\1/p' "${RECIPE_DIR}/messages.yml")
 MSG_NO_REFS=$(sed -n 's/^no_refs:[[:space:]]*"\(.*\)"/\1/p' "${RECIPE_DIR}/messages.yml")
 MSG_NO_TS=$(sed -n 's/^no_typescript:[[:space:]]*"\(.*\)"/\1/p' "${RECIPE_DIR}/messages.yml")
 
 # --- Try TypeScript Language Service (getEditsForFileRename) ---
-SCRIPT_PATH="${RECIPE_DIR}/update-imports.cjs"
-
-if [ -f "$SCRIPT_PATH" ] && command -v node >/dev/null 2>&1; then
-    if node -e "require('typescript')" 2>/dev/null; then
-        RESULT=$(node "$SCRIPT_PATH" "$OLD_PATH" "$NEW_PATH" 2>/dev/null)
-        if [ $? -eq 0 ] && [ -n "$RESULT" ]; then
-            COUNT=$(echo "$RESULT" | sed -n 's/.*"count"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
-            if [ "$COUNT" -gt 0 ] 2>/dev/null; then
-                FILES=$(echo "$RESULT" | sed -n 's/.*"files"[[:space:]]*:[[:space:]]*\[\(.*\)\].*/\1/p')
-                inject "Refactor Move (TS Language Service): Updated imports in ${COUNT} files. Files: ${FILES}"
-                exit 0
-            else
-                inject "$MSG_NO_REFS"
-                exit 0
-            fi
+if command -v node >/dev/null 2>&1 && node -e "require('typescript')" 2>/dev/null; then
+    RESULT=$(node "${RECIPE_DIR}/update-imports.cjs" "$OLD_PATH" "$NEW_PATH" 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$RESULT" ]; then
+        COUNT=$(echo "$RESULT" | sed -n 's/.*"count"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+        if [ "$COUNT" -gt 0 ] 2>/dev/null; then
+            FILES=$(echo "$RESULT" | sed -n 's/.*"files"[[:space:]]*:[[:space:]]*\[\(.*\)\].*/\1/p')
+            inject "Refactor Move (TS Language Service): Updated imports in ${COUNT} files. Files: ${FILES}"
+            exit 0
+        else
+            inject "$MSG_NO_REFS"
+            exit 0
         fi
-    else
-        inject "$MSG_NO_TS"
     fi
 fi
 
-# --- Fallback: simple sed-based approach ---
+# --- Fallback: simple sed (single file only, not directories) ---
+if ! is_ts_file "$OLD_PATH"; then
+    inject "typescript not available and directory moves cannot use sed fallback. Install typescript: npm i -g typescript"
+    exit 0
+fi
+
 OLD_IMPORT_CLEAN=$(echo "$OLD_IMPORT" | sed 's|^\./||')
 NEW_IMPORT_CLEAN=$(echo "$NEW_IMPORT" | sed 's|^\./||')
 OLD_BASENAME=$(basename "$OLD_IMPORT_CLEAN")
