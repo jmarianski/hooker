@@ -141,16 +141,24 @@ independent behaviors on the same hook and understand the risk.
 3. Create `.claude/hooker/{recipe-name}/` directory
 4. Copy/adapt recipe files into the subdirectory
 5. Ensure `.claude/hooker/run.sh` exists (create from `${CLAUDE_PLUGIN_ROOT}/scripts/run.sh` if not)
-6. `chmod +x run.sh` and any `.match.sh` files
-7. Add hook entries to `.claude/settings.json` for each hook in the recipe:
+6. Create/update `.claude/hooker/hooker.env` — cache dir without version so `run.sh` auto-picks
+   latest after plugin updates:
+   ```bash
+   # Hooker plugin cache dir (run.sh picks latest version automatically)
+   HOOKER_CACHE_DIR="${HOME}/.claude/plugins/cache/hooker-marketplace/hooker"
+   ```
+   This survives plugin updates — `run.sh` always picks the latest version from this dir.
+7. `chmod +x run.sh` and any `.match.sh` files
+8. Add hook entries to `.claude/settings.json` for each hook in the recipe:
    ```json
    { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/{recipe-name}/{HookName}" }] }
    ```
-8. **Warn the user:** "Isolated mode uses a `run.sh` bridge that locates the hooker plugin
-   by scanning known cache paths (`~/.claude/plugins/cache/...`). This internal path
-   structure is not guaranteed by Anthropic — if the plugin cache layout changes in a
-   future Claude Code version, `run.sh` will need to be updated."
-9. Confirm installation
+9. **Warn the user:** "Isolated mode uses `hooker.env` to find the plugin. After a plugin
+   update, the path in `hooker.env` may point to an old cached version — re-run
+   `/hooker:recipe install` or edit `.claude/hooker/hooker.env` to refresh it. The fallback
+   auto-detection picks the latest version from cache, but this relies on a cache path
+   structure not guaranteed by Anthropic."
+10. Confirm installation
 
 ## Recipe markers (merged mode only)
 Every recipe's logic MUST be wrapped in marker comments for traceability:
