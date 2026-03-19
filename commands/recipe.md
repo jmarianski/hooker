@@ -27,18 +27,20 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 
 Available recipes (no need to scan filesystem — this is the full list):
 
+### Safety
+Guardrails and protection rules. No external dependencies — pure bash/sed.
 | Recipe | Hook | Description |
 |--------|------|-------------|
-| `agent-gets-claude-context` | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
-| `auto-checkpoint` | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
-| `auto-format` | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
-| `behavior-watchdog` | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
 | `block-dangerous-commands` | PreToolUse | Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands. |
-| `compact-context` | PreCompact | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
-| `detect-lazy-code` | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
-| `git-context-on-start` | SessionStart | Injects current git branch, status, and recent commits on session start. |
 | `no-force-push-main` | PreToolUse | Blocks git push --force to main/master branches. |
 | `protect-sensitive-files` | PreToolUse | Blocks reading or editing .env, SSH keys, credentials, and other sensitive files. |
+
+### Refactoring
+Import/link updates after file moves. Two tiers:
+- **simple** recipes: pure bash/sed, zero dependencies, work everywhere (including Docker-only envs)
+- **smart** recipes: use external tools (typescript, phpactor, rope) for AST-aware accuracy. Falls back to sed if tool unavailable. For projects with multiple smart recipes on the same hook (PostToolUse), consider **isolated mode** installation to avoid merging conflicts.
+| Recipe | Hook | Description |
+|--------|------|-------------|
 | `refactor-move-go-simple` | PostToolUse, PostCompact, SessionStart | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
 | `refactor-move-markdown` | PostToolUse, PostCompact, SessionStart | After mv of any file, updates relative links in .md files ([text](path) and image refs). Pure bash/sed — no external dependencies. |
 | `refactor-move-php-smart` | PostToolUse, PostCompact, SessionStart | After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable. |
@@ -46,11 +48,38 @@ Available recipes (no need to scan filesystem — this is the full list):
 | `refactor-move-python-smart` | PostToolUse, PostCompact, SessionStart | After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable. |
 | `refactor-move-ts-simple` | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
 | `refactor-move-ts-smart` | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
-| `reinject-after-compact` | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
-| `remind-to-update-docs` | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
+
+### Workflow
+Git operations, formatting, changelog enforcement. No external dependencies.
+| Recipe | Hook | Description |
+|--------|------|-------------|
+| `auto-checkpoint` | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
+| `auto-format` | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
 | `require-changelog-before-tag` | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
-| `session-guardian` | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
+
+### Context
+Session context injection and preservation across compaction.
+| Recipe | Hook | Description |
+|--------|------|-------------|
+| `agent-gets-claude-context` | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
+| `compact-context` | PreCompact | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
+| `git-context-on-start` | SessionStart | Injects current git branch, status, and recent commits on session start. |
+| `reinject-after-compact` | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
+
+### Quality
+Code quality checks and behavioral nudges.
+| Recipe | Hook | Description |
+|--------|------|-------------|
+| `detect-lazy-code` | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
+| `remind-to-update-docs` | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
 | `skip-acknowledgments` | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
+
+### Monitoring
+Session lifecycle management and observation.
+| Recipe | Hook | Description |
+|--------|------|-------------|
+| `behavior-watchdog` | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
+| `session-guardian` | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
 | `smart-session-notes` | PreCompact | Creates filtered markdown session notes before compaction. Configurable: include/exclude user messages, assistant text, errors, tool calls. Saves to .claude/hooker/session-notes.md. |
 
 **Hooks without recipes**: PermissionRequest, Notification, TeammateIdle, InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove, Elicitation, ElicitationResult

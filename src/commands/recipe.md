@@ -27,11 +27,31 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 
 Available recipes (no need to scan filesystem — this is the full list):
 
+{% for cat in categories -%}
+### {{ cat.Label }}
+{% if cat.ID == "safety" -%}
+Guardrails and protection rules. No external dependencies — pure bash/sed.
+{% elif cat.ID == "refactoring" -%}
+Import/link updates after file moves. Two tiers:
+- **simple** recipes: pure bash/sed, zero dependencies, work everywhere (including Docker-only envs)
+- **smart** recipes: use external tools (typescript, phpactor, rope) for AST-aware accuracy. Falls back to sed if tool unavailable. For projects with multiple smart recipes on the same hook (PostToolUse), consider **isolated mode** installation to avoid merging conflicts.
+{% elif cat.ID == "workflow" -%}
+Git operations, formatting, changelog enforcement. No external dependencies.
+{% elif cat.ID == "context" -%}
+Session context injection and preservation across compaction.
+{% elif cat.ID == "quality" -%}
+Code quality checks and behavioral nudges.
+{% elif cat.ID == "monitoring" -%}
+Session lifecycle management and observation.
+{% endif -%}
+
 | Recipe | Hook | Description |
 |--------|------|-------------|
-{%- for r in recipes %}
+{%- for r in cat.Recipes %}
 | `{{ r.ID }}` | {{ r.Hooks | join(d=", ") }} | {{ r.Description }} |
 {%- endfor %}
+
+{% endfor -%}
 
 **Hooks without recipes**: {{ uncoveredHooks | join(d=", ") }}
 
