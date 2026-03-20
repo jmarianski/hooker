@@ -1,0 +1,12 @@
+{
+  "name": "Refactor Move Java",
+  "description": "After mv of .java files, updates package declarations and import statements across the project. Derives package from directory structure. Pure bash/sed.",
+  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
+  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
+  "category": "refactoring",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

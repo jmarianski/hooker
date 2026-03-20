@@ -65,13 +65,16 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 
 | Recipe | Hook | What it does |
 |--------|------|-------------|
+| **refactor-move-csharp-smart** | PostToolUse, PostCompact, SessionStart | After mv of .cs files, updates namespace declarations and using statements across the project. Derives namespace from directory structure + .csproj. Pure bash/sed. |
 | **refactor-move-go-simple** | PostToolUse, PostCompact, SessionStart | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
+| **refactor-move-java-smart** | PostToolUse, PostCompact, SessionStart | After mv of .java files, updates package declarations and import statements across the project. Derives package from directory structure. Pure bash/sed. |
 | **refactor-move-markdown** | PostToolUse, PostCompact, SessionStart | After mv of any file, updates relative links in .md files ([text](path) and image refs). Pure bash/sed — no external dependencies. |
 | **refactor-move-php-smart** | PostToolUse, PostCompact, SessionStart | After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable. |
 | **refactor-move-python-simple** | PostToolUse, PostCompact, SessionStart | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
 | **refactor-move-python-smart** | PostToolUse, PostCompact, SessionStart | After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable. |
 | **refactor-move-ts-simple** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
 | **refactor-move-ts-smart** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
+| **refactor-move-universal** | PostToolUse, PostCompact, SessionStart | After mv of any file, finds and replaces old path references in all text files (config, YAML, Dockerfile, scripts, etc.). Catches what language-specific recipes miss. Pure bash/sed. |
 
 #### Workflow
 

@@ -1,0 +1,2 @@
+updated: "Updated path references in {count} files after move."
+no_refs: "File moved, no path references found in text files."

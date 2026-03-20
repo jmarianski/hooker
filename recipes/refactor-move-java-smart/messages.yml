@@ -1,0 +1,2 @@
+updated: "Updated Java imports/package in {count} files after move."
+no_refs: "File moved, no Java import references found to update."
