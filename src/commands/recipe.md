@@ -23,6 +23,17 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 4. Create the files in `.claude/hooker/`
 5. Test it
 
+**Advanced custom hooks** — some requests go beyond pre-built recipes. Examples:
+- "po przeniesieniu funkcji między plikami, zaktualizuj importy" — custom PostToolUse hook
+  that detects symbol moves via Edit tool tracking or shell command convention, then updates
+  imports. Ask about language, detection mode, and generate project-specific hook.
+- "po każdym udzieleniu code review w PR, sprawdź czy CI przeszło" — custom hook combining
+  PostToolUse + external API calls.
+- "automatycznie dodaj testy do nowych plików" — PostToolUse on Write, generates test stubs.
+
+For these, don't look for a matching recipe — generate a custom hook tailored to the project.
+Ask the user about shared vs local installation.
+
 ## Recipe catalog
 
 Available recipes (no need to scan filesystem — this is the full list):
