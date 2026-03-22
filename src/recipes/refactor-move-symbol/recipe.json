@@ -1,0 +1,13 @@
+{
+  "name": "Refactor Move Symbol",
+  "description": "Detects when a function/class/export is cut from one file and pasted into another (via two Edit calls). Tracks removals in state file, matches with additions, then suggests import updates. Uses Python for diff analysis.",
+  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
+  "matchers": {"PostToolUse": "Edit", "PostCompact": "", "SessionStart": ""},
+  "category": "refactoring",
+  "dependencies": ["python3"],
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

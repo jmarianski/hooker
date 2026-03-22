@@ -1,0 +1,3 @@
+detected: "Symbol move detected: `{symbol}` moved from {from} to {to}. {count} files import this symbol — update imports?"
+removal_tracked: "Tracking removed symbol `{symbol}` from {file} — if it appears in another file, imports will be updated."
+no_match: ""

@@ -59,6 +59,7 @@ Import/link updates after file moves. Two tiers:
 | `refactor-move-php-smart` | PostToolUse, PostCompact, SessionStart | After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable. |
 | `refactor-move-python-simple` | PostToolUse, PostCompact, SessionStart | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
 | `refactor-move-python-smart` | PostToolUse, PostCompact, SessionStart | After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable. |
+| `refactor-move-symbol` | PostToolUse, PostCompact, SessionStart | Detects when a function/class/export is cut from one file and pasted into another (via two Edit calls). Tracks removals in state file, matches with additions, then suggests import updates. Uses Python for diff analysis. |
 | `refactor-move-ts-simple` | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
 | `refactor-move-ts-smart` | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
 | `refactor-move-universal` | PostToolUse, PostCompact, SessionStart | After mv of any file, finds and replaces old path references in all text files (config, YAML, Dockerfile, scripts, etc.). Catches what language-specific recipes miss. Pure bash/sed. |
@@ -76,6 +77,7 @@ Session context injection and preservation across compaction.
 | Recipe | Hook | Description |
 |--------|------|-------------|
 | `agent-gets-claude-context` | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
+| `agents-md-context` | SessionStart, PostCompact | Injects AGENTS.md content into session context on start and after compaction. Walks up from CWD to find the nearest AGENTS.md, respecting the convention used by multi-agent projects. |
 | `compact-context` | PreCompact | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
 | `git-context-on-start` | SessionStart | Injects current git branch, status, and recent commits on session start. |
 | `reinject-after-compact` | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
