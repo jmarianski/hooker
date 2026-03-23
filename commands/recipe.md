@@ -34,15 +34,21 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 For these, don't look for a matching recipe — generate a custom hook tailored to the project.
 Ask the user about shared vs local installation.
 
-**Scheduled tasks (auto-dream / Dreamer pattern)** — Claude Code supports `/loop` for
-session-scoped recurring tasks and `cron + claude -p` for persistent headless scheduling
-(see: https://code.claude.com/docs/en/scheduled-tasks). When the user wants automated
-recurring tasks (nightly code review, dependency audit, changelog generation):
+**Scheduled tasks (auto-dream / Dreamer pattern)** — `/schedule` exists in Claude Code Desktop
+(Cowork mode) but is buggy and not available in CLI. For CLI/Linux, use `cron + claude -p`:
+(see: https://code.claude.com/docs/en/scheduled-tasks,
+https://github.com/ojowwalker77/Claude-Matrix, https://github.com/jshchnz/claude-code-scheduler)
+
+When the user wants automated recurring tasks (nightly code review, dependency audit, etc.):
 1. Generate a cron job template using `claude -p "<prompt>"` in headless mode
 2. Installed hooker recipes will be active during scheduled runs
-3. Use git worktree for isolation if the task modifies code (inspired by
-   [Claude Matrix Dreamer](https://github.com/ojowwalker77/Claude-Matrix))
-4. Example: `0 3 * * * cd /project && claude -p "review changes since yesterday, run tests"`
+3. Use git worktree for isolation if the task modifies code
+4. Install `cron-results` recipe to bridge cron→interactive session notification
+5. Example: `0 3 * * * cd /project && claude -p "review changes since yesterday, write results to .claude/hooker/cron-results/"`
+
+If the user wants to define schedules in project config, help them create a
+`.claude/hooker/schedules.yml` and generate matching crontab entries. The skill should
+output the `crontab -e` lines ready to paste.
 
 **recipe.json `"cron"` field** — indicates if a recipe is useful in headless/scheduled sessions:
 - `"cron": true` — safe and useful in cron (safety, refactoring, context, monitoring, formatting)
