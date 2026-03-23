@@ -47,7 +47,7 @@ When the user wants automated recurring tasks (nightly code review, dependency a
 5. Example: `0 3 * * * cd /project && claude -p "review changes since yesterday, write results to .claude/hooker/cron-results/"`
 
 If the user wants to define schedules in project config, help them create
-`.claude/hooker/schedules.yml` (see `${CLAUDE_PLUGIN_ROOT}/templates/schedules.example.yml`).
+`.claude/hooker/schedules.yml` (see `${CLAUDE_PLUGIN_ROOT}/recipes/cron-results/schedules.example.yml`).
 Then run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/setup-cron.sh` to install/update crontab
 entries automatically. The script uses `@hooker-start/@hooker-end` markers per project
 directory — re-running replaces entries for the current project only.

@@ -13,12 +13,15 @@ PROJECT_DIR="$(pwd)"
 
 if [ ! -f "$CONFIG" ]; then
     echo "No schedules.yml found at $CONFIG"
-    echo "Create one with:"
+    echo "Create .claude/hooker/schedules.yml with:"
     echo ""
     echo "schedules:"
     echo "  - name: nightly-review"
     echo "    cron: \"0 3 * * *\""
-    echo "    prompt: \"Review changes since yesterday, write results to .claude/hooker/cron-results/\""
+    echo "    prompt: \"Review changes, write to .claude/hooker/cron-results/\""
+    echo "  - name: complex-task"
+    echo "    cron: \"0 6 * * *\""
+    echo "    prompt_file: .claude/hooker/prompts/task.md"
     exit 1
 fi
 
