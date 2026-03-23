@@ -52,6 +52,20 @@ Then run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/setup-cron.sh` to install/update cr
 entries automatically. The script uses `@hooker-start/@hooker-end` markers per project
 directory — re-running replaces entries for the current project only.
 
+**schedules.yml format:**
+```yaml
+schedules:
+  - name: quick-check
+    cron: "0 9 * * *"
+    prompt: "Run tests"                    # inline one-liner
+  - name: nightly-review
+    cron: "0 3 * * *"
+    prompt_file: .claude/hooker/prompts/nightly-review.md  # complex multi-line prompt
+```
+`prompt_file` points to a markdown file with full instructions (checklists, output format,
+multi-step workflows). `prompt` is for simple one-liners. `prompt_file` takes precedence.
+Help the user write the prompt file when they describe complex scheduled tasks.
+
 **recipe.json `"cron"` field** — indicates if a recipe is useful in headless/scheduled sessions:
 - `"cron": true` — safe and useful in cron (safety, refactoring, context, monitoring, formatting)
 - `"cron": false` — requires human interaction, skip in cron (behavior-watchdog, skip-acknowledgments,
