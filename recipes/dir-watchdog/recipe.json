@@ -1,6 +1,6 @@
 {
   "name": "Directory Watchdog",
-  "description": "Monitors directories for file bloat (too many files of same type). Warns about unconfigured bloated dirs or auto-cleans configured ones. Configurable per-repo via dir-watchdog.yml with thresholds, extensions, and actions (warn/cleanup).",
+  "description": "Monitors directories for file bloat (too many files of same type). Warns about bloated directories — never deletes anything. Configure thresholds in dir-watchdog.yml. Use dir-cleanup for auto-removal.",
   "hooks": ["UserPromptSubmit"],
   "matchers": {"UserPromptSubmit": ""},
   "category": "monitoring",

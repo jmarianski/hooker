@@ -1,3 +1,2 @@
-warn_bloated: "Directory `{path}` has {count} {ext} files (threshold: {max}). Consider configuring a cleanup rule in .claude/hooker/dir-watchdog.yml."
-cleanup_done: "Directory watchdog cleaned `{path}`: removed {removed} oldest {ext} files (kept {kept}, threshold: {max})."
+warn_bloated: "Directory `{path}` has {count} {ext} files (threshold: {max}). Consider installing dir-cleanup recipe or managing files manually."
 no_config_hint: "No dir-watchdog.yml found. Create .claude/hooker/dir-watchdog.yml to configure directory monitoring rules."

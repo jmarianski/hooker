@@ -1,7 +1,7 @@
 {
   "name": "hooker",
   "description": "Universal hook injection framework for Claude Code. Inject custom prompts, reminders, and context into any of 21 hook events via simple template files.",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "author": {
     "name": "Jacek Mariański",
     "url": "https://treetank.net"
