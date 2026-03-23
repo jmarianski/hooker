@@ -85,6 +85,34 @@ When installing local recipes:
 2. Put recipe files in `.claude/hooker/local/{recipe-name}/`
 3. Wire hooks in `.claude/settings.local.json` (not settings.json)
 
+## Async hooks
+
+Hooks can run asynchronously — Claude Code starts the hook and continues working without
+waiting. Output is delivered on the next conversation turn.
+
+**In settings.json:** add `"async": true` and optionally `"timeout": N` (seconds):
+```json
+{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "...", "async": true, "timeout": 60 }] }
+```
+
+**Constraints:** async hooks CANNOT block/deny/remind — only inject/warn/context.
+
+**recipe.json `"async"` field** maps hook names to boolean. When wiring hooks in settings.json,
+use this field to determine if a hook should be async:
+- `"async": {"PostToolUse": true}` → wire PostToolUse with `"async": true`
+- Hooks not listed or set to false → wire as synchronous (default)
+
+**When to recommend async:**
+- Refactoring (PostToolUse) — import updates run in background, agent continues
+- Directory scanning (dir-watchdog, dir-cleanup) — filesystem scan in background
+- Code quality checks (detect-lazy-code, auto-format) — non-blocking warnings
+- Any monitoring that doesn't need to block
+
+**When async must NOT be used:**
+- Safety recipes (block-dangerous-commands, protect-sensitive-files, no-force-push-main) — must block BEFORE execution
+- Stop hooks (remind-to-update-docs, auto-checkpoint) — must block stop
+- Context injection on SessionStart/PostCompact — agent needs context immediately
+
 ## Installation modes
 
 When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:

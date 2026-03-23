@@ -3,6 +3,7 @@
   "description": "Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit.",
   "hooks": ["PostToolUse"],
   "matchers": {"PostToolUse": "Edit"},
+  "async": {"PostToolUse": true},
   "category": "workflow",
   "attribution": {
     "type": "adapted",

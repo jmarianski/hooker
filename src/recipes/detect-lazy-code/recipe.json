@@ -3,6 +3,7 @@
   "description": "Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders.",
   "hooks": ["PostToolUse"],
   "matchers": {"PostToolUse": "Edit"},
+  "async": {"PostToolUse": true},
   "category": "quality",
   "attribution": {
     "type": "adapted",

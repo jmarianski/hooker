@@ -99,6 +99,31 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
   [claude-notifications-go](https://github.com/777genius/claude-notifications-go)
   plugin handles desktop notifications already. Duplicating it would be pointless.
 
+## Async hooks
+
+Hooks can run asynchronously with `"async": true` in settings.json/hooks.json:
+```json
+{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "...", "async": true, "timeout": 60 }] }
+```
+
+**How async works:** Claude Code starts the hook and continues immediately. Output is delivered
+on the next conversation turn via `systemMessage` or `additionalContext` JSON fields.
+
+**Constraints:** async hooks CANNOT block/deny/remind — only inject context or warn.
+
+**When to use async:**
+- `dir-watchdog` / `dir-cleanup` — filesystem scanning shouldn't block interaction
+- `refactor-move-*` (PostToolUse) — import updates can run in background
+- Any monitoring/scanning hook that doesn't need to block
+
+**When NOT to use async:**
+- `block-dangerous-commands` — must block BEFORE command runs (PreToolUse)
+- `protect-sensitive-files` — must deny before file access
+- `remind-to-update-docs` — must block stop
+
+recipe.json has `"async"` field (per hook) to indicate recommendation. The skill uses it
+when wiring hooks in settings.json.
+
 ## Shared vs Local
 
 Recipes can be shared (team-wide) or local (per-developer):

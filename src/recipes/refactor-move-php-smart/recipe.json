@@ -3,6 +3,7 @@
   "description": "After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable.",
   "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
   "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
+  "async": {"PostToolUse": true},
   "category": "refactoring",
   "dependencies": ["phpactor (composer global)"],
   "attribution": {
