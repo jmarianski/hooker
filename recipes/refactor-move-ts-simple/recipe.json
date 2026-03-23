@@ -4,6 +4,7 @@
   "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
   "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
   "async": {"PostToolUse": true},
+  "cron": true,
   "dependencies": ["python3 (recommended)"],
   "category": "refactoring",
   "attribution": {

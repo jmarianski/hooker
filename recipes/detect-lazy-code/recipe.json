@@ -4,6 +4,7 @@
   "hooks": ["PostToolUse"],
   "matchers": {"PostToolUse": "Edit"},
   "async": {"PostToolUse": true},
+  "cron": true,
   "category": "quality",
   "attribution": {
     "type": "adapted",

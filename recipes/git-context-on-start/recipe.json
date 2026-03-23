@@ -3,6 +3,7 @@
   "description": "Injects current git branch, status, and recent commits on session start.",
   "hooks": ["SessionStart"],
   "matchers": {"SessionStart": ""},
+  "cron": true,
   "category": "context",
   "attribution": {
     "type": "inspired",

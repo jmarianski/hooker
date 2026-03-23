@@ -3,6 +3,7 @@
   "description": "Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution.",
   "hooks": ["UserPromptSubmit"],
   "matchers": {"UserPromptSubmit": ""},
+  "cron": false,
   "category": "quality",
   "attribution": {
     "type": "adapted",

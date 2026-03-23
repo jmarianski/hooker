@@ -44,6 +44,14 @@ recurring tasks (nightly code review, dependency audit, changelog generation):
    [Claude Matrix Dreamer](https://github.com/ojowwalker77/Claude-Matrix))
 4. Example: `0 3 * * * cd /project && claude -p "review changes since yesterday, run tests"`
 
+**recipe.json `"cron"` field** — indicates if a recipe is useful in headless/scheduled sessions:
+- `"cron": true` — safe and useful in cron (safety, refactoring, context, monitoring, formatting)
+- `"cron": false` — requires human interaction, skip in cron (behavior-watchdog, skip-acknowledgments,
+  remind-to-update-docs — would hang or be useless without a user)
+
+When setting up scheduled tasks, recommend only `cron: true` recipes. When the user asks
+"which recipes should I activate for nightly runs?" — filter by this field.
+
 ## Recipe catalog
 
 Available recipes (no need to scan filesystem — this is the full list):

@@ -3,6 +3,7 @@
   "description": "Blocks git push --force to main/master branches.",
   "hooks": ["PreToolUse"],
   "matchers": {"PreToolUse": "Bash"},
+  "cron": true,
   "category": "safety",
   "attribution": {
     "type": "inspired",

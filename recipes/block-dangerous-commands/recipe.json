@@ -3,6 +3,7 @@
   "description": "Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands.",
   "hooks": ["PreToolUse"],
   "matchers": {"PreToolUse": "Bash"},
+  "cron": true,
   "category": "safety",
   "attribution": {
     "type": "adapted",

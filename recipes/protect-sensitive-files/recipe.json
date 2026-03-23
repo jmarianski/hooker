@@ -3,6 +3,7 @@
   "description": "Blocks reading or editing .env, SSH keys, credentials, and other sensitive files.",
   "hooks": ["PreToolUse"],
   "matchers": {"PreToolUse": ""},
+  "cron": true,
   "category": "safety",
   "attribution": {
     "type": "adapted",

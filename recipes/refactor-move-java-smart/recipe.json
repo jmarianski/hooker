@@ -4,6 +4,7 @@
   "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
   "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
   "async": {"PostToolUse": true},
+  "cron": true,
   "category": "refactoring",
   "attribution": {
     "type": "original",

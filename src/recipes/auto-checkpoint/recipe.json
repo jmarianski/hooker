@@ -3,6 +3,7 @@
   "description": "Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes.",
   "hooks": ["Stop"],
   "matchers": {"Stop": ""},
+  "cron": true,
   "category": "workflow",
   "attribution": {
     "type": "inspired",

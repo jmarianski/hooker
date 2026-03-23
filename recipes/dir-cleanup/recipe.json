@@ -4,6 +4,7 @@
   "hooks": ["UserPromptSubmit"],
   "matchers": {"UserPromptSubmit": ""},
   "async": {"UserPromptSubmit": true},
+  "cron": true,
   "category": "monitoring",
   "attribution": {
     "type": "original",

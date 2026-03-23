@@ -3,6 +3,7 @@
   "description": "Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area.",
   "hooks": ["PreToolUse"],
   "matchers": {"PreToolUse": "Bash"},
+  "cron": true,
   "category": "workflow",
   "attribution": {
     "type": "original",

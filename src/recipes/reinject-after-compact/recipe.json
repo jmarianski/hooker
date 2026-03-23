@@ -3,6 +3,7 @@
   "description": "Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss.",
   "hooks": ["SessionStart"],
   "matchers": {"SessionStart": ""},
+  "cron": true,
   "category": "context",
   "attribution": {
     "type": "inspired",
