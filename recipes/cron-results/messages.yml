@@ -1,0 +1,2 @@
+unread_results: "You have {count} unread result(s) from scheduled sessions in .claude/hooker/cron-results/. Read them or ask the agent to summarize."
+result_saved: "Session results saved to .claude/hooker/cron-results/{filename}."

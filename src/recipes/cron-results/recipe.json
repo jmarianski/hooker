@@ -1,0 +1,13 @@
+{
+  "name": "Cron Results Notifier",
+  "description": "Notifies about unread results from scheduled/cron Claude sessions. Cron sessions write results to .claude/hooker/cron-results/. Interactive sessions check for unread results and inject a reminder.",
+  "hooks": ["UserPromptSubmit", "SessionEnd"],
+  "matchers": {"UserPromptSubmit": "", "SessionEnd": ""},
+  "cron": true,
+  "category": "monitoring",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}

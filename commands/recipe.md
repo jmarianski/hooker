@@ -52,6 +52,12 @@ recurring tasks (nightly code review, dependency audit, changelog generation):
 When setting up scheduled tasks, recommend only `cron: true` recipes. When the user asks
 "which recipes should I activate for nightly runs?" — filter by this field.
 
+**Cron session tips** — when generating cron prompts, remind the agent:
+- Write results to files (e.g. `.claude/hooker/cron-results/review-{date}.md`), not just stdout
+- Install `cron-results` recipe to notify users about unread cron outputs
+- Cron sessions are headless — no TTY, no user to approve permissions. Ensure permissions
+  are pre-configured in settings.json for the operations the cron job needs.
+
 ## Recipe catalog
 
 Available recipes (no need to scan filesystem — this is the full list):
@@ -113,6 +119,7 @@ Session lifecycle management and observation.
 | Recipe | Hook | Description |
 |--------|------|-------------|
 | `behavior-watchdog` | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
+| `cron-results` | UserPromptSubmit, SessionEnd | Notifies about unread results from scheduled/cron Claude sessions. Cron sessions write results to .claude/hooker/cron-results/. Interactive sessions check for unread results and inject a reminder. |
 | `dir-cleanup` | UserPromptSubmit | Auto-removes oldest files from configured directories when they exceed thresholds. DESTRUCTIVE — deletes files. Shares config with dir-watchdog (dir-watchdog.yml). Only acts on rules with action: cleanup. |
 | `dir-watchdog` | UserPromptSubmit | Monitors directories for file bloat (too many files of same type). Warns about bloated directories — never deletes anything. Configure thresholds in dir-watchdog.yml. Use dir-cleanup for auto-removal. |
 | `session-guardian` | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |

@@ -52,6 +52,12 @@ recurring tasks (nightly code review, dependency audit, changelog generation):
 When setting up scheduled tasks, recommend only `cron: true` recipes. When the user asks
 "which recipes should I activate for nightly runs?" — filter by this field.
 
+**Cron session tips** — when generating cron prompts, remind the agent:
+- Write results to files (e.g. `.claude/hooker/cron-results/review-{date}.md`), not just stdout
+- Install `cron-results` recipe to notify users about unread cron outputs
+- Cron sessions are headless — no TTY, no user to approve permissions. Ensure permissions
+  are pre-configured in settings.json for the operations the cron job needs.
+
 ## Recipe catalog
 
 Available recipes (no need to scan filesystem — this is the full list):
