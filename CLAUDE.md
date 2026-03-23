@@ -111,15 +111,12 @@ on the next conversation turn via `systemMessage` or `additionalContext` JSON fi
 
 **Constraints:** async hooks CANNOT block/deny/remind — only inject context or warn.
 
-**When to use async:**
-- `dir-watchdog` / `dir-cleanup` — filesystem scanning shouldn't block interaction
-- `refactor-move-*` (PostToolUse) — import updates can run in background
-- Any monitoring/scanning hook that doesn't need to block
+**Rule of thumb:** if the hook is render-blocking (CPU heavy, execution time scales with
+project size — e.g. `find`, `grep -r`, AST parsing), use async. If it must produce a
+decision before Claude continues (deny, block, remind), it must be sync.
 
-**When NOT to use async:**
-- `block-dangerous-commands` — must block BEFORE command runs (PreToolUse)
-- `protect-sensitive-files` — must deny before file access
-- `remind-to-update-docs` — must block stop
+**When NOT to use async:** hooks that return deny/block/remind/allow decisions (PreToolUse
+safety, Stop reminders). These must complete before Claude acts.
 
 recipe.json has `"async"` field (per hook) to indicate recommendation. The skill uses it
 when wiring hooks in settings.json.

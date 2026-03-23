@@ -138,16 +138,13 @@ use this field to determine if a hook should be async:
 - `"async": {"PostToolUse": true}` → wire PostToolUse with `"async": true`
 - Hooks not listed or set to false → wire as synchronous (default)
 
-**When to recommend async:**
-- Refactoring (PostToolUse) — import updates run in background, agent continues
-- Directory scanning (dir-watchdog, dir-cleanup) — filesystem scan in background
-- Code quality checks (detect-lazy-code, auto-format) — non-blocking warnings
-- Any monitoring that doesn't need to block
+**Rule of thumb:** if the hook is render-blocking (CPU heavy, execution time scales with
+project size — e.g. `find`, `grep -r`, AST parsing, external tool invocation), recommend async.
+If the hook must produce a decision before Claude continues, it must be sync.
 
-**When async must NOT be used:**
-- Safety recipes (block-dangerous-commands, protect-sensitive-files, no-force-push-main) — must block BEFORE execution
-- Stop hooks (remind-to-update-docs, auto-checkpoint) — must block stop
-- Context injection on SessionStart/PostCompact — agent needs context immediately
+**Async must NOT be used when:** the hook returns deny/block/remind/allow decisions
+(PreToolUse safety, Stop reminders) — these must complete before Claude acts.
+SessionStart/PostCompact context injection should also be sync so context is available immediately.
 
 ## Installation modes
 
