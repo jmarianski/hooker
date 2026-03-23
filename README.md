@@ -108,7 +108,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | Recipe | Hook | What it does |
 |--------|------|-------------|
 | **behavior-watchdog** | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
-| **cron-results** | UserPromptSubmit, SessionEnd | Notifies about unread results from scheduled/cron Claude sessions. Cron sessions write results to .claude/hooker/cron-results/. Interactive sessions check for unread results and inject a reminder. |
+| **cron-results** | SessionStart, UserPromptSubmit, SessionEnd | Auto-installs/updates crontab from schedules.yml on session start. Saves results from headless sessions. Notifies about unread cron results in interactive sessions. |
 | **dir-cleanup** | UserPromptSubmit | Auto-removes oldest files from configured directories when they exceed thresholds. DESTRUCTIVE — deletes files. Shares config with dir-watchdog (dir-watchdog.yml). Only acts on rules with action: cleanup. |
 | **dir-watchdog** | UserPromptSubmit | Monitors directories for file bloat (too many files of same type). Warns about bloated directories — never deletes anything. Configure thresholds in dir-watchdog.yml. Use dir-cleanup for auto-removal. |
 | **session-guardian** | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
