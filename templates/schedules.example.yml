@@ -1,0 +1,16 @@
+# Hooker scheduled tasks — cron entries for headless Claude sessions
+# Place as .claude/hooker/schedules.yml in your project
+# Run: bash ${CLAUDE_PLUGIN_ROOT}/scripts/setup-cron.sh to install/update crontab
+
+schedules:
+  - name: nightly-review
+    cron: "0 3 * * *"
+    prompt: "Review changes since yesterday, write results to .claude/hooker/cron-results/"
+
+  - name: weekly-deps
+    cron: "0 9 * * 1"
+    prompt: "Check for outdated dependencies, suggest updates, write to .claude/hooker/cron-results/"
+
+  # - name: daily-tests
+  #   cron: "0 6 * * *"
+  #   prompt: "Run tests, report failures to .claude/hooker/cron-results/"
