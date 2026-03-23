@@ -267,5 +267,12 @@ rm -f "$WARN_FILE" 2>/dev/null
 
 [ -z "$WARNINGS" ] && exit 1
 
+# Add config hint if no config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    MSG_HINT=$(sed -n 's/^no_config_hint:[[:space:]]*"\(.*\)"/\1/p' "${RECIPE_DIR}/messages.yml")
+    WARNINGS="${WARNINGS}
+${MSG_HINT}"
+fi
+
 inject "$WARNINGS"
 exit 0
