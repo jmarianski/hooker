@@ -118,6 +118,12 @@ decision before Claude continues (deny, block, remind), it must be sync.
 **When NOT to use async:** hooks that return deny/block/remind/allow decisions (PreToolUse
 safety, Stop reminders). These must complete before Claude acts.
 
+**Tested behavior (v0.24.0):** async hooks fire and complete correctly, but output delivery
+back to the agent (systemMessage/additionalContext) was not observed in testing — the hook
+runs, side effects happen (file changes, cleanup), but JSON output may not reach the agent's
+context. Use async for **fire-and-forget side effects** (delete files, update imports on disk,
+run formatters), not for delivering messages or context to the agent.
+
 recipe.json has `"async"` field (per hook) to indicate recommendation. The skill uses it
 when wiring hooks in settings.json.
 

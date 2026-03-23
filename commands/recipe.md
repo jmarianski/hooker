@@ -146,6 +146,11 @@ If the hook must produce a decision before Claude continues, it must be sync.
 (PreToolUse safety, Stop reminders) — these must complete before Claude acts.
 SessionStart/PostCompact context injection should also be sync so context is available immediately.
 
+**Important:** async hooks are best for **fire-and-forget side effects** (file cleanup, import
+updates on disk, running formatters). Output delivery back to the agent (systemMessage,
+additionalContext) has not been reliably observed — don't rely on async hooks to inject
+context or messages. If the agent needs to see the result, use sync.
+
 ## Installation modes
 
 When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:
