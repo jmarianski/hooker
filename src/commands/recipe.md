@@ -34,6 +34,16 @@ If the user describes what they want (e.g. `/hooker:recipe block deploys on frid
 For these, don't look for a matching recipe — generate a custom hook tailored to the project.
 Ask the user about shared vs local installation.
 
+**Scheduled tasks (auto-dream / Dreamer pattern)** — Claude Code supports `/loop` for
+session-scoped recurring tasks and `cron + claude -p` for persistent headless scheduling
+(see: https://code.claude.com/docs/en/scheduled-tasks). When the user wants automated
+recurring tasks (nightly code review, dependency audit, changelog generation):
+1. Generate a cron job template using `claude -p "<prompt>"` in headless mode
+2. Installed hooker recipes will be active during scheduled runs
+3. Use git worktree for isolation if the task modifies code (inspired by
+   [Claude Matrix Dreamer](https://github.com/ojowwalker77/Claude-Matrix))
+4. Example: `0 3 * * * cd /project && claude -p "review changes since yesterday, run tests"`
+
 ## Recipe catalog
 
 Available recipes (no need to scan filesystem — this is the full list):
