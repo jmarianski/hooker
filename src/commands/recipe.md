@@ -43,11 +43,11 @@ When the user wants automated recurring tasks (nightly code review, dependency a
 1. Generate a cron job template using `claude -p "<prompt>"` in headless mode
 2. Installed hooker recipes will be active during scheduled runs
 3. Use git worktree for isolation if the task modifies code
-4. Install `cron-results` recipe to bridge cron→interactive session notification
+4. Install `scheduled-tasks` recipe — auto-syncs crontab from schedules.yml on session start
 5. Example: `0 3 * * * cd /project && claude -p "review changes since yesterday, write results to .claude/hooker/cron-results/"`
 
 If the user wants to define schedules in project config, help them create
-`.claude/hooker/schedules.yml` (see `${CLAUDE_PLUGIN_ROOT}/recipes/cron-results/schedules.example.yml`).
+`.claude/hooker/schedules.yml` (see `${CLAUDE_PLUGIN_ROOT}/recipes/scheduled-tasks/schedules.example.yml`).
 Then run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/setup-cron.sh` to install/update crontab
 entries automatically. The script uses `@hooker-start/@hooker-end` markers per project
 directory — re-running replaces entries for the current project only.
@@ -76,7 +76,7 @@ When setting up scheduled tasks, recommend only `cron: true` recipes. When the u
 
 **Cron session tips** — when generating cron prompts, remind the agent:
 - Write results to files (e.g. `.claude/hooker/cron-results/review-{date}.md`), not just stdout
-- Install `cron-results` recipe to notify users about unread cron outputs
+- Install `scheduled-tasks` recipe to auto-sync crontab and notify about unread results
 - Cron sessions are headless — no TTY, no user to approve permissions. Ensure permissions
   are pre-configured in settings.json for the operations the cron job needs.
 
