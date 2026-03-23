@@ -3,15 +3,59 @@
 # Reads .claude/hooker/schedules.yml, generates scheduled entries with
 # claude -p, replaces existing entries for this project directory.
 #
-# Usage: bash setup-cron.sh [path/to/schedules.yml]
+# Usage: bash setup-cron.sh [path/to/schedules.yml]  — install/update schedules
+#        bash setup-cron.sh --list                   — show active schedules
+#        bash setup-cron.sh --remove                 — remove all schedules for this project
 # Run from project root or pass config path.
 #
 # Platform: Linux/macOS (crontab), Windows Git Bash (Task Scheduler via schtasks).
 
 set -euo pipefail
 
-CONFIG="${1:-.claude/hooker/schedules.yml}"
 PROJECT_DIR="$(pwd)"
+
+# --- Detect platform ---
+IS_WINDOWS=false
+if [ -n "${WINDIR:-}" ] || uname -s | grep -qi 'mingw\|msys\|cygwin'; then
+    IS_WINDOWS=true
+fi
+
+# --- Subcommands: --list, --remove ---
+case "${1:-}" in
+    --list)
+        echo "Scheduled tasks for ${PROJECT_DIR}:"
+        echo ""
+        if $IS_WINDOWS; then
+            schtasks /query /fo list 2>/dev/null | awk '/hooker-/{found=1} found{print; if(/^$/)found=0}' || echo "No hooker tasks found."
+        else
+            crontab -l 2>/dev/null | awk -v dir="$PROJECT_DIR" '$0 ~ dir {print}' || echo "No hooker cron entries found."
+        fi
+        exit 0
+        ;;
+    --remove)
+        echo "Removing scheduled tasks for ${PROJECT_DIR}..."
+        if $IS_WINDOWS; then
+            schtasks /query /fo csv 2>/dev/null | grep "hooker-" | while IFS=, read -r TASKNAME _REST; do
+                TASKNAME=$(echo "$TASKNAME" | sed 's/"//g')
+                schtasks /delete /tn "$TASKNAME" /f 2>/dev/null && echo "  Deleted: $TASKNAME"
+            done
+        else
+            MARKER_START="# @hooker-start ${PROJECT_DIR}"
+            MARKER_END="# @hooker-end ${PROJECT_DIR}"
+            CURRENT=$(crontab -l 2>/dev/null || true)
+            CLEANED=$(echo "$CURRENT" | awk -v start="$MARKER_START" -v end="$MARKER_END" '
+                $0 == start { skip=1; next }
+                $0 == end { skip=0; next }
+                !skip { print }
+            ')
+            echo "$CLEANED" | crontab -
+            echo "Cron entries removed for ${PROJECT_DIR}."
+        fi
+        exit 0
+        ;;
+esac
+
+CONFIG="${1:-.claude/hooker/schedules.yml}"
 
 if [ ! -f "$CONFIG" ]; then
     echo "No schedules.yml found at $CONFIG"
@@ -25,12 +69,6 @@ if [ ! -f "$CONFIG" ]; then
     echo "    cron: \"0 6 * * *\""
     echo "    prompt_file: .claude/hooker/prompts/task.md"
     exit 1
-fi
-
-# --- Detect platform ---
-IS_WINDOWS=false
-if [ -n "${WINDIR:-}" ] || uname -s | grep -qi 'mingw\|msys\|cygwin'; then
-    IS_WINDOWS=true
 fi
 
 # --- Parse schedules from yml ---
