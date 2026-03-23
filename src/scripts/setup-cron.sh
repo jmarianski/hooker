@@ -5,6 +5,9 @@
 #
 # Usage: bash setup-cron.sh [path/to/schedules.yml]
 # Run from project root or pass config path.
+#
+# Platform: Linux and macOS (crontab). Windows not supported —
+# use WSL or manually create Task Scheduler entries.
 
 set -euo pipefail
 
