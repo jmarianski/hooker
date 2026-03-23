@@ -7,18 +7,24 @@ default_threshold: 30
 # How often to check (1 = every message, 5 = every ~5th message)
 check_frequency: 5
 
+# Global ignore patterns — these files are never counted or deleted
+# Supports filename globs: *.keep, README.*, .gitkeep
+ignore: [.gitkeep, README.md, .keep]
+
 # Rules for specific directories
 rules:
   - path: screenshots/
     max_files: 30
     extensions: [png, jpg, jpeg, webp, gif, bmp]
     action: cleanup    # cleanup = delete oldest beyond threshold
-    # keep: newest     # (default) — keeps newest files, deletes oldest
+    # Per-rule ignore — these files are never counted or deleted
+    # ignore: [baseline_*.png, reference.png]
 
   - path: logs/
     max_files: 50
     extensions: [log, txt]
     action: warn       # warn = inject suggestion, don't delete
+    ignore: [current.log]
 
   - path: tmp/
     max_files: 20
@@ -28,3 +34,4 @@ rules:
   #   max_files: 10
   #   extensions: [mp4, webm, mov]
   #   action: cleanup
+  #   ignore: [demo.mp4]
