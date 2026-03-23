@@ -3,14 +3,16 @@
 # Run: bash ${CLAUDE_PLUGIN_ROOT}/scripts/setup-cron.sh to install/update crontab
 
 schedules:
-  - name: nightly-review
-    cron: "0 3 * * *"
-    prompt: "Review changes since yesterday, write results to .claude/hooker/cron-results/"
-
+  # Simple inline prompt
   - name: weekly-deps
     cron: "0 9 * * 1"
     prompt: "Check for outdated dependencies, suggest updates, write to .claude/hooker/cron-results/"
 
+  # Complex prompt from file — for multi-step instructions
+  - name: nightly-review
+    cron: "0 3 * * *"
+    prompt_file: .claude/hooker/prompts/nightly-review.md
+
   # - name: daily-tests
   #   cron: "0 6 * * *"
-  #   prompt: "Run tests, report failures to .claude/hooker/cron-results/"
+  #   prompt_file: .claude/hooker/prompts/daily-tests.md

@@ -26,11 +26,28 @@ fi
 ENTRIES=""
 CUR_CRON=""
 CUR_PROMPT=""
+CUR_PROMPT_FILE=""
 CUR_NAME=""
 
 flush_entry() {
-    [ -z "$CUR_CRON" ] || [ -z "$CUR_PROMPT" ] && return
-    ENTRIES="${ENTRIES}${CUR_CRON} cd ${PROJECT_DIR} && claude -p \"${CUR_PROMPT}\" # hooker:${CUR_NAME}
+    [ -z "$CUR_CRON" ] && return
+    # Resolve prompt: prompt_file takes precedence over inline prompt
+    local CMD_PROMPT=""
+    if [ -n "$CUR_PROMPT_FILE" ]; then
+        local FULL_PATH="${PROJECT_DIR}/${CUR_PROMPT_FILE}"
+        if [ -f "$FULL_PATH" ]; then
+            CMD_PROMPT="claude -p \"\$(cat ${FULL_PATH})\""
+        else
+            echo "WARNING: prompt_file not found: $CUR_PROMPT_FILE (schedule: $CUR_NAME)" >&2
+            return
+        fi
+    elif [ -n "$CUR_PROMPT" ]; then
+        CMD_PROMPT="claude -p \"${CUR_PROMPT}\""
+    else
+        echo "WARNING: no prompt or prompt_file for schedule: $CUR_NAME" >&2
+        return
+    fi
+    ENTRIES="${ENTRIES}${CUR_CRON} cd ${PROJECT_DIR} && ${CMD_PROMPT} # hooker:${CUR_NAME}
 "
 }
 
@@ -39,10 +56,13 @@ while IFS= read -r line; do
         *"- name:"*)
             flush_entry
             CUR_NAME=$(echo "$line" | sed 's/.*name:[[:space:]]*//' | sed 's/[[:space:]]*$//')
-            CUR_CRON="" CUR_PROMPT=""
+            CUR_CRON="" CUR_PROMPT="" CUR_PROMPT_FILE=""
             ;;
         *"cron:"*)
             CUR_CRON=$(echo "$line" | sed 's/.*cron:[[:space:]]*//' | sed 's/^"//; s/"[[:space:]]*$//')
+            ;;
+        *"prompt_file:"*)
+            CUR_PROMPT_FILE=$(echo "$line" | sed 's/.*prompt_file:[[:space:]]*//' | sed 's/^"//; s/"[[:space:]]*$//')
             ;;
         *"prompt:"*)
             CUR_PROMPT=$(echo "$line" | sed 's/.*prompt:[[:space:]]*//' | sed 's/^"//; s/"[[:space:]]*$//')
