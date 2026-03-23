@@ -115,6 +115,25 @@ updates on disk, running formatters). Output delivery back to the agent (systemM
 additionalContext) has not been reliably observed — don't rely on async hooks to inject
 context or messages. If the agent needs to see the result, use sync.
 
+**Workaround — deferred message delivery:** if an async hook needs to communicate results
+to the agent, it can write to a message file (e.g. `.claude/hooker/.async_messages`).
+A sync UserPromptSubmit hook reads the file on the next user message, injects the content,
+and clears the file. Pattern:
+```bash
+# In async hook (e.g. PostToolUse async):
+echo "Import update completed: 5 files changed" >> .claude/hooker/.async_messages
+
+# In sync UserPromptSubmit hook:
+MSGS=".claude/hooker/.async_messages"
+if [ -f "$MSGS" ] && [ -s "$MSGS" ]; then
+    source "${HOOKER_HELPERS}"
+    inject "$(cat "$MSGS")"
+    rm -f "$MSGS"
+    exit 0
+fi
+exit 1
+```
+
 ## Installation modes
 
 When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:
