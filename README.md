@@ -108,6 +108,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | Recipe | Hook | What it does |
 |--------|------|-------------|
 | **behavior-watchdog** | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
+| **dir-watchdog** | UserPromptSubmit | Monitors directories for file bloat (too many files of same type). Warns about unconfigured bloated dirs or auto-cleans configured ones. Configurable per-repo via dir-watchdog.yml with thresholds, extensions, and actions (warn/cleanup). |
 | **session-guardian** | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
 | **smart-session-notes** | PreCompact | Creates filtered markdown session notes before compaction. Configurable: include/exclude user messages, assistant text, errors, tool calls. Saves to .claude/hooker/session-notes.md. |
 

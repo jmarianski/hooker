@@ -1,0 +1,30 @@
+# Directory Watchdog configuration
+# Place as .claude/hooker/dir-watchdog.yml in your project
+
+# Default threshold for unconfigured directories (0 = don't scan unconfigured)
+default_threshold: 30
+
+# How often to check (1 = every message, 5 = every ~5th message)
+check_frequency: 5
+
+# Rules for specific directories
+rules:
+  - path: screenshots/
+    max_files: 30
+    extensions: [png, jpg, jpeg, webp, gif, bmp]
+    action: cleanup    # cleanup = delete oldest beyond threshold
+    # keep: newest     # (default) — keeps newest files, deletes oldest
+
+  - path: logs/
+    max_files: 50
+    extensions: [log, txt]
+    action: warn       # warn = inject suggestion, don't delete
+
+  - path: tmp/
+    max_files: 20
+    action: cleanup    # no extensions filter = all files
+
+  # - path: recordings/
+  #   max_files: 10
+  #   extensions: [mp4, webm, mov]
+  #   action: cleanup
