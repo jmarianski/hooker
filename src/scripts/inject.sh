@@ -46,7 +46,7 @@ HOOKER_PROJECT_DIR="${HOME}/.claude/projects/-${HOOKER_PROJECT_SLUG}"
 export HOOKER_PROJECT_SLUG HOOKER_PROJECT_DIR
 
 # --- Logging ---
-HOOKER_CONFIG=".claude/hooker.json"
+HOOKER_CONFIG="${HOOKER_CWD:-.}/.claude/hooker.json"
 LOGGING_ENABLED="${HOOKER_LOG:-0}"
 if [ -f "$HOOKER_CONFIG" ]; then
     grep -q '"logs"[[:space:]]*:[[:space:]]*true' "$HOOKER_CONFIG" 2>/dev/null && LOGGING_ENABLED="1"
@@ -65,7 +65,7 @@ log "Hook triggered in $(pwd)${RECIPE_DIR:+ (recipe: $RECIPE_DIR)}"
 # With --recipe path/Hook: look only in that directory for Hook.md / Hook.match.sh
 # Without --recipe: priority: project > user global > plugin default
 # Standalone match scripts (no .md) are allowed — they handle everything via output
-PROJECT_DIR=".claude/hooker"
+PROJECT_DIR="${HOOKER_CWD:-.}/.claude/hooker"
 USER_DIR="${HOME}/.claude/hooker"
 
 TEMPLATE_FILE=""
