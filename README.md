@@ -100,6 +100,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | Recipe | Hook | What it does |
 |--------|------|-------------|
 | **detect-lazy-code** | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
+| **no-dismiss-failures** | PostToolUse | After test/lint commands fail, injects a reminder that dismissing failures is unacceptable. Agent must investigate root cause, fix, or explain to user. |
 | **remind-to-update-docs** | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
 | **skip-acknowledgments** | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
 

@@ -1,0 +1,13 @@
+{
+  "name": "No Dismiss Failures",
+  "description": "After test/lint commands fail, injects a reminder that dismissing failures is unacceptable. Agent must investigate root cause, fix, or explain to user.",
+  "hooks": ["PostToolUse"],
+  "matchers": {"PostToolUse": "Bash"},
+  "cron": true,
+  "category": "quality",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT"
+  }
+}
