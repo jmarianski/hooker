@@ -197,7 +197,7 @@ _hooker_main() {
 # Falls back to simple sed if typescript is not available.
 # Only act on Bash tool
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Bash" ] || exit 1
+[ "$TOOL" = "Bash" ] || return 1
 
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
@@ -206,13 +206,13 @@ CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".
 MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
-echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && return 1
 MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
 
 # Detect: mv old_path new_path (two-arg mv)
 OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
-[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
+[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && return 1
 
 # Must be a JS/TS file OR a directory containing JS/TS files
 is_ts_file() { echo "$1" | grep -q '\.[jt]sx\{0,1\}$'; }
@@ -225,9 +225,9 @@ if is_ts_file "$OLD_PATH"; then
     fi
 elif [ -d "$NEW_PATH" ] && ! [ -d "$OLD_PATH" ]; then
     # OLD was a directory (now at NEW) — check if it has TS files
-    has_ts_files "$NEW_PATH" || exit 1
+    has_ts_files "$NEW_PATH" || return 1
 else
-    exit 1
+    return 1
 fi
 
 # For single files: strip extensions for comparison
@@ -236,7 +236,7 @@ strip_ext() { echo "$1" | sed 's/\.\(ts\|tsx\|js\|jsx\)$//'; }
 if is_ts_file "$OLD_PATH"; then
     OLD_IMPORT=$(strip_ext "$OLD_PATH")
     NEW_IMPORT=$(strip_ext "$NEW_PATH")
-    [ "$OLD_IMPORT" = "$NEW_IMPORT" ] && exit 1
+    [ "$OLD_IMPORT" = "$NEW_IMPORT" ] && return 1
 fi
 
 RECIPE_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -254,10 +254,10 @@ if command -v node >/dev/null 2>&1 && node -e "require('typescript')" 2>/dev/nul
         if [ "$COUNT" -gt 0 ] 2>/dev/null; then
             FILES=$(echo "$RESULT" | sed -n 's/.*"files"[[:space:]]*:[[:space:]]*\[\(.*\)\].*/\1/p')
             inject "Refactor Move (TS Language Service): Updated imports in ${COUNT} files. Files: ${FILES}"
-            exit 0
+            return 0
         else
             inject "$MSG_NO_REFS"
-            exit 0
+            return 0
         fi
     fi
 fi
@@ -265,7 +265,7 @@ fi
 # --- Fallback: simple sed (single file only, not directories) ---
 if ! is_ts_file "$OLD_PATH"; then
     inject "typescript not available and directory moves cannot use sed fallback. Install typescript: npm i -g typescript"
-    exit 0
+    return 0
 fi
 
 OLD_IMPORT_CLEAN=$(echo "$OLD_IMPORT" | sed 's|^\./||')
@@ -278,7 +278,7 @@ AFFECTED_FILES=$(grep -rl "['\"]\.\{0,2\}/.*${OLD_BASENAME}['\"]" \
 
 [ -z "$AFFECTED_FILES" ] && {
     inject "$MSG_NO_REFS"
-    exit 0
+    return 0
 }
 
 COUNT=0
@@ -301,7 +301,7 @@ if [ "$COUNT" -gt 0 ]; then
 else
     inject "$MSG_NO_REFS"
 fi
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

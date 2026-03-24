@@ -195,10 +195,10 @@ _hooker_main() {
 # Uses Python script for diff analysis and state tracking.
 # Only act on Edit tool
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Edit" ] || exit 1
+[ "$TOOL" = "Edit" ] || return 1
 
 # Need python3 for analysis
-command -v python3 >/dev/null 2>&1 || exit 1
+command -v python3 >/dev/null 2>&1 || return 1
 
 RECIPE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -208,7 +208,7 @@ MSG_TRACKED=$(sed -n 's/^removal_tracked:[[:space:]]*"\(.*\)"/\1/p' "${RECIPE_DI
 
 # Run detection
 RESULT=$(echo "$INPUT" | python3 "${RECIPE_DIR}/detect-move.py" 2>/dev/null)
-[ -z "$RESULT" ] && exit 1
+[ -z "$RESULT" ] && return 1
 
 ACTION=$(echo "$RESULT" | sed -n 's/.*"action"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
@@ -221,14 +221,14 @@ case "$ACTION" in
 
         MSG=$(echo "$MSG_DETECTED" | sed "s|{symbol}|$SYMBOL|g; s|{from}|$FROM|g; s|{to}|$TO|g; s|{count}|${REFS:-0}|g")
         inject "$MSG"
-        exit 0
+        return 0
         ;;
     removal_tracked)
         # Silent — just tracking, don't bother the agent unless configured to
-        exit 1
+        return 1
         ;;
     *)
-        exit 1
+        return 1
         ;;
 esac
 }

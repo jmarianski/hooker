@@ -191,7 +191,7 @@ load_md() {
 # --- Exit code translation ---
 _hooker_main() {
 # Inject git context on session start
-git rev-parse --git-dir &>/dev/null || exit 1
+git rev-parse --git-dir &>/dev/null || return 1
 
 BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
 STATUS=$(git status --short 2>/dev/null | head -15)
@@ -212,7 +212,7 @@ ${RECENT}
 "
 
 inject "$OUTPUT"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

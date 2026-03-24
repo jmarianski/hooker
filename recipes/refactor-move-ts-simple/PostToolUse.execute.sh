@@ -196,7 +196,7 @@ _hooker_main() {
 # Falls back to simpler sed-based approach if python3 unavailable.
 # Only act on Bash tool
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Bash" ] || exit 1
+[ "$TOOL" = "Bash" ] || return 1
 
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
@@ -209,14 +209,14 @@ MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 # Handle git mv
 MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
 # Check for HOOKER_NO_REFACTOR in the original command
-echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && return 1
 # Strip mv and its flags (single-dash flags like -f, -n, -v, --flag)
 MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
 
 # Detect: mv old_path new_path (simple two-arg mv on JS/TS files)
 OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\.[jt]sx\{0,1\}\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
-[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
+[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && return 1
 
 # If new path is a directory, append the filename
 if [ -d "$NEW_PATH" ]; then
@@ -230,7 +230,7 @@ strip_ext() {
 
 OLD_IMPORT=$(strip_ext "$OLD_PATH")
 NEW_IMPORT=$(strip_ext "$NEW_PATH")
-[ "$OLD_IMPORT" = "$NEW_IMPORT" ] && exit 1
+[ "$OLD_IMPORT" = "$NEW_IMPORT" ] && return 1
 
 # Strip leading ./ for consistency
 OLD_IMPORT=$(echo "$OLD_IMPORT" | sed 's|^\./||')
@@ -266,7 +266,7 @@ fi
 
 [ -z "$AFFECTED_FILES" ] && {
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. No import references found to update."
-    exit 0
+    return 0
 }
 
 # --- Update imports ---
@@ -296,7 +296,7 @@ if [ "$COUNT" -gt 0 ]; then
 else
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. Found references but could not auto-update — check imports manually."
 fi
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

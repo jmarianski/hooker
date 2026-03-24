@@ -201,12 +201,12 @@ find_agents_md() {
     return 1
 }
 
-AGENTS_FILE=$(find_agents_md) || exit 1
+AGENTS_FILE=$(find_agents_md) || return 1
 CONTENT=$(cat "$AGENTS_FILE" 2>/dev/null)
-[ -z "$CONTENT" ] && exit 1
+[ -z "$CONTENT" ] && return 1
 
 inject "$CONTENT"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

@@ -386,6 +386,10 @@ esac
 				// Remove INPUT=$(cat) — preamble handles it
 				body = regexp.MustCompile(`(?m)^INPUT=\$\(cat\)\s*\n`).ReplaceAllString(body, "")
 				body = strings.TrimSpace(body)
+				// Replace exit with return inside _hooker_main wrapper
+				// exit 0/1/2 in a bash function exits the PROCESS, not the function.
+				// _hooker_main epilogue translates return codes: 0→exit 0, 1→exit 0, 2+→exit 1
+				body = regexp.MustCompile(`\bexit (\d+)`).ReplaceAllString(body, "return $1")
 
 				var out strings.Builder
 				out.WriteString(preamble)

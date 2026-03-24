@@ -200,7 +200,7 @@ yml_get() {
 }
 
 inject "$(yml_get tool_failure 'A tool just failed. Read the error carefully — don'\''t blindly retry. Check the root cause first.')"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

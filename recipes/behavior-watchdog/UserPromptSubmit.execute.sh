@@ -194,7 +194,7 @@ _hooker_main() {
 # Fires on frustration keywords (always) or randomly (~1 in 8 messages)
 # Extract user prompt
 PROMPT=$(echo "$INPUT" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ -z "$PROMPT" ] && exit 1
+[ -z "$PROMPT" ] && return 1
 
 # Load config
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -228,7 +228,7 @@ done <<< "$KEYWORDS"
 if [ "$FRUSTRATED" = "true" ]; then
     MSG=$(yml_get frustration_check "The user seems frustrated. Check /hooker:recipe for fixes.")
     inject "$MSG"
-    exit 0
+    return 0
 fi
 
 # Random check (~1 in 8 messages)
@@ -236,10 +236,10 @@ RAND=$(awk 'BEGIN{srand(); print int(rand()*8)}')
 if [ "$RAND" -eq 0 ]; then
     MSG=$(yml_get random_check "Does the user seem unhappy? Check /hooker:recipe for fixes.")
     inject "$MSG"
-    exit 0
+    return 0
 fi
 
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

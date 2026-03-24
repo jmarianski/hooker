@@ -200,7 +200,7 @@ yml_get() {
 }
 
 inject "$(yml_get post_compact 'Context was compacted. Key project details may have been lost — check CLAUDE.md if unsure.')"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

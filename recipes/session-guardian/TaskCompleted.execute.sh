@@ -200,7 +200,7 @@ yml_get() {
 }
 
 block "$(yml_get task_completed 'Before marking this task complete: did you run tests? Did you review the changes?')"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

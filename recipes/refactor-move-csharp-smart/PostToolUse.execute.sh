@@ -193,7 +193,7 @@ _hooker_main() {
 # Refactor Move C# — update namespace/using after mv
 # Derives namespace from directory structure relative to .csproj location
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Bash" ] || exit 1
+[ "$TOOL" = "Bash" ] || return 1
 
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
@@ -201,13 +201,13 @@ CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".
 MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
-echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && return 1
 MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
 
 # Detect: mv old.cs new.cs
 OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\.cs\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
-[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
+[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && return 1
 
 if [ -d "$NEW_PATH" ]; then
     NEW_PATH="${NEW_PATH%/}/$(basename "$OLD_PATH")"
@@ -256,8 +256,8 @@ path_to_namespace() {
 
 OLD_NS=$(path_to_namespace "$OLD_PATH")
 NEW_NS=$(path_to_namespace "$NEW_PATH")
-[ -z "$OLD_NS" ] || [ -z "$NEW_NS" ] && exit 1
-[ "$OLD_NS" = "$NEW_NS" ] && exit 1
+[ -z "$OLD_NS" ] || [ -z "$NEW_NS" ] && return 1
+[ "$OLD_NS" = "$NEW_NS" ] && return 1
 
 OLD_CLASS=$(basename "$OLD_PATH" .cs)
 NEW_CLASS=$(basename "$NEW_PATH" .cs)
@@ -286,7 +286,7 @@ ALL_FILES=$(printf '%s\n%s' "$AFFECTED_FILES" "$FQ_FILES" | sort -u)
 
 [ -z "$ALL_FILES" ] && {
     inject "$MSG_NO_REFS"
-    exit 0
+    return 0
 }
 
 COUNT=0
@@ -318,7 +318,7 @@ if [ "$COUNT" -gt 0 ]; then
 else
     inject "$MSG_NO_REFS"
 fi
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

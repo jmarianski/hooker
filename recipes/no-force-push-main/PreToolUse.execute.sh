@@ -200,16 +200,16 @@ yml_get() {
 }
 
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" != "Bash" ] && exit 1
+[ "$TOOL" != "Bash" ] && return 1
 
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
 if echo "$CMD" | grep -q 'git[[:space:]]\+push[[:space:]].*\(-f\|--force\)' && echo "$CMD" | grep -q '\(main\|master\)'; then
     deny "$(yml_get force_push 'Blocked: force push to main/master is not allowed')"
-    exit 0
+    return 0
 fi
 
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

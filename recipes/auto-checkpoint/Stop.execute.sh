@@ -202,16 +202,16 @@ yml_get() {
 }
 
 # Only in git repos
-git rev-parse --git-dir &>/dev/null || exit 1
+git rev-parse --git-dir &>/dev/null || return 1
 
 # Only if there are changes
-git diff-index --quiet HEAD 2>/dev/null && exit 1
+git diff-index --quiet HEAD 2>/dev/null && return 1
 
 # Stage and commit
 git add -A &>/dev/null
 git commit -m "$(yml_get commit_msg 'checkpoint: hooker auto-save')" --no-verify &>/dev/null
 
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

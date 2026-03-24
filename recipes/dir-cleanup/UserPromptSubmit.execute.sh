@@ -198,13 +198,13 @@ RECIPE_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_FILE=".claude/hooker/dir-watchdog.yml"
 
 # Must have config — never auto-delete without explicit rules
-[ -f "$CONFIG_FILE" ] || exit 1
+[ -f "$CONFIG_FILE" ] || return 1
 
 # Frequency control
 FREQ=5
 F=$(sed -n 's/^check_frequency:[[:space:]]*\([0-9]*\)/\1/p' "$CONFIG_FILE" | head -1)
 [ -n "$F" ] && FREQ="$F"
-[ "$FREQ" -gt 1 ] 2>/dev/null && [ $((RANDOM % FREQ)) -ne 0 ] && exit 1
+[ "$FREQ" -gt 1 ] 2>/dev/null && [ $((RANDOM % FREQ)) -ne 0 ] && return 1
 
 THRESHOLD=30
 T=$(sed -n 's/^default_threshold:[[:space:]]*\([0-9]*\)/\1/p' "$CONFIG_FILE" | head -1)
@@ -309,10 +309,10 @@ process_rule
 RESULTS=$(cat "$RESULT_FILE" 2>/dev/null)
 rm -f "$RESULT_FILE" 2>/dev/null
 
-[ -z "$RESULTS" ] && exit 1
+[ -z "$RESULTS" ] && return 1
 
 inject "$RESULTS"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

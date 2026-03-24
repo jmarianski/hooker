@@ -203,7 +203,7 @@ rm -f "$NOTIFIED_MARKER" 2>/dev/null
 # Detect headless/cron mode: no TTY on stdin
 if [ -t 0 ] 2>/dev/null; then
     # Interactive session — nothing to save
-    exit 1
+    return 1
 fi
 
 # Headless/cron session — save a result file
@@ -227,11 +227,11 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
 $SUMMARY
 EOF
         inject "Session results saved to ${RESULT_FILE}."
-        exit 0
+        return 0
     fi
 fi
 
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

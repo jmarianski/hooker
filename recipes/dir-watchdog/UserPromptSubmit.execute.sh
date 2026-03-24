@@ -202,7 +202,7 @@ if [ -f "$CONFIG_FILE" ]; then
     F=$(sed -n 's/^check_frequency:[[:space:]]*\([0-9]*\)/\1/p' "$CONFIG_FILE" | head -1)
     [ -n "$F" ] && FREQ="$F"
 fi
-[ "$FREQ" -gt 1 ] 2>/dev/null && [ $((RANDOM % FREQ)) -ne 0 ] && exit 1
+[ "$FREQ" -gt 1 ] 2>/dev/null && [ $((RANDOM % FREQ)) -ne 0 ] && return 1
 
 # Default threshold
 THRESHOLD=30
@@ -302,7 +302,7 @@ fi
 WARNINGS=$(cat "$WARN_FILE" 2>/dev/null)
 rm -f "$WARN_FILE" 2>/dev/null
 
-[ -z "$WARNINGS" ] && exit 1
+[ -z "$WARNINGS" ] && return 1
 
 # Add config hint if no config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -312,7 +312,7 @@ ${MSG_HINT}"
 fi
 
 inject "$WARNINGS"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

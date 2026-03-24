@@ -240,8 +240,8 @@ Claude Code versions. If the plugin cache layout changes, `run.sh` must be updat
 {
   "hooks": {
     "PostToolUse": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/refactor-move-ts-smart/PostToolUse" }] },
-      { "matcher": "Edit", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/auto-format/PostToolUse" }] }
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/run.sh $CLAUDE_PROJECT_DIR/.claude/hooker/refactor-move-ts-smart/PostToolUse" }] },
+      { "matcher": "Edit", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/run.sh $CLAUDE_PROJECT_DIR/.claude/hooker/auto-format/PostToolUse" }] }
     ]
   }
 }
@@ -276,10 +276,10 @@ Each recipe uses pre-compiled `*.execute.sh` scripts with helpers inlined. **Zer
 {
   "hooks": {
     "PostToolUse": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": ".claude/hooker/refactor-move-ts-smart/PostToolUse.execute.sh" }] }
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/refactor-move-ts-smart/PostToolUse.execute.sh" }] }
     ],
     "SessionStart": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": ".claude/hooker/refactor-move-ts-smart/SessionStart.execute.sh" }] }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/refactor-move-ts-smart/SessionStart.execute.sh" }] }
     ]
   }
 }
@@ -329,7 +329,7 @@ hooker's inject.sh features (e.g. template system) with independent recipes.
 8. Add hook entries to `.claude/settings.json` for each hook in the recipe.
    Use the `matchers` field from recipe.json to set the correct matcher:
    ```json
-   { "matcher": "{from recipe.json matchers[HookName]}", "hooks": [{ "type": "command", "command": ".claude/hooker/run.sh .claude/hooker/{recipe-name}/{HookName}" }] }
+   { "matcher": "{from recipe.json matchers[HookName]}", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/run.sh $CLAUDE_PROJECT_DIR/.claude/hooker/{recipe-name}/{HookName}" }] }
    ```
 9. **Warn the user:** "Isolated mode uses `hooker.env` to find the plugin. After a plugin
    update, the path in `hooker.env` may point to an old cached version — re-run
@@ -348,7 +348,7 @@ hooker's inject.sh features (e.g. template system) with independent recipes.
 7. Add hook entries to `.claude/settings.json` for each hook, pointing directly to execute.sh.
    Use the `matchers` field from recipe.json to set the correct matcher:
    ```json
-   { "matcher": "{from recipe.json matchers[HookName]}", "hooks": [{ "type": "command", "command": ".claude/hooker/{recipe-name}/{HookName}.execute.sh" }] }
+   { "matcher": "{from recipe.json matchers[HookName]}", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/{recipe-name}/{HookName}.execute.sh" }] }
    ```
 8. Confirm installation. Note: hooker plugin is not needed at runtime — execute.sh is self-contained.
 

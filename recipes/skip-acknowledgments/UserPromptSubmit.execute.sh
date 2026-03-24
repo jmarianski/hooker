@@ -201,7 +201,7 @@ yml_get() {
 }
 
 inject "$(yml_get inject_msg "Skip acknowledgments and filler phrases like 'Great question!', 'You're absolutely right!', 'That's a great idea!'. Go straight to the answer or action.")"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

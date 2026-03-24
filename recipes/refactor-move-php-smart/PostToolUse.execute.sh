@@ -195,7 +195,7 @@ _hooker_main() {
 # Uses phpactor class:move if available, falls back to composer.json PSR-4 + sed.
 # Only act on Bash tool
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Bash" ] || exit 1
+[ "$TOOL" = "Bash" ] || return 1
 
 # Extract command
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
@@ -204,13 +204,13 @@ CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".
 MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
-echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && return 1
 MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
 
 # Detect: mv old.php new.php (or directory move)
 OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
-[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
+[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && return 1
 
 # Must be a .php file OR a directory containing .php files
 is_php_file() { echo "$1" | grep -q '\.php$'; }
@@ -221,9 +221,9 @@ if is_php_file "$OLD_PATH"; then
         NEW_PATH="${NEW_PATH%/}/$(basename "$OLD_PATH")"
     fi
 elif [ -d "$NEW_PATH" ] && ! [ -d "$OLD_PATH" ]; then
-    has_php_files "$NEW_PATH" || exit 1
+    has_php_files "$NEW_PATH" || return 1
 else
-    exit 1
+    return 1
 fi
 
 RECIPE_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -270,7 +270,7 @@ if command -v phpactor >/dev/null 2>&1 && [ -f "composer.json" ]; then
             COUNT=$(echo "$RESULT" | grep -c 'updated\|moved\|renamed' 2>/dev/null || echo "1")
             MSG=$(echo "$MSG_UPDATED" | sed "s/{count}/$COUNT/g")
             inject "Refactor Move (phpactor): ${MSG}"
-            exit 0
+            return 0
         }
     fi
 fi
@@ -278,7 +278,7 @@ fi
 # --- Fallback: composer.json PSR-4 + sed ---
 if ! is_php_file "$OLD_PATH"; then
     inject "phpactor not available and directory moves cannot use sed fallback. Install phpactor: composer global require phpactor/phpactor"
-    exit 0
+    return 0
 fi
 
 OLD_FQCN=$(path_to_fqcn "$OLD_PATH")
@@ -286,10 +286,10 @@ NEW_FQCN=$(path_to_fqcn "$NEW_PATH")
 
 if [ -z "$OLD_FQCN" ] || [ -z "$NEW_FQCN" ]; then
     inject "File moved but could not derive namespaces from composer.json PSR-4. Check namespace/use statements manually."
-    exit 0
+    return 0
 fi
 
-[ "$OLD_FQCN" = "$NEW_FQCN" ] && exit 1
+[ "$OLD_FQCN" = "$NEW_FQCN" ] && return 1
 
 # Escape backslashes for sed
 OLD_ESCAPED=$(echo "$OLD_FQCN" | sed 's|\\|\\\\|g')
@@ -312,7 +312,7 @@ AFFECTED_FILES=$(grep -rl "${OLD_GREP}" --include='*.php' . 2>/dev/null \
 
 [ -z "$AFFECTED_FILES" ] && {
     inject "$MSG_NO_REFS"
-    exit 0
+    return 0
 }
 
 COUNT=0
@@ -331,7 +331,7 @@ if [ "$COUNT" -gt 0 ]; then
 else
     inject "$MSG_NO_REFS"
 fi
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

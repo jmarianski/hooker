@@ -200,7 +200,7 @@ yml_get() {
 }
 
 inject "$(yml_get session_end 'Session ending. Did you commit your changes? Leave notes for the next session if needed.')"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

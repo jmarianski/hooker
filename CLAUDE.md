@@ -153,6 +153,10 @@ may change between Claude Code versions.
 Helpers are inlined, zero runtime dependency on hooker. Wired directly in `.claude/settings.json`.
 Build system compiles `match.sh` + helpers → `execute.sh` automatically.
 
+**IMPORTANT:** Always use `$CLAUDE_PROJECT_DIR` in settings.json command paths, not relative
+paths. Claude Code sets this env var to the project root when running hooks. Relative paths
+break when CWD changes (e.g. `cd apps/api && npm test`).
+
 Always ask user which mode. Warn about isolated mode's cache path dependency.
 Recommend standalone for users who want recipes without hooker plugin dependency.
 

@@ -208,8 +208,8 @@ INCLUDE_TOOL_RESULTS="$(yml_get include_tool_results false)"
 OUTPUT="$(yml_get output .claude/hooker/session-notes.md)"
 
 # Need transcript
-[ -z "${HOOKER_TRANSCRIPT:-}" ] && exit 1
-[ -f "${HOOKER_TRANSCRIPT}" ] || exit 1
+[ -z "${HOOKER_TRANSCRIPT:-}" ] && return 1
+[ -f "${HOOKER_TRANSCRIPT}" ] || return 1
 
 # Ensure output directory exists
 mkdir -p "$(dirname "$OUTPUT")" 2>/dev/null
@@ -284,7 +284,7 @@ while IFS= read -r LINE; do
 done < "${HOOKER_TRANSCRIPT}"
 
 inject "Session notes saved to ${OUTPUT} before compaction."
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

@@ -200,7 +200,7 @@ yml_get() {
 }
 
 inject "$(yml_get subagent_stop 'A subagent just finished. Review its output — don'\''t trust it blindly.')"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

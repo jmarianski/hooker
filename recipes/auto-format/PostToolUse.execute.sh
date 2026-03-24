@@ -196,11 +196,11 @@ TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\
 
 case "$TOOL" in
     Edit|Write|NotebookEdit) ;;
-    *) exit 1 ;;
+    *) return 1 ;;
 esac
 
 FILE=$(echo "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ -z "$FILE" ] || [ ! -f "$FILE" ] && exit 1
+[ -z "$FILE" ] || [ ! -f "$FILE" ] && return 1
 
 EXT="${FILE##*.}"
 
@@ -232,7 +232,7 @@ case "$EXT" in
 esac
 
 # No output — silent formatting, don't interfere with hook response
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

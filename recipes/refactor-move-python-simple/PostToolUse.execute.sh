@@ -192,7 +192,7 @@ load_md() {
 _hooker_main() {
 # Refactor Move (Python) — update imports after mv
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Bash" ] || exit 1
+[ "$TOOL" = "Bash" ] || return 1
 
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
@@ -200,13 +200,13 @@ CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".
 MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
-echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && return 1
 MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
 
 # Detect: mv old.py new.py
 OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\.py\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
-[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
+[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && return 1
 
 if [ -d "$NEW_PATH" ]; then
     NEW_PATH="${NEW_PATH}/$(basename "$OLD_PATH")"
@@ -219,7 +219,7 @@ to_module() {
 
 OLD_MOD=$(to_module "$OLD_PATH")
 NEW_MOD=$(to_module "$NEW_PATH")
-[ "$OLD_MOD" = "$NEW_MOD" ] && exit 1
+[ "$OLD_MOD" = "$NEW_MOD" ] && return 1
 
 # Also get the last component (for "from X import Y" patterns)
 OLD_NAME=$(basename "$OLD_PATH" .py)
@@ -231,7 +231,7 @@ AFFECTED_FILES=$(grep -rl "\(import\|from\).*${OLD_NAME}" \
 
 [ -z "$AFFECTED_FILES" ] && {
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. No Python import references found."
-    exit 0
+    return 0
 }
 
 COUNT=0
@@ -267,7 +267,7 @@ if [ "$COUNT" -gt 0 ]; then
 else
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. Found references but could not auto-update — check imports manually."
 fi
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

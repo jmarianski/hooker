@@ -204,25 +204,25 @@ TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\
 
 case "$TOOL" in
     Edit|Write) ;;
-    *) exit 1 ;;
+    *) return 1 ;;
 esac
 
 FILE=$(echo "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ -z "$FILE" ] || [ ! -f "$FILE" ] && exit 1
+[ -z "$FILE" ] || [ ! -f "$FILE" ] && return 1
 
 # Check for comment-replaced code
 if grep -q '//[[:space:]]*\.\.\.[[:space:]]*\(rest\|remaining\|other\|existing\|previous\|same\)' "$FILE" 2>/dev/null; then
     MSG=$(yml_get rest_of_slash "Lazy code detected in {file}: found '// ... rest of' pattern. Write the actual implementation.")
     MSG="${MSG//\{file\}/$FILE}"
     warn "$MSG"
-    exit 0
+    return 0
 fi
 
 if grep -q '#[[:space:]]*\.\.\.[[:space:]]*\(rest\|remaining\|other\|existing\|previous\|same\)' "$FILE" 2>/dev/null; then
     MSG=$(yml_get rest_of_hash "Lazy code detected in {file}: found '# ... rest of' pattern. Write the actual implementation.")
     MSG="${MSG//\{file\}/$FILE}"
     warn "$MSG"
-    exit 0
+    return 0
 fi
 
 # Check for placeholder comments
@@ -230,10 +230,10 @@ if grep -q '\(TODO\|FIXME\|HACK\):[[:space:]]*\(implement\|add\|fix\|handle\)[[:
     MSG=$(yml_get placeholder "Placeholder detected in {file}: vague TODO/FIXME. Be specific or implement it now.")
     MSG="${MSG//\{file\}/$FILE}"
     warn "$MSG"
-    exit 0
+    return 0
 fi
 
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

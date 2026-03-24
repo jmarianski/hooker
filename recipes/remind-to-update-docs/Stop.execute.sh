@@ -195,12 +195,12 @@ _hooker_main() {
 # No set -e — match scripts must control exit codes explicitly
 
 # Prevent infinite loop
-echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && exit 1
+echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && return 1
 
 # Check transcript for file modifications in last assistant turn
 TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-LAST_TURN=$(_hooker_last_turn "$TRANSCRIPT") || exit 1
-echo "$LAST_TURN" | grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|NotebookEdit\)"' || exit 1
+LAST_TURN=$(_hooker_last_turn "$TRANSCRIPT") || return 1
+echo "$LAST_TURN" | grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|NotebookEdit\)"' || return 1
 
 # --- Determine what was edited ---
 EDITED_FILES=$(echo "$LAST_TURN" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' 2>/dev/null || true)
@@ -243,7 +243,7 @@ fi
 MSG=$(IFS=' '; echo "${PARTS[*]}")
 
 block "Hooker: ${MSG}"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

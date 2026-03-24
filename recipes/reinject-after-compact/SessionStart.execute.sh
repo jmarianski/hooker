@@ -199,15 +199,15 @@ SOURCE=$(echo "$INPUT" | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)
 # If this recipe never fires, remove the case block below.
 case "$SOURCE" in
     compact|resume) ;;
-    *) exit 1 ;;
+    *) return 1 ;;
 esac
 
 # Load project-specific context file if it exists
 CONTEXT_FILE=".claude/hooker/context.md"
-[ -f "$CONTEXT_FILE" ] || exit 1
+[ -f "$CONTEXT_FILE" ] || return 1
 
 inject "$(cat "$CONTEXT_FILE")"
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?

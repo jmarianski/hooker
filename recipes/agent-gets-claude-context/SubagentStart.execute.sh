@@ -222,10 +222,10 @@ fi
 
 if [ -n "$OUTPUT" ]; then
     echo "$OUTPUT"
-    exit 0
+    return 0
 fi
 
-exit 1
+return 1
 }
 _hooker_main
 _EXIT=$?

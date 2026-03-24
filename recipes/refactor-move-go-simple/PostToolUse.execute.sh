@@ -192,7 +192,7 @@ load_md() {
 _hooker_main() {
 # Refactor Move (Go) — update imports after mv
 TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ "$TOOL" = "Bash" ] || exit 1
+[ "$TOOL" = "Bash" ] || return 1
 
 CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
@@ -200,13 +200,13 @@ CMD=$(echo "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".
 MV_CMD=$(echo "$CMD" | sed 's/^[^;|&]*&&[[:space:]]*//' | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^[A-Z_]*=[^[:space:]]*[[:space:]]*//')
 MV_CMD=$(echo "$MV_CMD" | sed 's/^git[[:space:]]\+mv/mv/')
-echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && exit 1
+echo "$CMD" | grep -q 'HOOKER_NO_REFACTOR=1' && return 1
 MV_ARGS=$(echo "$MV_CMD" | sed 's/^mv[[:space:]]\+//; s/^-[a-zA-Z]\+[[:space:]]*//g; s/^--[a-zA-Z-]\+[[:space:]]*//g')
 
 # Detect: mv old.go new.go
 OLD_PATH=$(echo "$MV_ARGS" | sed -n 's/^\([^[:space:]]\+\.go\)[[:space:]]\+.*/\1/p')
 NEW_PATH=$(echo "$MV_ARGS" | sed -n 's/^[^[:space:]]\+[[:space:]]\+\([^[:space:]]\+\)/\1/p')
-[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && exit 1
+[ -z "$OLD_PATH" ] || [ -z "$NEW_PATH" ] && return 1
 
 if [ -d "$NEW_PATH" ]; then
     NEW_PATH="${NEW_PATH}/$(basename "$OLD_PATH")"
@@ -217,7 +217,7 @@ OLD_DIR=$(dirname "$OLD_PATH")
 NEW_DIR=$(dirname "$NEW_PATH")
 
 # If same directory, no import changes needed (just a file rename)
-[ "$OLD_DIR" = "$NEW_DIR" ] && exit 1
+[ "$OLD_DIR" = "$NEW_DIR" ] && return 1
 
 # Try to detect module path from go.mod
 MOD_PATH=""
@@ -227,7 +227,7 @@ fi
 
 if [ -z "$MOD_PATH" ]; then
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. No go.mod found — cannot determine import paths. Check imports manually."
-    exit 0
+    return 0
 fi
 
 # Build old and new import paths
@@ -238,14 +238,14 @@ NEW_IMPORT="${MOD_PATH}/${NEW_DIR}"
 OLD_IMPORT=$(echo "$OLD_IMPORT" | sed 's|/\./|/|g; s|//|/|g; s|/$||')
 NEW_IMPORT=$(echo "$NEW_IMPORT" | sed 's|/\./|/|g; s|//|/|g; s|/$||')
 
-[ "$OLD_IMPORT" = "$NEW_IMPORT" ] && exit 1
+[ "$OLD_IMPORT" = "$NEW_IMPORT" ] && return 1
 
 # Find Go files importing old package
 AFFECTED_FILES=$(grep -rl "\"${OLD_IMPORT}\"" --include='*.go' . 2>/dev/null | grep -v '.git/' || true)
 
 [ -z "$AFFECTED_FILES" ] && {
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. No Go import references found for ${OLD_IMPORT}."
-    exit 0
+    return 0
 }
 
 COUNT=0
@@ -267,7 +267,7 @@ if [ "$COUNT" -gt 0 ]; then
 else
     inject "File moved from ${OLD_PATH} to ${NEW_PATH}. Found references but could not auto-update — check imports manually."
 fi
-exit 0
+return 0
 }
 _hooker_main
 _EXIT=$?
