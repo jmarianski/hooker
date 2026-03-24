@@ -535,11 +535,25 @@ Scripts must work on Linux, macOS, and Windows (Git Bash). Rules:
 - Use `_hooker_json_escape`, `_hooker_json_field`, `_hooker_reverse` from helpers.sh
 - JSON field extraction: `echo "$INPUT" | sed -n 's/.*"field"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1`
 
-**Environment variables (no JSON parsing needed):**
+**Environment variables:**
+
+Claude Code provides (available in ALL modes):
+- `$CLAUDE_PROJECT_DIR` — project root (always use this in settings.json paths!)
+
+Hooker inject.sh provides (available in merged/isolated mode only, NOT standalone):
 - `$HOOKER_EVENT` — hook event name
 - `$HOOKER_TRANSCRIPT` — path to transcript JSONL
 - `$HOOKER_CWD` — working directory
 - `$HOOKER_HELPERS` — path to helpers.sh
+- `$HOOKER_PROJECT_DIR` — `~/.claude/projects/-{slug}` path
+- `$HOOKER_PROJECT_SLUG` — project slug derived from CWD
+
+Standalone execute.sh preamble provides:
+- `$HOOKER_EVENT` — parsed from hook input JSON
+- `$HOOKER_CWD` — parsed from hook input JSON
+- `$HOOKER_TRANSCRIPT` — parsed from hook input JSON
+- `$CLAUDE_PROJECT_DIR` — set by Claude Code (not by hooker)
+- NO `$HOOKER_HELPERS` — helpers are inlined, no need to source
 
 ## Steps
 
