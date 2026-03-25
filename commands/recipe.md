@@ -703,7 +703,7 @@ Hook events reference (when they fire, what matchers they support, what response
 
 **Version notes:**
 - `PostCompact`, `StopFailure` — require CC ≥2.1.81 (added via overflow settings.json, not in plugin hooks.json)
-- `CwdChanged`, `FileChanged` — available but not in plugin hooks.json (use settings.json if needed)
+- `CwdChanged`, `FileChanged` — require CC ≥2.1.83 (added via overflow settings.json)
 - `Setup` — web/desktop only, not available in CLI
 
 If no hook name provided, ask user. Group by category:
