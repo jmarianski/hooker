@@ -645,15 +645,74 @@ Standalone execute.sh preamble provides:
 ## Steps
 
 ### 1. Validate hook name
-Known hooks: SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, PostToolUse, PostToolUseFailure, Notification, SubagentStart, SubagentStop, Stop, TeammateIdle, TaskCompleted, InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove, PreCompact, PostCompact, Elicitation, ElicitationResult, SessionEnd
+
+Hook events reference (when they fire, what matchers they support, what responses are valid):
+
+**Session lifecycle:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `SessionStart` | Session begins or resumes | `startup`, `resume`, `clear`, `compact` | `additionalContext` (inject) |
+| `SessionEnd` | Session terminates | `clear`, `resume`, `logout`, `prompt_input_exit` | Cleanup only |
+| `InstructionsLoaded` | CLAUDE.md or rules file loads | `session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact` | Logging only |
+| `Setup` | Initial setup (web-only, not CLI) | — | — |
+
+**User input:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `UserPromptSubmit` | User submits a prompt | (none) | `block`, `additionalContext` |
+
+**Tool execution:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `PreToolUse` | Before tool executes | Tool name (`Bash`, `Edit`, `Write`, `mcp__*`) | `allow`/`deny`/`ask`, `updatedInput`, `additionalContext` |
+| `PostToolUse` | After tool succeeds | Tool name | `block`, `additionalContext` |
+| `PostToolUseFailure` | After tool fails | Tool name | `additionalContext` only |
+| `PermissionRequest` | Permission dialog appears | Tool name | `allow`/`deny`, `updatedInput`, `updatedPermissions` |
+
+**Agent flow:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `Stop` | Agent finishes turn | (none) | `block` (with reason) |
+| `StopFailure` | Turn ends due to API error (CC ≥2.1.81) | `rate_limit`, `authentication_failed`, `server_error` | Logging only |
+| `SubagentStart` | Subagent spawned | Agent type (`Explore`, `Bash`, `Plan`, custom) | `additionalContext` |
+| `SubagentStop` | Subagent finishes | Agent type | `block` (with reason) |
+| `TeammateIdle` | Team member about to idle | (none) | Exit 2 to block |
+| `TaskCompleted` | Task marked complete | (none) | Exit 2 to block |
+
+**Context compaction:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `PreCompact` | Before context compaction | `manual`, `auto` | Side effects only |
+| `PostCompact` | After context compaction (CC ≥2.1.81) | `manual`, `auto` | Side effects only |
+
+**Configuration & filesystem:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `ConfigChange` | Config file changes during session | `user_settings`, `project_settings`, `local_settings`, `policy_settings`, `skills` | `block` |
+| `WorktreeCreate` | Git worktree creation | (none) | Stdout: absolute path |
+| `WorktreeRemove` | Worktree removal/cleanup | (none) | Cleanup only |
+| `CwdChanged` | Working directory changes | (none) | `watchPaths` |
+| `FileChanged` | Watched file changes on disk | Filename basename (`.envrc`, `.env`) | `watchPaths` |
+
+**MCP & notifications:**
+| Event | Fires when | Matchers | Can respond with |
+|-------|-----------|----------|-----------------|
+| `Notification` | Notification sent to user | `permission_prompt`, `idle_prompt`, `auth_success`, `elicitation_dialog` | `additionalContext` |
+| `Elicitation` | MCP server requests user input | MCP server name | `accept`/`decline`/`cancel` |
+| `ElicitationResult` | User responds to MCP elicitation | MCP server name | `accept`/`decline`/`cancel` |
+
+**Version notes:**
+- `PostCompact`, `StopFailure` — require CC ≥2.1.81 (added via overflow settings.json, not in plugin hooks.json)
+- `CwdChanged`, `FileChanged` — available but not in plugin hooks.json (use settings.json if needed)
+- `Setup` — web/desktop only, not available in CLI
 
 If no hook name provided, ask user. Group by category:
 - **Session**: SessionStart, SessionEnd, InstructionsLoaded
 - **Tools**: PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest
-- **Flow**: UserPromptSubmit, Stop, TaskCompleted
+- **Flow**: UserPromptSubmit, Stop, StopFailure, TaskCompleted
 - **Agents**: SubagentStart, SubagentStop, TeammateIdle
 - **Compact**: PreCompact, PostCompact
-- **Config**: ConfigChange, WorktreeCreate, WorktreeRemove
+- **Config**: ConfigChange, WorktreeCreate, WorktreeRemove, CwdChanged, FileChanged
 - **MCP**: Elicitation, ElicitationResult
 - **Other**: Notification
 
