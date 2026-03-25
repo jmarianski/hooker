@@ -93,6 +93,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **agents-md-context** | SessionStart, PostCompact | Injects AGENTS.md content into session context on start and after compaction. Walks up from CWD to find the nearest AGENTS.md, respecting the convention used by multi-agent projects. |
 | **compact-context** | PreCompact | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
 | **git-context-on-start** | SessionStart | Injects current git branch, status, and recent commits on session start. |
+| **hook-discovery** | UserPromptSubmit | Detects when user might want hooks/automation and suggests /hooker:recipe. |
 | **reinject-after-compact** | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
 
 #### Quality
@@ -242,6 +243,7 @@ No AI coding tool currently supports install-time file exclusion. We include a `
 
 ## Known Issues
 
+- **Newer hooks break older Claude Code versions:** Some hook events (e.g. `PostCompact`) were added in recent Claude Code releases. If `hooks.json` (plugin) or `settings.json` (standalone) contains an event the installed CC version doesn't recognize, Claude Code rejects **all hooks in that file** with an `invalid_key` error — not just the unsupported one. Downgrading Claude Code can trigger this unexpectedly. There is no graceful fallback — Claude Code validates all hook event names strictly at load time.
 - **Stop hook disabled after error:** If a Stop hook returns an error (e.g. malformed output, XML in JSON reason), Claude Code may silently disable the Stop hook for the rest of the session. `/reload-plugins` does not fix this. You must fully restart Claude Code (`/exit` and start a new session). This only affects Stop — other hooks (PreToolUse, UserPromptSubmit, etc.) continue working.
 - **XML trick doesn't work in JSON responses:** The `</local-command-stdout>` injection trick only works in raw stdout (e.g. `inject` type, PreCompact hooks). It does not work inside JSON `reason` or `systemMessage` fields — Claude Code renders them as literal text. This means `remind` and `block` content is always visible to the user.
 - **Transcript field name:** Claude Code transcript JSONL uses `"name"` for tool names, not `"tool_name"`. Match scripts that grep transcripts must use `"name"`.

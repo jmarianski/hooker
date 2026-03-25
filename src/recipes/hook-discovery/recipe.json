@@ -1,0 +1,11 @@
+{
+  "name": "Hook Discovery",
+  "description": "Detects when user might want hooks/automation and suggests /hooker:recipe.",
+  "hooks": ["UserPromptSubmit"],
+  "category": "context",
+  "attribution": {
+    "type": "original",
+    "author": "Hooker",
+    "license": "MIT"
+  }
+}

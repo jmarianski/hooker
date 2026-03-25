@@ -15,6 +15,7 @@
 
 # @bundle helpers/json.sh
 # @bundle helpers/utils.sh
+# @bundle helpers/runtime.sh
 # @bundle helpers/responses.sh
 # @bundle helpers/injection.sh
 # @bundle helpers/files.sh

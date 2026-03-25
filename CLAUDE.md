@@ -19,6 +19,7 @@ Editing root files directly will be overwritten on next build.
 - `src/commands/*.md` — skill templates (Gonja/Jinja2) → `commands/`
 - `src/scripts/*.sh` — shell scripts with `# @bundle` includes → `scripts/`
 - `src/scripts/helpers/` — modular helper functions bundled into `scripts/helpers.sh`
+- `src/helpers/` — multi-language helper libraries (Python, JS) → `helpers/`
 - `src/recipes/` — pre-built hook configurations → `recipes/`
 - `src/hooks/` — hooks.json → `hooks/`
 - `src/templates/` — default templates → `templates/`
@@ -26,8 +27,9 @@ Editing root files directly will be overwritten on next build.
 
 ## Cross-platform
 
-All scripts must work on Linux, macOS, and Windows (Git Bash).
-No `grep -P`, `tac`, `python3`, `perl`. Use POSIX grep/sed/awk only.
+All shell scripts must work on Linux, macOS, and Windows (Git Bash).
+No `grep -P`, `tac`, `python3`, `perl` in shell scripts. Use POSIX grep/sed/awk only.
+Non-shell match scripts (Python, JS, etc.) are exempt — they run through configurable runtimes.
 
 ## Template format
 
@@ -61,7 +63,13 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
   When installing a recipe (any mode), the skill should add `"installed_from": "hooker@X.Y.Z"`
   to the project's copy of recipe.json. This lets users check if their installed recipes
   are outdated compared to the current hooker version.
-- `{HookName}.match.sh` — bash match script (one per hook)
+- `{HookName}.match.*` — match script in any language (one per hook per recipe):
+  - `.match.sh` — Bash (default, backward compatible)
+  - `.match.py` — Python (uses `python3` by default)
+  - `.match.js` — JavaScript (uses `node` by default)
+  - `.match.ts` — TypeScript (uses `npx tsx` by default)
+  - `.match.go`, `.match.php`, `.match.rb`, `.match.pl` — or any other extension
+  - Runtime per extension is configurable via `runtimes.conf` or `HOOKER_RUNTIME_<ext>` env vars
 - `messages.yml` — user-customizable messages/strings (optional)
 
 **Categories** (used for grouping in README/recipe catalog):
@@ -93,8 +101,14 @@ Each recipe lives in `src/recipes/{recipe-name}/` with these files:
   match script that uses `remind()` directly, add your own `stop_hook_active` check.
 - **HOOKER_PROJECT_DIR derivation** — derives `~/.claude/projects/` path from CWD
   by replacing `/` with `-`. Not yet verified on Windows (Git Bash `/c/Users/...` paths).
-- **One `.match.sh` per hook per directory** — merging recipes means combining logic
+- **One `.match.*` per hook per directory** — merging recipes means combining logic
   into one script with `@recipe` markers, not having multiple files.
+- **Hook event compatibility across CC versions** — Claude Code validates hook event names
+  strictly. If `hooks.json` (plugin) or `settings.json` (standalone) contains an event the
+  installed CC version doesn't know (e.g. `PostCompact` on CC ≤2.1.x), **all hooks in that
+  file are rejected** — not just the unknown one. There is no graceful degradation. When adding
+  new hook events to `hooks.json`, be aware that users on older CC versions will get a full
+  plugin load failure. Currently no workaround exists (CC doesn't support optional/unknown hooks).
 - **Notification/TeammateIdle hooks** — don't build recipes for these. The
   [claude-notifications-go](https://github.com/777genius/claude-notifications-go)
   plugin handles desktop notifications already. Duplicating it would be pointless.
@@ -160,6 +174,28 @@ break when CWD changes (e.g. `cd apps/api && npm test`).
 Always ask user which mode. Warn about isolated mode's cache path dependency.
 Recommend standalone for users who want recipes without hooker plugin dependency.
 
+## Multi-language match scripts
+
+Match scripts can be written in any language. The contract is universal:
+- Read JSON from stdin
+- Write response JSON to stdout
+- Exit 0 = matched, 1 = skip, 2+ = error
+
+**Runtime resolution** (how to execute a match script):
+- Priority: `HOOKER_RUNTIME_<ext>` env var > project `runtimes.conf` > user `runtimes.conf` > defaults
+- Defaults: `sh`→bash, `py`→python3, `js`→node, `ts`→npx tsx, `go`→go run, `php`→php, `rb`→ruby
+- Config file: `.claude/hooker/runtimes.conf` or `~/.claude/hooker/runtimes.conf` (format: `ext=command`)
+- Empty runtime = execute directly (compiled binary)
+
+**Helper libraries** (optional, for non-shell match scripts):
+- `helpers/hooker_helpers.py` — Python: `from hooker_helpers import inject, warn, deny, skip`
+- `helpers/hooker_helpers.js` — JS/TS: `const hooker = require('hooker_helpers')`
+- inject.sh sets `PYTHONPATH` and `NODE_PATH` so imports work automatically
+- Helpers provide: `read_input()`, `inject()`, `warn()`, `deny()`, `allow()`, `block()`, `skip()`, etc.
+
+**Standalone non-shell recipes** — raw match script copied as-is, user manages runtime.
+No compilation or helper inlining for non-shell (unlike `.match.sh` → `.execute.sh`).
+
 ## Override priority
 
 Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
@@ -171,7 +207,7 @@ Run `cd src && go run .` to build all plugin files from sources.
 The builder:
 - **Commands**: Gonja templates (`src/commands/`) → `commands/`
 - **Scripts**: Shell bundling (`# @bundle` directives) → `scripts/`
-- **Static files**: Copies recipes, hooks, templates, plugin.json, .pluginignore
+- **Static files**: Copies recipes, hooks, templates, helpers, plugin.json, .pluginignore
 
 Generator functions in `src/generators/*.go` provide template variables.
 

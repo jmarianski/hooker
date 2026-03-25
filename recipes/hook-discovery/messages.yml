@@ -1,0 +1,21 @@
+# Hook Discovery — messages and keywords
+# Edit these to customize when and what gets injected.
+
+# --- Messages (injected as hidden context — only Claude sees) ---
+
+tier1_message: "The user mentioned hooks or hook events. You have the Hooker plugin installed — consider running /hooker:recipe to browse recipes, create custom hooks, or manage existing ones. Hooker supports hooks in bash, Python, JS, TS, Go, PHP and other languages. If the conversation is NOT about Claude Code hooks, ignore this message."
+
+tier2_message: "The user may be looking for automation or event-driven behavior. The Hooker plugin lets you create hooks that react to Claude Code events (file edits, commands, session start, compaction, etc.). If relevant, suggest /hooker:recipe. If the conversation is not about this, ignore this message completely."
+
+# --- Keywords ---
+# Comma-separated, case-insensitive. Matched as substrings in user prompt.
+
+# Tier 1: Direct hook keywords — high confidence
+tier1_words: "hooker,hooki,haki,match script,match.sh,inject.sh,execute.sh,pretooluse,posttooluse,sessionstart,userpromptsubmit,precompact,postcompact,subagentstart,subagentstopp,posttoolusefailure,sessionend"
+
+# Tier 2: Peripheral words — automation/event intent
+tier2_words: "wyzwalacz,po zapisie,przy zapisie,po edycji"
+
+# Tier 2: Regex patterns (POSIX grep -i) — multi-word automation intent
+# Pipe-separated for grep alternation.
+tier2_patterns: "automat[a-z]*|za ka.dym razem|every time|always when|before.* commit|after.* edit|on.* save|po ka.d|przed ka.d|blokuj.* komend|block.* command|przypomnij.* przed|remind.* before"

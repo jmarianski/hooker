@@ -36,6 +36,13 @@ fi
 PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
 export HOOKER_HELPERS="${PLUGIN_DIR}/scripts/helpers.sh"
 export HOOKER_EVENT="$HOOK_EVENT"
+
+# Multi-language helper paths (Python, JS/TS can import these)
+export HOOKER_HELPERS_PY="${PLUGIN_DIR}/helpers/hooker_helpers.py"
+export HOOKER_HELPERS_JS="${PLUGIN_DIR}/helpers/hooker_helpers.js"
+# Allow `from hooker_helpers import ...` / `require('hooker_helpers')`
+export PYTHONPATH="${PLUGIN_DIR}/helpers${PYTHONPATH:+:$PYTHONPATH}"
+export NODE_PATH="${PLUGIN_DIR}/helpers${NODE_PATH:+:$NODE_PATH}"
 HOOKER_CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 export HOOKER_CWD
 HOOKER_TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
@@ -61,8 +68,12 @@ log() {
 
 log "Hook triggered in $(pwd)${RECIPE_DIR:+ (recipe: $RECIPE_DIR)}"
 
+# --- Runtime resolution for multi-language match scripts ---
+# @bundle helpers/runtime.sh
+
 # --- Find template and/or match script ---
-# With --recipe path/Hook: look only in that directory for Hook.md / Hook.match.sh
+# Match scripts can be in any language: Hook.match.sh, Hook.match.py, Hook.match.js, etc.
+# With --recipe path/Hook: look only in that directory
 # Without --recipe: priority: project > user global > plugin default
 # Standalone match scripts (no .md) are allowed — they handle everything via output
 PROJECT_DIR="${HOOKER_CWD:-.}/.claude/hooker"
@@ -77,10 +88,8 @@ if [ -n "$RECIPE_DIR" ]; then
         TEMPLATE_FILE="${RECIPE_DIR}/${HOOK_EVENT}.md"
         log "Using recipe template: ${TEMPLATE_FILE}"
     fi
-    if [ -x "${RECIPE_DIR}/${HOOK_EVENT}.match.sh" ]; then
-        MATCH_SCRIPT="${RECIPE_DIR}/${HOOK_EVENT}.match.sh"
-        log "Using recipe match script: ${MATCH_SCRIPT}"
-    fi
+    MATCH_SCRIPT=$(_hooker_find_match "$RECIPE_DIR" "$HOOK_EVENT" 2>/dev/null) || true
+    [ -n "$MATCH_SCRIPT" ] && log "Using recipe match script: ${MATCH_SCRIPT}"
 else
     # Default mode — check project first, then user global, then plugin defaults
     for DIR in "$PROJECT_DIR" "$USER_DIR" "${PLUGIN_DIR}/templates"; do
@@ -88,9 +97,9 @@ else
             TEMPLATE_FILE="${DIR}/${HOOK_EVENT}.md"
             log "Using template: ${TEMPLATE_FILE}"
         fi
-        if [ -x "${DIR}/${HOOK_EVENT}.match.sh" ] && [ -z "$MATCH_SCRIPT" ]; then
-            MATCH_SCRIPT="${DIR}/${HOOK_EVENT}.match.sh"
-            log "Using match script: ${MATCH_SCRIPT}"
+        if [ -z "$MATCH_SCRIPT" ]; then
+            MATCH_SCRIPT=$(_hooker_find_match "$DIR" "$HOOK_EVENT" 2>/dev/null) || true
+            [ -n "$MATCH_SCRIPT" ] && log "Using match script: ${MATCH_SCRIPT}"
         fi
     done
 fi
@@ -107,10 +116,12 @@ fi
 #   exit 1 (no output)  → no match, skip silently
 #   exit 2+ (any)       → error/crash, log and warn agent
 if [ -n "$MATCH_SCRIPT" ]; then
-    log "Running match script: $MATCH_SCRIPT"
+    MATCH_EXT="${MATCH_SCRIPT##*.}"
+    MATCH_RUNTIME=$(_hooker_resolve_runtime "$MATCH_EXT")
+    log "Running match script: $MATCH_SCRIPT (ext=$MATCH_EXT, runtime=${MATCH_RUNTIME:-direct})"
     MATCH_STDERR=$(mktemp 2>/dev/null || echo "/tmp/hooker_stderr_$$")
     set +e
-    MATCH_OUTPUT=$(echo "$INPUT" | "$MATCH_SCRIPT" 2>"$MATCH_STDERR")
+    MATCH_OUTPUT=$(echo "$INPUT" | _hooker_run_match "$MATCH_SCRIPT" 2>"$MATCH_STDERR")
     MATCH_EXIT=$?
     set -e
     MATCH_ERR=$(cat "$MATCH_STDERR" 2>/dev/null)

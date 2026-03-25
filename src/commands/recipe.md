@@ -17,11 +17,29 @@ When creating, editing, or troubleshooting hooks — check all three locations.
 
 ## With natural language description
 If the user describes what they want (e.g. `/hooker:recipe block deploys on fridays`, `/hooker:recipe remind about docs`):
-1. Figure out which hook event(s) are needed
-2. Check if an existing recipe covers this — if so, offer to install it
-3. Otherwise, decide the best mode (static template, conditional, or dynamic match script)
-4. Create the files in `.claude/hooker/`
-5. Test it
+1. **Detect project stack** — check for `package.json`, `pyproject.toml`, `go.mod`, `Gemfile`,
+   `composer.json`, etc. to understand the project's primary language
+2. Figure out which hook event(s) are needed
+3. Check if an existing recipe covers this — if so, offer to install it
+4. **Choose hook language** based on this priority:
+   - If the user explicitly asked for a language → use it
+   - If the hook needs language-specific tooling (AST parsing, type checking, import analysis)
+     → use the project's language (Python hook for Python project, JS hook for JS project)
+   - If the hook is simple (pattern matching, file checks, git operations) → bash is fine
+   - When in doubt, **ask the user**: "W jakim języku chcesz hook? Bash jest najprostszy,
+     ale mogę napisać w Pythonie/JS/TS jeśli wolisz"
+5. Decide the best mode (static template, conditional, or dynamic match script)
+6. Create the files in `.claude/hooker/`
+7. Test it
+
+**Language choice guide:**
+| Use case | Recommended | Why |
+|----------|-------------|-----|
+| Simple guards (block command, check filename) | Bash | Zero deps, fastest, works everywhere |
+| AST analysis, code parsing, refactoring | Project's language (Python/JS/TS) | Native AST tools, better accuracy |
+| External API calls, complex JSON | Python or JS | Better HTTP/JSON libraries |
+| Team hooks (shared in repo) | Whatever the team writes | Lower barrier for maintenance |
+| Performance-critical (many files) | Go or compiled | Faster execution |
 
 **Advanced custom hooks** — some requests go beyond pre-built recipes. Examples:
 - "after moving a function between files, update imports" — custom PostToolUse hook
@@ -113,11 +131,17 @@ Session lifecycle management and observation.
 **Hooks without recipes**: {{ uncoveredHooks | join(d=", ") }}
 
 ## Without arguments
-1. Check `.claude/hooker/` to detect which recipes are already installed:
-   - **Isolated mode**: check for subdirectories in `.claude/hooker/*/`
-   - **Merged mode**: grep for `# @recipe` markers in `.claude/hooker/*.sh`
+1. **Detect project context:**
+   - Check project stack (package.json, pyproject.toml, go.mod, etc.)
+   - Check `.claude/hooker/` for already installed recipes:
+     - **Isolated/standalone**: subdirectories in `.claude/hooker/*/`
+     - **Merged mode**: grep for `# @recipe` markers in `.claude/hooker/*.match.*`
+   - Check `.claude/hooker/runtimes.conf` for configured runtimes
 2. Show the catalog with [installed] / [ready] status
-3. Ask user which recipe(s) to install
+3. Based on project stack, **highlight relevant recipes** (e.g. TS refactoring recipes for Node
+   projects, Python smart recipes for Python projects)
+4. Ask user which recipe(s) to install
+5. If user wants custom hooks, ask about preferred language and generate accordingly
 
 ## Shared vs Local installation
 
@@ -249,26 +273,34 @@ Claude Code versions. If the plugin cache layout changes, `run.sh` must be updat
 
 ### Standalone mode (recommended for independence)
 
-Each recipe uses pre-compiled `*.execute.sh` scripts with helpers inlined. **Zero dependency on hooker plugin at runtime.**
+Each recipe uses pre-compiled standalone executables with helpers inlined. **Zero dependency on hooker plugin at runtime.**
+
+Build system generates:
+- `.match.sh` → `.execute.sh` (bash helpers inlined)
+- `.match.py` → `.execute.py` (Python helpers inlined, import removed)
+- `.match.js` / `.match.ts` → `.execute.js` (JS helpers inlined, require/import removed, namespace prefix stripped)
 
 **How it works:**
-- Files go in `.claude/hooker/{recipe-name}/` (execute.sh + supporting files)
-- Hook entries point directly to execute.sh in `.claude/settings.json`
+- Files go in `.claude/hooker/{recipe-name}/` (execute.* + supporting files)
+- Hook entries point directly to the executable in `.claude/settings.json`
 - Matchers from recipe.json `"matchers"` field filter which tools trigger each hook
 - No run.sh, no inject.sh, no plugin cache lookup
 
 **Pros:** Completely independent of hooker. Works even if hooker is uninstalled. No fragile cache paths. Matchers prevent unnecessary script invocations.
-**Cons:** execute.sh is larger (helpers inlined). Updating helpers requires recompiling. No hooker logging/management.
+**Cons:** Executable files are larger (helpers inlined). Updating helpers requires recompiling. No hooker logging/management.
 
 **Structure:**
 ```
 .claude/hooker/
   refactor-move-ts-smart/
-    PostToolUse.execute.sh           ← self-contained (helpers inlined)
+    PostToolUse.execute.sh           ← self-contained bash (helpers inlined)
     SessionStart.execute.sh          ← compiled from .md template
-    PostCompact.execute.sh           ← compiled from .md template
     update-imports.cjs               ← supporting file
     messages.yml                     ← user-editable messages
+  my-python-recipe/
+    PostToolUse.execute.py           ← self-contained Python (helpers inlined)
+  my-js-recipe/
+    PreToolUse.execute.js            ← self-contained JS (helpers inlined)
 ```
 
 **settings.json entries (matchers from recipe.json):**
@@ -276,14 +308,17 @@ Each recipe uses pre-compiled `*.execute.sh` scripts with helpers inlined. **Zer
 {
   "hooks": {
     "PostToolUse": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/refactor-move-ts-smart/PostToolUse.execute.sh" }] }
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/refactor-move-ts-smart/PostToolUse.execute.sh" }] },
+      { "matcher": "Edit", "hooks": [{ "type": "command", "command": "python3 $CLAUDE_PROJECT_DIR/.claude/hooker/my-python-recipe/PostToolUse.execute.py" }] }
     ],
-    "SessionStart": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/refactor-move-ts-smart/SessionStart.execute.sh" }] }
+    "PreToolUse": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node $CLAUDE_PROJECT_DIR/.claude/hooker/my-js-recipe/PreToolUse.execute.js" }] }
     ]
   }
 }
 ```
+
+**Note:** shell executables run directly (`PostToolUse.execute.sh`), non-shell need their runtime prefix (`python3 ...`, `node ...`). The runtime is determined during installation.
 
 ### Decision guide (present to user)
 
@@ -342,15 +377,22 @@ hooker's inject.sh features (e.g. template system) with independent recipes.
 1. Read `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/recipe.json` and the recipe's files
 2. Show description and hooks
 3. Create `.claude/hooker/{recipe-name}/` directory
-4. Copy `*.execute.sh` files from `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/` into the subdirectory
+4. Copy standalone executable files from `${CLAUDE_PLUGIN_ROOT}/recipes/{name}/` into the subdirectory.
+   Look for (in order of preference): `*.execute.sh`, `*.execute.py`, `*.execute.js`
 5. Copy supporting files (messages.yml, update-imports.cjs, rope-move.py, .md templates — whatever the recipe needs)
-6. `chmod +x` all `.execute.sh` files
-7. Add hook entries to `.claude/settings.json` for each hook, pointing directly to execute.sh.
-   Use the `matchers` field from recipe.json to set the correct matcher:
+6. `chmod +x` all executable files
+7. Add hook entries to `.claude/settings.json` for each hook, pointing directly to the executable.
+   Use the `matchers` field from recipe.json to set the correct matcher.
+   **Shell** executables run directly; **non-shell** need runtime prefix:
    ```json
-   { "matcher": "{from recipe.json matchers[HookName]}", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/{recipe-name}/{HookName}.execute.sh" }] }
+   // .execute.sh — runs directly
+   { "matcher": "...", "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooker/{recipe}/{Hook}.execute.sh" }] }
+   // .execute.py — needs python3
+   { "matcher": "...", "hooks": [{ "type": "command", "command": "python3 $CLAUDE_PROJECT_DIR/.claude/hooker/{recipe}/{Hook}.execute.py" }] }
+   // .execute.js — needs node
+   { "matcher": "...", "hooks": [{ "type": "command", "command": "node $CLAUDE_PROJECT_DIR/.claude/hooker/{recipe}/{Hook}.execute.js" }] }
    ```
-8. Confirm installation. Note: hooker plugin is not needed at runtime — execute.sh is self-contained.
+8. Confirm installation. Note: hooker plugin is not needed at runtime — executables are self-contained.
 
 ## Recipe markers (merged mode only)
 Every recipe's logic MUST be wrapped in marker comments for traceability:
@@ -437,15 +479,19 @@ Conditional rule — match script decides IF, template decides WHAT.
 .claude/hooker/Stop.match.sh    → exit 0 if files were edited, else exit 1
 ```
 
-### Mode 3: Standalone match script (`.match.sh` with output, no `.md` needed)
+### Mode 3: Standalone match script (`.match.*` with output, no `.md` needed)
 Full dynamic control — script decides everything. Uses helpers for output.
 **This is the most powerful mode.** The script can read files, check state, build messages dynamically.
+Match scripts can be in **any language**: `.match.sh`, `.match.py`, `.match.js`, `.match.ts`, `.match.go`, `.match.php`, etc.
 ```
-.claude/hooker/SubagentStart.match.sh  → reads CLAUDE.md, injects it
+.claude/hooker/SubagentStart.match.sh  → reads CLAUDE.md, injects it (bash)
+.claude/hooker/PostToolUse.match.py    → AST analysis with Python
+.claude/hooker/PreToolUse.match.js     → Node.js guard
 ```
 
 ## Helpers library
 
+### Bash helpers
 Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
 
 **JSON responses (always visible to user):**
@@ -465,6 +511,40 @@ Match scripts can `source "${HOOKER_HELPERS}"` to get pre-built functions:
 | `context "text"` | Adds as additionalContext JSON |
 | `visible "text"` | Outputs text visible to user |
 | `load_md "file.md"` | Loads file content — only useful inside `inject()` |
+
+### Python helpers
+`from hooker_helpers import read_input, warn, deny, inject, skip`
+(inject.sh sets `PYTHONPATH` automatically — import works out of the box)
+
+| Helper | Effect |
+|--------|--------|
+| `read_input()` | Parse JSON from stdin, returns dict |
+| `json_field(data, "field")` | Extract field (checks top-level + tool_input) |
+| `warn(msg)`, `deny(msg)`, `allow(msg)`, `ask(msg)` | Same as bash equivalents |
+| `block(msg)`, `remind(msg)` | Same as bash equivalents |
+| `inject(text)`, `visible(text)`, `context(text)` | Same as bash equivalents |
+| `last_turn()` | Get last assistant turn from transcript |
+| `skip()`, `match()`, `error(msg)` | Flow control (sys.exit 1/0/2) |
+
+### JavaScript/TypeScript helpers
+`const hooker = require('hooker_helpers');`
+(inject.sh sets `NODE_PATH` automatically — require works out of the box)
+
+| Helper | Effect |
+|--------|--------|
+| `hooker.readInput()` | Parse JSON from stdin, returns object |
+| `hooker.jsonField(data, "field")` | Extract field (checks top-level + tool_input) |
+| `hooker.warn(msg)`, `.deny(msg)`, `.allow(msg)`, `.ask(msg)` | Same as bash equivalents |
+| `hooker.block(msg)`, `.remind(msg)` | Same as bash equivalents |
+| `hooker.inject(text)`, `.visible(text)`, `.context(text)` | Same as bash equivalents |
+| `hooker.lastTurn()` | Get last assistant turn from transcript |
+| `hooker.skip()`, `.match()`, `.error(msg)` | Flow control (process.exit 1/0/2) |
+
+### Other languages
+No built-in helpers — implement the contract directly:
+- Read JSON from stdin
+- Print response JSON to stdout (same format as bash/python/js helpers produce)
+- Exit 0 = matched, 1 = skip, 2+ = error
 
 **Visibility rules:**
 - `inject()` is the **only** helper that hides content from user (via XML trick)
@@ -486,8 +566,8 @@ docs_changed: "Are your docs complete and up to date?"
 default: "Did you update docs, tests, and clean up TODOs?"
 ```
 
-**Cross-platform rules (MUST follow when writing scripts):**
-Scripts must work on Linux, macOS, and Windows (Git Bash). Rules:
+**Cross-platform rules (MUST follow when writing bash scripts):**
+Bash scripts must work on Linux, macOS, and Windows (Git Bash). Rules:
 - **NO** `set -euo pipefail` in match scripts — `pipefail` causes SIGPIPE (exit 141) when helper pipelines use `awk '{exit}'`. inject.sh handles exit codes; match scripts should control flow explicitly with `|| exit 1`.
 - **NO** `grep -P` or `grep -oP` (PCRE) — use `sed -n 's/.../p'` for extraction, `grep -q` with POSIX patterns for matching
 - **NO** `tac` — use `awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'`
@@ -496,6 +576,8 @@ Scripts must work on Linux, macOS, and Windows (Git Bash). Rules:
 - **NO** `\b` in patterns — use explicit context or `[[:space:]]` boundaries
 - Use `_hooker_json_escape`, `_hooker_json_field`, `_hooker_reverse` from helpers.sh
 - JSON field extraction: `echo "$INPUT" | sed -n 's/.*"field"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1`
+
+**Non-shell match scripts** (Python, JS, TS, Go, etc.) are exempt from these rules — they run through configurable runtimes and use their own language features freely.
 
 **Environment variables:**
 
@@ -506,7 +588,11 @@ Hooker inject.sh provides (available in merged/isolated mode only, NOT standalon
 - `$HOOKER_EVENT` — hook event name
 - `$HOOKER_TRANSCRIPT` — path to transcript JSONL
 - `$HOOKER_CWD` — working directory
-- `$HOOKER_HELPERS` — path to helpers.sh
+- `$HOOKER_HELPERS` — path to helpers.sh (bash)
+- `$HOOKER_HELPERS_PY` — path to hooker_helpers.py
+- `$HOOKER_HELPERS_JS` — path to hooker_helpers.js
+- `$PYTHONPATH` — includes helpers dir (so `from hooker_helpers import ...` works)
+- `$NODE_PATH` — includes helpers dir (so `require('hooker_helpers')` works)
 - `$HOOKER_PROJECT_DIR` — `~/.claude/projects/-{slug}` path
 - `$HOOKER_PROJECT_SLUG` — project slug derived from CWD
 
@@ -588,14 +674,54 @@ remind "$MSG"
 exit 0
 ```
 
+**Python match script example:**
+```python
+#!/usr/bin/env python3
+from hooker_helpers import read_input, warn, deny, skip, json_field
+
+data = read_input()
+tool = json_field(data, "tool_name")
+
+if tool == "Edit":
+    file_path = json_field(data, "file_path") or "unknown"
+    warn(f"Edit detected on {file_path}")
+else:
+    skip()
+```
+
+**JavaScript match script example:**
+```javascript
+const hooker = require('hooker_helpers');
+const data = hooker.readInput();
+
+if (data.tool_name === 'Write' && (data.file_path || '').endsWith('.env')) {
+    hooker.deny('Cannot write to .env files');
+} else {
+    hooker.skip();
+}
+```
+
+**Runtime configuration** — by default: `.py`→`python3`, `.js`→`node`, `.ts`→`npx tsx`.
+Users can override runtimes in `.claude/hooker/runtimes.conf`:
+```
+ts=deno run --allow-read --allow-env
+py=docker run --rm -i python:3.12 python3
+js=bun run
+```
+Or via environment: `HOOKER_RUNTIME_ts=bun run`
+
 ### 4. Create files
 
 1. `mkdir -p .claude/hooker`
 2. Depending on mode:
    - Mode 1: Write `.claude/hooker/{HookName}.md` only
    - Mode 2: Write `.claude/hooker/{HookName}.md` + `.claude/hooker/{HookName}.match.sh`
-   - Mode 3: Write `.claude/hooker/{HookName}.match.sh` only
-3. `chmod +x` any `.match.sh` files
+   - Mode 3: Write `.claude/hooker/{HookName}.match.{ext}` (`.sh`, `.py`, `.js`, `.ts`, etc.)
+3. `chmod +x` any `.match.sh` files (non-shell scripts don't need +x — runtime handles them)
+4. For non-shell hooks: verify the runtime is available (`python3 --version`, `node --version`, etc.)
+   If not, warn the user and suggest installing it or using bash instead.
+5. For non-shell hooks in merged/isolated mode: no extra config needed — inject.sh detects
+   the extension and uses the default runtime. For custom runtimes, create `.claude/hooker/runtimes.conf`.
 
 ### 5. TEST
 
@@ -617,13 +743,26 @@ exit 0
    echo "Exit code: $?"
    ```
 
-3. Full integration test through inject.sh:
+3. For non-shell match scripts, test standalone:
+   ```bash
+   # Python
+   echo '{"hook_event_name": "{HookName}", "tool_name": "Edit", "cwd": "'$(pwd)'"}' \
+     | HOOKER_EVENT="{HookName}" PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/helpers" \
+       python3 .claude/hooker/{HookName}.match.py
+
+   # JavaScript
+   echo '{"hook_event_name": "{HookName}", "tool_name": "Edit", "cwd": "'$(pwd)'"}' \
+     | HOOKER_EVENT="{HookName}" NODE_PATH="${CLAUDE_PLUGIN_ROOT}/helpers" \
+       node .claude/hooker/{HookName}.match.js
+   ```
+
+4. Full integration test through inject.sh (works for any language):
    ```bash
    echo '{"hook_event_name": "{HookName}", "transcript_path": "/path/to/transcript.jsonl", "session_id": "test", "cwd": "'$(pwd)'"}' \
      | CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" bash "${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh"
    ```
 
-4. Show test result. Fix and re-test if needed.
+5. Show test result. Fix and re-test if needed.
 
 ### 6. Confirm
 Show the user what was created and remind:
