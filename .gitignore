@@ -4,6 +4,10 @@ src/build
 # Go cache
 src/vendor/
 
+# Python cache
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db
