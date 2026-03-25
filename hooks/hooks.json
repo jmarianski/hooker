@@ -51,9 +51,6 @@
     "PreCompact": [
       { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh" }] }
     ],
-    "PostCompact": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh" }] }
-    ],
     "Elicitation": [
       { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/inject.sh" }] }
     ],
