@@ -28,6 +28,7 @@ GRAY='\033[0;37m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
+SEP="─────────────────────────────────────────────────────────────────────────"
 
 # --- Defaults ---
 CMD=""
@@ -59,12 +60,10 @@ done
 
 # --- Find project transcript dir ---
 find_project_dir() {
-    # Derive ~/.claude/projects/ path from project dir
     local SLUG
     SLUG=$(echo "$PROJECT_DIR" | sed 's|^/||; s|/|-|g')
     local PDIR="${HOME}/.claude/projects/-${SLUG}"
     [ -d "$PDIR" ] && echo "$PDIR" && return
-    # Try without leading dash
     PDIR="${HOME}/.claude/projects/${SLUG}"
     [ -d "$PDIR" ] && echo "$PDIR" && return
     echo ""
@@ -80,15 +79,12 @@ fi
 # --- Find transcript ---
 find_transcript() {
     if [ -n "$SESSION" ]; then
-        # Find by session ID prefix
         local F
         F=$(find "$PROJ_DIR" -maxdepth 2 -name "${SESSION}*.jsonl" -type f 2>/dev/null | head -1)
         [ -n "$F" ] && echo "$F" && return
-        # Also check subagents
         F=$(find "$PROJ_DIR" -name "${SESSION}*.jsonl" -type f 2>/dev/null | head -1)
         echo "$F"
     else
-        # Latest transcript (by mtime)
         find "$PROJ_DIR" -maxdepth 1 -name "*.jsonl" -type f 2>/dev/null | \
             while read -r f; do echo "$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null) $f"; done | \
             sort -rn | head -1 | awk '{print $2}'
@@ -96,7 +92,7 @@ find_transcript() {
 }
 
 # --- Extract cache metrics from transcript ---
-# Output: turn_number creation read input output timestamp
+# Output: turn_number:creation:read:input:output:timestamp
 extract_metrics() {
     local TRANSCRIPT="$1"
     local TURN=0
@@ -110,13 +106,65 @@ extract_metrics() {
         OUTPUT=$(echo "$LINE" | sed -n 's/.*"output_tokens":\([0-9]*\).*/\1/p' | head -1)
         TS=$(echo "$LINE" | sed -n 's/.*"timestamp"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
-        echo "${TURN}:${CREATION:-0}:${READ:-0}:${INPUT:-0}:${OUTPUT:-0}:${TS:-?}"
+        echo "${TURN}|${CREATION:-0}|${READ:-0}|${INPUT:-0}|${OUTPUT:-0}|${TS:-?}"
+    done
+}
+
+# --- Resume detection ---
+# A turn is a resume boundary if:
+#   - read=0 AND creation=0 (empty reconnect turn), OR
+#   - previous turn had normal cache, this turn has creation >> read with a big jump
+# Returns "resume" or "" for each turn
+detect_resume() {
+    local PREV_C=0 PREV_R=0 PREV_TS=""
+    while IFS='|' read -r T C R I O TS; do
+        IS_RESUME=""
+
+        # Empty turn (read=0, creation=0) = resume boundary
+        if [ "$C" -eq 0 ] 2>/dev/null && [ "$R" -eq 0 ] 2>/dev/null; then
+            IS_RESUME="boundary"
+        fi
+
+        # First turn after resume: huge creation spike with low/no read
+        # Heuristic: creation > 50k and (read=0 or creation/read > 5)
+        if [ "$PREV_C" -eq 0 ] 2>/dev/null && [ "$PREV_R" -eq 0 ] 2>/dev/null && [ "$C" -gt 50000 ] 2>/dev/null; then
+            IS_RESUME="rebuild"
+        fi
+
+        # Timestamp gap > 120 seconds = likely resume
+        if [ -n "$PREV_TS" ] && [ -n "$TS" ] && [ "$TS" != "?" ] && [ "$PREV_TS" != "?" ]; then
+            # Extract epoch-like comparison from HH:MM:SS
+            CUR_S=$(echo "$TS" | sed 's/.*T//' | awk -F: '{print ($1*3600)+($2*60)+$3}' 2>/dev/null)
+            PREV_S=$(echo "$PREV_TS" | sed 's/.*T//' | awk -F: '{print ($1*3600)+($2*60)+$3}' 2>/dev/null)
+            if [ -n "$CUR_S" ] && [ -n "$PREV_S" ]; then
+                GAP=$((CUR_S - PREV_S))
+                # Handle midnight wraparound
+                [ "$GAP" -lt 0 ] && GAP=$((GAP + 86400))
+                if [ "$GAP" -gt 120 ] 2>/dev/null && [ -z "$IS_RESUME" ]; then
+                    IS_RESUME="gap"
+                fi
+            fi
+        fi
+
+        echo "${T}|${C}|${R}|${I}|${O}|${TS}|${IS_RESUME}"
+        PREV_C=$C
+        PREV_R=$R
+        PREV_TS=$TS
     done
 }
 
 # --- Verdict for a single turn ---
 verdict() {
-    local C="$1" R="$2"
+    local C="$1" R="$2" RESUME="$3"
+    # Resume turns get special verdict
+    if [ "$RESUME" = "boundary" ]; then
+        echo "resume"
+        return
+    fi
+    if [ "$RESUME" = "rebuild" ] || [ "$RESUME" = "gap" ]; then
+        echo "resume"
+        return
+    fi
     if [ "$C" -lt 5000 ] 2>/dev/null; then
         echo "ok"
     elif [ "$R" -eq 0 ] 2>/dev/null; then
@@ -135,20 +183,22 @@ verdict() {
 
 verdict_color() {
     case "$1" in
-        good) echo "${GREEN}" ;;
-        ok)   echo "${CYAN}" ;;
-        bad)  echo "${RED}" ;;
-        miss) echo "${RED}" ;;
-        *)    echo "${NC}" ;;
+        good)   echo "${GREEN}" ;;
+        ok)     echo "${CYAN}" ;;
+        bad)    echo "${RED}" ;;
+        miss)   echo "${RED}" ;;
+        resume) echo "${YELLOW}" ;;
+        *)      echo "${NC}" ;;
     esac
 }
 
 verdict_icon() {
     case "$1" in
-        good) echo "●" ;;
-        ok)   echo "○" ;;
-        bad)  echo "✗" ;;
-        miss) echo "✗" ;;
+        good)   echo "●" ;;
+        ok)     echo "○" ;;
+        bad)    echo "✗" ;;
+        miss)   echo "✗" ;;
+        resume) echo "↻" ;;
     esac
 }
 
@@ -188,25 +238,33 @@ cmd_status() {
     local METRICS
     METRICS=$(extract_metrics "$TRANSCRIPT")
 
-    local TOTAL_C=0 TOTAL_R=0 BAD=0 GOOD=0 LAST_C=0 LAST_R=0
+    # Apply -n for status too
+    if [ "$LAST_N" -gt 0 ] 2>/dev/null; then
+        METRICS=$(echo "$METRICS" | tail -n "$LAST_N")
+    fi
 
-    echo "$METRICS" | while IFS=: read -r T C R I O TS; do
-        TOTAL_C=$((TOTAL_C + C))
-        TOTAL_R=$((TOTAL_R + R))
-        V=$(verdict "$C" "$R")
+    # Add resume detection
+    METRICS_WITH_RESUME=$(echo "$METRICS" | detect_resume)
+
+    echo "$METRICS_WITH_RESUME" | while IFS='|' read -r T C R I O TS RESUME; do
+        [ -z "$T" ] && continue
+        V=$(verdict "$C" "$R" "$RESUME")
+        TOTAL_C=$((${TOTAL_C:-0} + C))
+        TOTAL_R=$((${TOTAL_R:-0} + R))
+        RESUMES=$((${RESUMES:-0}))
         case "$V" in
-            bad|miss) BAD=$((BAD + 1)) ;;
-            good) GOOD=$((GOOD + 1)) ;;
+            bad|miss) BAD=$((${BAD:-0} + 1)) ;;
+            resume) RESUMES=$((RESUMES + 1)) ;;
         esac
-        LAST_C=$C
-        LAST_R=$R
-        # Store running totals for final summary
-        echo "${TOTAL_C}:${TOTAL_R}:${BAD}:${GOOD}:${LAST_C}:${LAST_R}" > /tmp/cache-catcher-status.tmp
+        echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${C}:${R}:${RESUMES}" > /tmp/cache-catcher-status.tmp
     done
 
     if [ -f /tmp/cache-catcher-status.tmp ]; then
-        IFS=: read -r TOTAL_C TOTAL_R BAD GOOD LAST_C LAST_R < /tmp/cache-catcher-status.tmp
+        IFS=: read -r TOTAL_C TOTAL_R BAD LAST_C LAST_R RESUMES < /tmp/cache-catcher-status.tmp
         rm -f /tmp/cache-catcher-status.tmp
+
+        ANALYZED=$TOTAL_TURNS
+        [ "$LAST_N" -gt 0 ] 2>/dev/null && ANALYZED=$LAST_N
 
         if [ "$TOTAL_R" -gt 0 ] 2>/dev/null; then
             RATIO=$(awk "BEGIN{printf \"%.2f\", ${TOTAL_C}/${TOTAL_R}}")
@@ -214,10 +272,9 @@ cmd_status() {
             RATIO="inf"
         fi
 
-        # Overall verdict
-        if [ "$BAD" -eq 0 ] 2>/dev/null; then
+        if [ "${BAD:-0}" -eq 0 ] 2>/dev/null; then
             echo -e "${GREEN}${BOLD}  HEALTHY${NC}  Cache is working properly"
-        elif [ "$BAD" -le 1 ] 2>/dev/null; then
+        elif [ "${BAD:-0}" -le 1 ] 2>/dev/null; then
             echo -e "${YELLOW}${BOLD}  WARNING${NC}  Occasional cache misses detected"
         else
             echo -e "${RED}${BOLD}  BROKEN${NC}   Cache is consistently breaking"
@@ -227,7 +284,8 @@ cmd_status() {
         echo -e "  Total cache_read:     ${BOLD}$(fmt_tokens "$TOTAL_R")${NC}"
         echo -e "  Total cache_creation: ${BOLD}$(fmt_tokens "$TOTAL_C")${NC}"
         echo -e "  Creation/Read ratio:  ${BOLD}${RATIO}${NC}"
-        echo -e "  Bad turns:            ${BOLD}${BAD}${NC} / ${TOTAL_TURNS}"
+        echo -e "  Bad turns:            ${BOLD}${BAD:-0}${NC} / ${ANALYZED}"
+        [ "${RESUMES:-0}" -gt 0 ] && echo -e "  Resumes detected:     ${BOLD}${RESUMES}${NC}"
         echo ""
         echo -e "  Last turn: read=$(fmt_tokens "$LAST_R") creation=$(fmt_tokens "$LAST_C")"
     fi
@@ -243,8 +301,8 @@ cmd_history() {
 
     echo -e "${BOLD}Cache History${NC} ${DIM}(session: ${SESSION_ID})${NC}"
     echo ""
-    printf "${DIM}%-5s %-10s %-10s %-8s %-6s %s${NC}\n" "Turn" "Read" "Creation" "Ratio" "Status" "Time"
-    echo "${DIM}$(printf '%.0s─' $(seq 1 65))${NC}"
+    printf "${DIM}%-5s %-10s %-10s %-8s %-8s %s${NC}\n" "Turn" "Read" "Creation" "Ratio" "Status" "Time"
+    echo -e "${DIM}${SEP}${NC}"
 
     local METRICS
     METRICS=$(extract_metrics "$TRANSCRIPT")
@@ -253,9 +311,12 @@ cmd_history() {
         METRICS=$(echo "$METRICS" | tail -n "$LAST_N")
     fi
 
-    echo "$METRICS" | while IFS=: read -r T C R I O TS; do
+    # Add resume detection
+    METRICS_WITH_RESUME=$(echo "$METRICS" | detect_resume)
+
+    echo "$METRICS_WITH_RESUME" | while IFS='|' read -r T C R I O TS RESUME; do
         [ -z "$T" ] && continue
-        V=$(verdict "$C" "$R")
+        V=$(verdict "$C" "$R" "$RESUME")
         VC=$(verdict_color "$V")
         VI=$(verdict_icon "$V")
 
@@ -267,10 +328,9 @@ cmd_history() {
             RATIO="0.00"
         fi
 
-        # Trim timestamp to time only
         TIME=$(echo "$TS" | sed 's/.*T\([0-9:]*\).*/\1/' | cut -c1-8)
 
-        printf "%-5s %-10s %-10s %-8s ${VC}%-6s${NC} %s\n" \
+        printf "%-5s %-10s %-10s %-8s ${VC}%-8s${NC} %s\n" \
             "$T" "$(fmt_tokens "$R")" "$(fmt_tokens "$C")" "$RATIO" "${VI} ${V}" "$TIME"
     done
 }
@@ -279,27 +339,23 @@ cmd_sessions() {
     echo -e "${BOLD}Sessions with Cache Stats${NC}"
     echo ""
     printf "${DIM}%-38s %-6s %-10s %-10s %-8s %s${NC}\n" "Session" "Turns" "Read" "Creation" "Ratio" "Status"
-    echo "${DIM}$(printf '%.0s─' $(seq 1 85))${NC}"
+    echo -e "${DIM}${SEP}${SEP}${NC}"
 
     find "$PROJ_DIR" -maxdepth 1 -name "*.jsonl" -type f 2>/dev/null | sort | while read -r F; do
         SID=$(basename "$F" .jsonl)
         TURNS=$(grep -c '"type":"assistant"' "$F" 2>/dev/null || echo 0)
         [ "$TURNS" -eq 0 ] && continue
 
-        TOTAL_C=0
-        TOTAL_R=0
-        BAD=0
-
         grep '"type":"assistant"' "$F" 2>/dev/null | while IFS= read -r LINE; do
             C=$(echo "$LINE" | sed -n 's/.*"cache_creation_input_tokens":\([0-9]*\).*/\1/p' | head -1)
             R=$(echo "$LINE" | sed -n 's/.*"cache_read_input_tokens":\([0-9]*\).*/\1/p' | head -1)
             C="${C:-0}"
             R="${R:-0}"
-            TOTAL_C=$((TOTAL_C + C))
-            TOTAL_R=$((TOTAL_R + R))
-            V=$(verdict "$C" "$R")
-            case "$V" in bad|miss) BAD=$((BAD + 1)) ;; esac
-            echo "${TOTAL_C}:${TOTAL_R}:${BAD}" > /tmp/cc-sess.tmp
+            TOTAL_C=$((${TOTAL_C:-0} + C))
+            TOTAL_R=$((${TOTAL_R:-0} + R))
+            V=$(verdict "$C" "$R" "")
+            case "$V" in bad|miss) BAD=$((${BAD:-0} + 1)) ;; esac
+            echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}" > /tmp/cc-sess.tmp
         done
 
         if [ -f /tmp/cc-sess.tmp ]; then
@@ -312,9 +368,9 @@ cmd_sessions() {
                 RATIO="inf"
             fi
 
-            if [ "$BAD" -eq 0 ] 2>/dev/null; then
+            if [ "${BAD:-0}" -eq 0 ] 2>/dev/null; then
                 STATUS="${GREEN}healthy${NC}"
-            elif [ "$BAD" -le 1 ]; then
+            elif [ "${BAD:-0}" -le 1 ]; then
                 STATUS="${YELLOW}warning${NC}"
             else
                 STATUS="${RED}broken${NC}"
@@ -338,13 +394,12 @@ cmd_watch() {
     while true; do
         CURRENT_LINES=$(grep -c '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null || echo 0)
         if [ "$CURRENT_LINES" -gt "$LAST_LINES" ] 2>/dev/null; then
-            # New turn detected
             LAST_LINE=$(grep '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null | tail -1)
             C=$(echo "$LAST_LINE" | sed -n 's/.*"cache_creation_input_tokens":\([0-9]*\).*/\1/p' | head -1)
             R=$(echo "$LAST_LINE" | sed -n 's/.*"cache_read_input_tokens":\([0-9]*\).*/\1/p' | head -1)
             C="${C:-0}"
             R="${R:-0}"
-            V=$(verdict "$C" "$R")
+            V=$(verdict "$C" "$R" "")
             VC=$(verdict_color "$V")
             NOW=$(date '+%H:%M:%S')
 
@@ -373,7 +428,7 @@ cmd_config() {
     else
         local RECIPE_DIR
         RECIPE_DIR=$(dirname "$0")
-        CFG="${RECIPE_DIR}/config.yml"
+        CFG="${RECIPE_DIR}/../config.yml"
         echo -e "${DIM}Source: ${CFG} (default)${NC}"
     fi
     echo ""
@@ -391,48 +446,39 @@ cmd_config() {
             esac
         done < "$CFG"
     fi
-
-    # Show state if exists
-    local STATE="${PROJ_DIR}/cache-catcher.state"
-    [ -f "${STATE_DIR:-$PROJ_DIR}/cache-catcher.state" ] && STATE="${STATE_DIR:-$PROJ_DIR}/cache-catcher.state"
-    if [ -f "$STATE" ]; then
-        echo ""
-        echo -e "${BOLD}Last watchdog state:${NC}"
-        while IFS= read -r LINE; do
-            KEY=$(echo "$LINE" | cut -d: -f1)
-            VAL=$(echo "$LINE" | cut -d: -f2- | sed 's/^[[:space:]]*//')
-            echo -e "  ${KEY}: ${CYAN}${VAL}${NC}"
-        done < "$STATE"
-    fi
 }
 
 # --- JSON output wrapper ---
 if [ "$JSON_OUT" -eq 1 ]; then
-    # For JSON mode, capture and convert (simple approach)
     case "$CMD" in
         status)
             TRANSCRIPT=$(find_transcript)
             [ -z "$TRANSCRIPT" ] && echo '{"error":"no transcript"}' && exit 1
             METRICS=$(extract_metrics "$TRANSCRIPT")
-            TOTAL_C=0 TOTAL_R=0 BAD=0 TURNS=0
-            echo "$METRICS" | while IFS=: read -r T C R I O TS; do
-                TOTAL_C=$((TOTAL_C + C))
-                TOTAL_R=$((TOTAL_R + R))
-                TURNS=$((TURNS + 1))
-                V=$(verdict "$C" "$R")
-                case "$V" in bad|miss) BAD=$((BAD + 1)) ;; esac
-                echo "${TOTAL_C}:${TOTAL_R}:${BAD}:${TURNS}" > /tmp/cc-json.tmp
+            [ "$LAST_N" -gt 0 ] 2>/dev/null && METRICS=$(echo "$METRICS" | tail -n "$LAST_N")
+            METRICS_R=$(echo "$METRICS" | detect_resume)
+            echo "$METRICS_R" | while IFS='|' read -r T C R I O TS RESUME; do
+                V=$(verdict "$C" "$R" "$RESUME")
+                TOTAL_C=$((${TOTAL_C:-0} + C))
+                TOTAL_R=$((${TOTAL_R:-0} + R))
+                TURNS=$((${TURNS:-0} + 1))
+                RESUMES=$((${RESUMES:-0}))
+                case "$V" in
+                    bad|miss) BAD=$((${BAD:-0} + 1)) ;;
+                    resume) RESUMES=$((RESUMES + 1)) ;;
+                esac
+                echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${TURNS}:${RESUMES}" > /tmp/cc-json.tmp
             done
             if [ -f /tmp/cc-json.tmp ]; then
-                IFS=: read -r TC TR B TN < /tmp/cc-json.tmp
+                IFS=: read -r TC TR B TN RS < /tmp/cc-json.tmp
                 rm -f /tmp/cc-json.tmp
                 if [ "$TR" -gt 0 ] 2>/dev/null; then
                     RATIO=$(awk "BEGIN{printf \"%.4f\", ${TC}/${TR}}")
                 else
                     RATIO="null"
                 fi
-                printf '{"session":"%s","turns":%s,"total_read":%s,"total_creation":%s,"ratio":%s,"bad_turns":%s}\n' \
-                    "$(basename "$TRANSCRIPT" .jsonl)" "$TN" "$TR" "$TC" "$RATIO" "$B"
+                printf '{"session":"%s","turns":%s,"total_read":%s,"total_creation":%s,"ratio":%s,"bad_turns":%s,"resumes":%s}\n' \
+                    "$(basename "$TRANSCRIPT" .jsonl)" "$TN" "$TR" "$TC" "$RATIO" "$B" "$RS"
             fi
             ;;
         history)
@@ -440,19 +486,20 @@ if [ "$JSON_OUT" -eq 1 ]; then
             [ -z "$TRANSCRIPT" ] && echo '{"error":"no transcript"}' && exit 1
             METRICS=$(extract_metrics "$TRANSCRIPT")
             [ "$LAST_N" -gt 0 ] 2>/dev/null && METRICS=$(echo "$METRICS" | tail -n "$LAST_N")
+            METRICS_R=$(echo "$METRICS" | detect_resume)
             echo '['
             FIRST=1
-            echo "$METRICS" | while IFS=: read -r T C R I O TS; do
+            echo "$METRICS_R" | while IFS='|' read -r T C R I O TS RESUME; do
                 [ -z "$T" ] && continue
-                V=$(verdict "$C" "$R")
+                V=$(verdict "$C" "$R" "$RESUME")
                 if [ "$R" -gt 0 ] 2>/dev/null; then
                     RATIO=$(awk "BEGIN{printf \"%.4f\", ${C}/${R}}")
                 else
                     RATIO="null"
                 fi
                 [ "$FIRST" -eq 1 ] && FIRST=0 || printf ','
-                printf '{"turn":%s,"cache_read":%s,"cache_creation":%s,"input":%s,"output":%s,"ratio":%s,"verdict":"%s","timestamp":"%s"}' \
-                    "$T" "$R" "$C" "$I" "$O" "$RATIO" "$V" "$TS"
+                printf '{"turn":%s,"cache_read":%s,"cache_creation":%s,"input":%s,"output":%s,"ratio":%s,"verdict":"%s","resume":"%s","timestamp":"%s"}' \
+                    "$T" "$R" "$C" "$I" "$O" "$RATIO" "$V" "$RESUME" "$TS"
             done
             echo ']'
             ;;

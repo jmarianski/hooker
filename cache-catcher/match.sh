@@ -91,6 +91,19 @@ if [ -f "$STATE_FILE" ]; then
     fi
 fi
 
+# --- Resume detection: skip first few turns after resume ---
+RESUME_FILE="${STATE_DIR}/${SESSION_ID}.resumed"
+if [ -f "$RESUME_FILE" ]; then
+    # Count PostToolUse calls since resume (use resume file mtime vs now)
+    RESUME_AGE=$(( $(date +%s) - $(stat -c %Y "$RESUME_FILE" 2>/dev/null || stat -f %m "$RESUME_FILE" 2>/dev/null || echo 0) ))
+    if [ "$RESUME_AGE" -lt 30 ] 2>/dev/null; then
+        # Within 30s of resume — skip (cache is rebuilding)
+        exit 0
+    fi
+    # Resume grace period expired, remove marker
+    rm -f "$RESUME_FILE" 2>/dev/null
+fi
+
 # --- Extract cache metrics from recent assistant turns ---
 USAGE_DATA=$(grep '"type":"assistant"' "$TRANSCRIPT" | \
     grep '"usage"' | \
@@ -112,6 +125,7 @@ if [ "$IGNORE_FIRST" = "true" ]; then
     [ "$FIRST_OFFSET" -le 0 ] && SKIP_FIRST=1
 fi
 
+AFTER_RESUME=0
 echo "$USAGE_DATA" | while IFS= read -r LINE; do
     [ -z "$LINE" ] && continue
     CREATION=$(echo "$LINE" | _cc_json_number cache_creation_input_tokens)
@@ -121,6 +135,16 @@ echo "$USAGE_DATA" | while IFS= read -r LINE; do
 
     if [ "$SKIP_FIRST" -eq 1 ]; then
         SKIP_FIRST=0
+        continue
+    fi
+
+    # Resume detection: skip empty turns (boundary) and next turn (cache rebuild)
+    if [ "$CREATION" -eq 0 ] 2>/dev/null && [ "$READ" -eq 0 ] 2>/dev/null; then
+        AFTER_RESUME=1
+        continue
+    fi
+    if [ "$AFTER_RESUME" -eq 1 ]; then
+        AFTER_RESUME=0
         continue
     fi
 
