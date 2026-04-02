@@ -77,14 +77,14 @@ cmd_help() {
     echo "  help              Show this list (also: no command, -h, --help)"
     echo "  status            Current session cache health summary"
     echo "  history           Per-turn cache read / creation metrics"
-    echo "  sessions          All sessions in this project with stats"
+    echo "  sessions          All sessions (status = last 10 turns; -n N to change)"
     echo "  watch             Live monitor (polls transcript; Ctrl+C stops)"
     echo "  config            Show effective hook config (project override vs default)"
     echo "  alias [print]     Print shell alias so you can run \"cache-catcher\" (see below)"
     echo ""
     echo -e "${BOLD}Options:${NC} (for status, history, sessions, watch)"
     echo "  -s, --session ID   Session id prefix (default: latest transcript)"
-    echo "  -n, --last N       Last N turns (status/history)"
+    echo "  -n, --last N       Last N turns (status/history); sessions status window"
     echo "  -j, --json         JSON (status, history only)"
     echo "  -t, --threshold N  Ratio threshold for verdicts (default: 1.0)"
     echo "  -p, --project DIR  Repo root to resolve ~/.claude/projects/ (default: cwd)"
@@ -182,6 +182,14 @@ extract_metrics() {
 
         echo "${TURN}|${CREATION:-0}|${READ:-0}|${INPUT:-0}|${OUTPUT:-0}|${TS:-?}"
     done
+}
+
+# grep -c exits 1 when count is 0; never use "|| echo 0" (yields "0\n0" and breaks test -eq).
+count_assistant_turns() {
+    local f="$1"
+    local n
+    n=$(grep -c '"type":"assistant"' "$f" 2>/dev/null) || true
+    echo "${n:-0}"
 }
 
 # --- Resume detection ---
@@ -320,7 +328,7 @@ cmd_status() {
     local SESSION_ID
     SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
     local TOTAL_TURNS
-    TOTAL_TURNS=$(grep -c '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null || echo 0)
+    TOTAL_TURNS=$(count_assistant_turns "$TRANSCRIPT")
 
     echo -e "${BOLD}Cache Catcher Status${NC}"
     echo -e "${DIM}Session: ${SESSION_ID}${NC}"
@@ -433,31 +441,38 @@ cmd_history() {
 }
 
 cmd_sessions() {
+    local WINDOW=10
+    [ "$LAST_N" -gt 0 ] 2>/dev/null && WINDOW=$LAST_N
+
     echo -e "${BOLD}Sessions with Cache Stats${NC}"
+    echo -e "${DIM}Read/Creation/Ratio/Status = last ${WINDOW} assistant turn(s). Pass -n N to change. \"Turns\" = all turns in file.${NC}"
     echo ""
     printf "${DIM}%-38s %-6s %-10s %-10s %-8s %s${NC}\n" "Session" "Turns" "Read" "Creation" "Ratio" "Status"
     echo -e "${DIM}${SEP}${SEP}${NC}"
 
     find "$PROJ_DIR" -maxdepth 1 -name "*.jsonl" -type f 2>/dev/null | sort | while read -r F; do
         SID=$(basename "$F" .jsonl)
-        TURNS=$(grep -c '"type":"assistant"' "$F" 2>/dev/null || echo 0)
-        [ "$TURNS" -eq 0 ] && continue
+        TURNS=$(count_assistant_turns "$F")
+        [ "$TURNS" -eq 0 ] 2>/dev/null && continue
 
-        grep '"type":"assistant"' "$F" 2>/dev/null | while IFS= read -r LINE; do
-            C=$(echo "$LINE" | sed -n 's/.*"cache_creation_input_tokens":\([0-9]*\).*/\1/p' | head -1)
-            R=$(echo "$LINE" | sed -n 's/.*"cache_read_input_tokens":\([0-9]*\).*/\1/p' | head -1)
-            C="${C:-0}"
-            R="${R:-0}"
+        METRICS=$(extract_metrics "$F")
+        METRICS_TAIL=$(echo "$METRICS" | tail -n "$WINDOW")
+        [ -z "$METRICS_TAIL" ] && continue
+
+        METRICS_R=$(echo "$METRICS_TAIL" | detect_resume)
+        TF=$(mktemp 2>/dev/null || echo "/tmp/cc-sess.$$")
+        echo "$METRICS_R" | while IFS='|' read -r T C R I O TS RESUME; do
+            [ -z "$T" ] && continue
+            V=$(verdict "$C" "$R" "$RESUME")
             TOTAL_C=$((${TOTAL_C:-0} + C))
             TOTAL_R=$((${TOTAL_R:-0} + R))
-            V=$(verdict "$C" "$R" "")
             case "$V" in bad|miss) BAD=$((${BAD:-0} + 1)) ;; esac
-            echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}" > /tmp/cc-sess.tmp
+            echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}" > "$TF"
         done
 
-        if [ -f /tmp/cc-sess.tmp ]; then
-            IFS=: read -r TOTAL_C TOTAL_R BAD < /tmp/cc-sess.tmp
-            rm -f /tmp/cc-sess.tmp
+        if [ -f "$TF" ]; then
+            IFS=: read -r TOTAL_C TOTAL_R BAD < "$TF"
+            rm -f "$TF"
 
             if [ "$TOTAL_R" -gt 0 ] 2>/dev/null; then
                 RATIO=$(awk "BEGIN{printf \"%.2f\", ${TOTAL_C}/${TOTAL_R}}")
@@ -467,7 +482,7 @@ cmd_sessions() {
 
             if [ "${BAD:-0}" -eq 0 ] 2>/dev/null; then
                 STATUS="${GREEN}healthy${NC}"
-            elif [ "${BAD:-0}" -le 1 ]; then
+            elif [ "${BAD:-0}" -le 1 ] 2>/dev/null; then
                 STATUS="${YELLOW}warning${NC}"
             else
                 STATUS="${RED}broken${NC}"
@@ -489,7 +504,7 @@ cmd_watch() {
 
     local LAST_LINES=0
     while true; do
-        CURRENT_LINES=$(grep -c '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null || echo 0)
+        CURRENT_LINES=$(count_assistant_turns "$TRANSCRIPT")
         if [ "$CURRENT_LINES" -gt "$LAST_LINES" ] 2>/dev/null; then
             LAST_LINE=$(grep '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null | tail -1)
             C=$(echo "$LAST_LINE" | sed -n 's/.*"cache_creation_input_tokens":\([0-9]*\).*/\1/p' | head -1)

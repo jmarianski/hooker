@@ -17,9 +17,8 @@ esac
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLI="${SCRIPT_DIR}/scripts/cache-catcher.sh"
 
-# Parse subcommand + args
+# Parse subcommand + args (bare "cache-catcher" → no args → CLI prints help)
 CMD=$(echo "$PROMPT" | sed 's/^cache-catcher[[:space:]]*//')
-[ -z "$CMD" ] && CMD="status"
 
 # Run CLI, capture output (strip ANSI for clean block message)
 OUTPUT=$(bash "$CLI" $CMD 2>&1 | sed 's/\x1b\[[0-9;]*m//g')

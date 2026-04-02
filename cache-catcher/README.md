@@ -27,8 +27,9 @@ cache-catcher.sh status
 # Per-turn cache metrics
 cache-catcher.sh history
 
-# All sessions overview
+# All sessions overview (status uses the last 10 assistant turns per file; not the whole session)
 cache-catcher.sh sessions
+cache-catcher.sh sessions -n 20   # wider window for status/ratio columns
 
 # Live monitoring
 cache-catcher.sh watch
@@ -43,10 +44,18 @@ cache-catcher.sh alias print   # one line for scripts
 
 ### Options
 - `-s, --session ID` — analyze specific session
-- `-n, --last N` — show last N turns
+- `-n, --last N` — last N turns for `status` / `history`; for `sessions`, the window used for Read/Creation/Ratio/Status (default 10)
 - `-j, --json` — JSON output
 - `-t, --threshold N` — override threshold
 - `-p, --project DIR` — project directory
+
+### Develop / test in the hooker repo
+
+```bash
+bash src/cache-catcher/scripts/self-test.sh
+```
+
+Uses a fake `HOME` and a synthetic transcript; checks `help`, `sessions` (no `integer expression` bug), tail-based healthy status, and `alias print`.
 
 ## Configuration
 
