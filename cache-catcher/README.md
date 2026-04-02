@@ -15,7 +15,12 @@ After each tool use, Cache Catcher reads the session transcript and compares cac
 
 ## CLI
 
+Invoke the bundled script (path depends on plugin install, often under `~/.claude/plugins/cache/.../scripts/cache-catcher.sh`). With no arguments it prints command help.
+
 ```bash
+# List commands (same as: cache-catcher.sh help)
+cache-catcher.sh
+
 # Show current session cache health
 cache-catcher.sh status
 
@@ -28,8 +33,12 @@ cache-catcher.sh sessions
 # Live monitoring
 cache-catcher.sh watch
 
-# Show configuration
+# Show configuration (project override vs plugin default)
 cache-catcher.sh config
+
+# Copy-paste shell alias so you can type cache-catcher
+cache-catcher.sh alias
+cache-catcher.sh alias print   # one line for scripts
 ```
 
 ### Options
@@ -41,7 +50,13 @@ cache-catcher.sh config
 
 ## Configuration
 
-Create `.claude/cache-catcher.config.yml` in your project:
+Defaults ship with the plugin as `config.yml` next to `match.sh` (read-only from your perspective unless you fork the plugin). **Per-project overrides** go in the repo root:
+
+`.claude/cache-catcher.config.yml`
+
+The hook resolves the project directory when Claude Code runs it (typically your project root), so that file is the supported way to change thresholds, mode, etc. Optional: `.claude/cache-catcher.messages.yml` overrides `messages.yml` the same way.
+
+Example override file:
 
 ```yaml
 mode: warn          # warn or block

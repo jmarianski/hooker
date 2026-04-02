@@ -2,12 +2,16 @@
 # cache-catcher — CLI tool for cache usage analysis
 # Usage: cache-catcher.sh <command> [options]
 #
+# Run with no command (or "help") to list commands.
+#
 # Commands:
-#   status          Show current session cache health
-#   history         Show cache metrics per turn
-#   sessions        List sessions with cache stats
-#   watch           Continuously monitor (like tail -f)
-#   config          Show current configuration
+#   help, -h, --help   List commands and options (default when no command)
+#   status             Show current session cache health
+#   history            Show cache metrics per turn
+#   sessions           List sessions with cache stats
+#   watch              Continuously monitor (like tail -f)
+#   config             Show current configuration
+#   alias [print]      How to add a shell alias so you can type "cache-catcher"
 #
 # Options:
 #   -s, --session ID    Analyze specific session (default: latest)
@@ -32,6 +36,7 @@ SEP="─────────────────────────
 
 # --- Defaults ---
 CMD=""
+ALIAS_MODE=""
 SESSION=""
 LAST_N=0
 JSON_OUT=0
@@ -42,21 +47,90 @@ PROJECT_DIR="$(pwd)"
 while [ $# -gt 0 ]; do
     case "$1" in
         status|history|sessions|watch|config) CMD="$1" ;;
+        help|-h|--help) CMD="help" ;;
+        alias)
+            CMD="alias"
+            shift
+            if [ "${1:-}" = "print" ]; then
+                ALIAS_MODE="print"
+                shift
+            fi
+            continue
+            ;;
         -s|--session) SESSION="$2"; shift ;;
         -n|--last) LAST_N="$2"; shift ;;
         -j|--json) JSON_OUT=1 ;;
         -t|--threshold) THRESHOLD="$2"; shift ;;
         -p|--project) PROJECT_DIR="$2"; shift ;;
-        -h|--help)
-            sed -n '2,/^$/s/^# \{0,1\}//p' "$0"
-            exit 0
-            ;;
-        *) echo "Unknown: $1. Use -h for help." >&2; exit 1 ;;
+        *) echo "Unknown: $1. Use cache-catcher help." >&2; exit 1 ;;
     esac
     shift
 done
 
-[ -z "$CMD" ] && CMD="status"
+# --- Help / alias (no Claude project required) ---
+cmd_help() {
+    echo -e "${BOLD}cache-catcher${NC} — cache usage analysis for Claude Code transcripts"
+    echo ""
+    echo -e "${BOLD}Usage:${NC} cache-catcher <command> [options]"
+    echo ""
+    echo -e "${BOLD}Commands:${NC}"
+    echo "  help              Show this list (also: no command, -h, --help)"
+    echo "  status            Current session cache health summary"
+    echo "  history           Per-turn cache read / creation metrics"
+    echo "  sessions          All sessions in this project with stats"
+    echo "  watch             Live monitor (polls transcript; Ctrl+C stops)"
+    echo "  config            Show effective hook config (project override vs default)"
+    echo "  alias [print]     Print shell alias so you can run \"cache-catcher\" (see below)"
+    echo ""
+    echo -e "${BOLD}Options:${NC} (for status, history, sessions, watch)"
+    echo "  -s, --session ID   Session id prefix (default: latest transcript)"
+    echo "  -n, --last N       Last N turns (status/history)"
+    echo "  -j, --json         JSON (status, history only)"
+    echo "  -t, --threshold N  Ratio threshold for verdicts (default: 1.0)"
+    echo "  -p, --project DIR  Repo root to resolve ~/.claude/projects/ (default: cwd)"
+    echo ""
+    echo -e "${DIM}Hook config: project file .claude/cache-catcher.config.yml overrides the plugin default.${NC}"
+    echo -e "${DIM}Shell alias:  run ${BOLD}cache-catcher alias${NC}${DIM} for copy-paste lines.${NC}"
+}
+
+cmd_alias() {
+    local SELF
+    SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+    # Safe for single-quoted alias: escape single quotes in path
+    local Q
+    Q=$(printf '%s' "$SELF" | sed "s/'/'\\\\''/g")
+
+    if [ "$ALIAS_MODE" = "print" ]; then
+        printf "alias cache-catcher='%s'\n" "$Q"
+        return
+    fi
+
+    echo -e "${BOLD}Shell alias: run ${CYAN}cache-catcher${NC} ${BOLD}instead of the script path${NC}"
+    echo ""
+    echo -e "${BOLD}Bash / zsh${NC} — add to ~/.bashrc, ~/.zshrc, or run once per session:"
+    echo ""
+    echo -e "  ${CYAN}alias cache-catcher='${Q}'${NC}"
+    echo ""
+    echo -e "${BOLD}fish${NC}:"
+    echo ""
+    echo -e "  ${CYAN}alias cache-catcher '${Q}'${NC}"
+    echo ""
+    echo -e "${DIM}Machine-readable (e.g. append to a file):${NC}"
+    echo -e "  ${CYAN}cache-catcher alias print${NC}"
+    echo ""
+    echo -e "${DIM}After installing the plugin, the script usually lives under ~/.claude/plugins/cache/...${NC}"
+}
+
+case "$CMD" in
+    ""|help)
+        cmd_help
+        exit 0
+        ;;
+    alias)
+        cmd_alias
+        exit 0
+        ;;
+esac
 
 # --- Find project transcript dir ---
 find_project_dir() {
@@ -111,37 +185,52 @@ extract_metrics() {
 }
 
 # --- Resume detection ---
-# A turn is a resume boundary if:
-#   - read=0 AND creation=0 (empty reconnect turn), OR
-#   - previous turn had normal cache, this turn has creation >> read with a big jump
-# Returns "resume" or "" for each turn
+# Detects resume boundaries and classifies cache rebuilds:
+#   - boundary: empty turn (read=0, creation=0) = reconnect
+#   - rebuild_short: cache miss within 1h of last turn (cache should still be warm = bad)
+#   - rebuild_long: cache miss after >1h gap (cache expired = expected, yellow)
+#   - gap: timestamp gap >2min without empty boundary turn
 detect_resume() {
     local PREV_C=0 PREV_R=0 PREV_TS=""
+    local IN_BOUNDARY=0 BOUNDARY_GAP=0
     while IFS='|' read -r T C R I O TS; do
         IS_RESUME=""
 
-        # Empty turn (read=0, creation=0) = resume boundary
-        if [ "$C" -eq 0 ] 2>/dev/null && [ "$R" -eq 0 ] 2>/dev/null; then
-            IS_RESUME="boundary"
-        fi
-
-        # First turn after resume: huge creation spike with low/no read
-        # Heuristic: creation > 50k and (read=0 or creation/read > 5)
-        if [ "$PREV_C" -eq 0 ] 2>/dev/null && [ "$PREV_R" -eq 0 ] 2>/dev/null && [ "$C" -gt 50000 ] 2>/dev/null; then
-            IS_RESUME="rebuild"
-        fi
-
-        # Timestamp gap > 120 seconds = likely resume
+        # Calculate gap from previous turn
+        GAP=0
         if [ -n "$PREV_TS" ] && [ -n "$TS" ] && [ "$TS" != "?" ] && [ "$PREV_TS" != "?" ]; then
-            # Extract epoch-like comparison from HH:MM:SS
             CUR_S=$(echo "$TS" | sed 's/.*T//' | awk -F: '{print ($1*3600)+($2*60)+$3}' 2>/dev/null)
             PREV_S=$(echo "$PREV_TS" | sed 's/.*T//' | awk -F: '{print ($1*3600)+($2*60)+$3}' 2>/dev/null)
             if [ -n "$CUR_S" ] && [ -n "$PREV_S" ]; then
                 GAP=$((CUR_S - PREV_S))
-                # Handle midnight wraparound
                 [ "$GAP" -lt 0 ] && GAP=$((GAP + 86400))
-                if [ "$GAP" -gt 120 ] 2>/dev/null && [ -z "$IS_RESUME" ]; then
-                    IS_RESUME="gap"
+            fi
+        fi
+
+        # Empty turn (read=0, creation=0) = resume boundary
+        if [ "$C" -eq 0 ] 2>/dev/null && [ "$R" -eq 0 ] 2>/dev/null; then
+            IS_RESUME="boundary"
+            IN_BOUNDARY=1
+            BOUNDARY_GAP=$GAP
+        # First turn after boundary: classify by gap duration
+        elif [ "$IN_BOUNDARY" -eq 1 ] 2>/dev/null && [ "$C" -gt 50000 ] 2>/dev/null; then
+            TOTAL_GAP=$((BOUNDARY_GAP + GAP))
+            if [ "$TOTAL_GAP" -gt 3600 ] 2>/dev/null; then
+                IS_RESUME="rebuild_long"   # >1h gap, cache expired — expected
+            else
+                IS_RESUME="rebuild_short"  # <1h gap, cache should be warm — bad
+            fi
+            IN_BOUNDARY=0
+            BOUNDARY_GAP=0
+        else
+            IN_BOUNDARY=0
+            BOUNDARY_GAP=0
+            # Standalone gap without boundary turn
+            if [ "$GAP" -gt 120 ] 2>/dev/null && [ "$C" -gt 50000 ] 2>/dev/null; then
+                if [ "$GAP" -gt 3600 ] 2>/dev/null; then
+                    IS_RESUME="rebuild_long"
+                else
+                    IS_RESUME="rebuild_short"
                 fi
             fi
         fi
@@ -156,13 +245,19 @@ detect_resume() {
 # --- Verdict for a single turn ---
 verdict() {
     local C="$1" R="$2" RESUME="$3"
-    # Resume turns get special verdict
+    # Resume boundary (empty reconnect turn)
     if [ "$RESUME" = "boundary" ]; then
         echo "resume"
         return
     fi
-    if [ "$RESUME" = "rebuild" ] || [ "$RESUME" = "gap" ]; then
-        echo "resume"
+    # Short resume (<1h): cache should still be warm — this is bad
+    if [ "$RESUME" = "rebuild_short" ]; then
+        echo "bad"
+        return
+    fi
+    # Long resume (>1h): cache expired — expected, not an error
+    if [ "$RESUME" = "rebuild_long" ]; then
+        echo "expired"
         return
     fi
     if [ "$C" -lt 5000 ] 2>/dev/null; then
@@ -183,22 +278,24 @@ verdict() {
 
 verdict_color() {
     case "$1" in
-        good)   echo "${GREEN}" ;;
-        ok)     echo "${CYAN}" ;;
-        bad)    echo "${RED}" ;;
-        miss)   echo "${RED}" ;;
-        resume) echo "${YELLOW}" ;;
-        *)      echo "${NC}" ;;
+        good)    echo "${GREEN}" ;;
+        ok)      echo "${CYAN}" ;;
+        bad)     echo "${RED}" ;;
+        miss)    echo "${RED}" ;;
+        resume)  echo "${YELLOW}" ;;
+        expired) echo "${YELLOW}" ;;
+        *)       echo "${NC}" ;;
     esac
 }
 
 verdict_icon() {
     case "$1" in
-        good)   echo "●" ;;
-        ok)     echo "○" ;;
-        bad)    echo "✗" ;;
-        miss)   echo "✗" ;;
-        resume) echo "↻" ;;
+        good)    echo "●" ;;
+        ok)      echo "○" ;;
+        bad)     echo "✗" ;;
+        miss)    echo "✗" ;;
+        resume)  echo "↻" ;;
+        expired) echo "◷" ;;
     esac
 }
 
