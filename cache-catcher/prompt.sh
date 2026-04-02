@@ -1,6 +1,6 @@
 #!/bin/bash
 # Cache Catcher — UserPromptSubmit interceptor
-# Catches "cache-catcher <cmd>" prompts, runs CLI, blocks with output.
+# Catches "cache-catcher <cmd>" and optional extra prefixes from config (prompt_aliases).
 # Zero API cost — prompt never reaches Claude.
 
 INPUT=$(cat)
@@ -8,20 +8,52 @@ INPUT=$(cat)
 # Extract prompt field from hook JSON
 PROMPT=$(echo "$INPUT" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
-# Only match "cache-catcher" prefix
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/config.yml"
+if [ -f ".claude/cache-catcher.config.yml" ]; then
+    CONFIG_FILE=".claude/cache-catcher.config.yml"
+fi
+
+yml_get() {
+    sed -n "s/^${1}:[[:space:]]*\"\{0,1\}\([^\"]*\).*/\1/p" "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*#.*$//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/' || true
+}
+
+# Resolve command prefix: cache-catcher always, then comma-separated prompt_aliases
+PREFIX=""
 case "$PROMPT" in
-    cache-catcher\ *|cache-catcher) ;;
-    *) exit 0 ;;
+    cache-catcher|cache-catcher\ *) PREFIX=cache-catcher ;;
+    *)
+        ALIASES_RAW=$(yml_get prompt_aliases)
+        OLD_IFS=$IFS
+        IFS=','
+        for _a in $ALIASES_RAW; do
+            _a=$(echo "$_a" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [ -z "$_a" ] && continue
+            case "$PROMPT" in
+                "${_a}"|"${_a}"\ *)
+                    PREFIX=$_a
+                    break
+                    ;;
+            esac
+        done
+        IFS=$OLD_IFS
+        ;;
 esac
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -z "$PREFIX" ] && exit 0
+
 CLI="${SCRIPT_DIR}/scripts/cache-catcher.sh"
 
-# Parse subcommand + args (bare "cache-catcher" → no args → CLI prints help)
-CMD=$(echo "$PROMPT" | sed 's/^cache-catcher[[:space:]]*//')
+if [ "$PROMPT" = "$PREFIX" ]; then
+    CMD=""
+else
+    CMD="${PROMPT#"${PREFIX}"}"
+    CMD=$(echo "$CMD" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+fi
 
 # Run CLI, capture output (strip ANSI for clean block message)
-OUTPUT=$(bash "$CLI" $CMD 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+# CACHE_CATCHER_FROM_CLAUDE_CODE: watch must not run here (infinite loop / no TTY)
+OUTPUT=$(CACHE_CATCHER_FROM_CLAUDE_CODE=1 bash "$CLI" $CMD 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
 
 if [ -z "$OUTPUT" ]; then
     OUTPUT="cache-catcher: no output for '$CMD'"

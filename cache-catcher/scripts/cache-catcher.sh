@@ -14,7 +14,7 @@
 #   config init [-f]   Create .claude/cache-catcher.config.yml from plugin template
 #   config get KEY     Print effective value for KEY (project override wins)
 #   config set K V...  Set KEY in project file (creates file/dir if needed)
-#   alias [print]      How to add a shell alias so you can type "cache-catcher"
+#   alias [print|set|clear]  Claude Code prompt prefixes (see help)
 #
 # Options:
 #   -s, --session ID    Analyze specific session (default: latest)
@@ -43,7 +43,8 @@ CONFIG_SUBCMD="show"
 CONFIG_KEY=""
 CONFIG_VAL=""
 CONFIG_INIT_FORCE=0
-ALIAS_MODE=""
+ALIAS_SUBCMD="show"
+ALIAS_SET_VAL=""
 SESSION=""
 LAST_N=0
 JSON_OUT=0
@@ -102,10 +103,24 @@ while [ $# -gt 0 ]; do
         alias)
             CMD="alias"
             shift
-            if [ "${1:-}" = "print" ]; then
-                ALIAS_MODE="print"
-                shift
-            fi
+            ALIAS_SUBCMD="show"
+            case "${1:-}" in
+                print)
+                    ALIAS_SUBCMD="print"
+                    shift
+                    ;;
+                set)
+                    ALIAS_SUBCMD="set"
+                    shift
+                    ALIAS_SET_VAL="$*"
+                    [ -z "$ALIAS_SET_VAL" ] && echo "Usage: cache-catcher alias set <prefix>[,prefix...]" >&2 && exit 1
+                    set --
+                    ;;
+                clear)
+                    ALIAS_SUBCMD="clear"
+                    shift
+                    ;;
+            esac
             continue
             ;;
         -s|--session) SESSION="$2"; shift ;;
@@ -129,12 +144,14 @@ cmd_help() {
     echo "  status            Current session cache health summary"
     echo "  history           Per-turn cache read / creation metrics"
     echo "  sessions          All sessions (status = last 10 turns; -n N to change)"
-    echo "  watch             Live monitor (polls transcript; Ctrl+C stops)"
+    echo "  watch             Live monitor in a real terminal (not from Claude Code prompt)"
     echo "  config [show]     Show effective hook config (project vs plugin default)"
     echo "  config init [-f]  Create .claude/cache-catcher.config.yml from template"
     echo "  config get KEY    Print one setting (override wins)"
     echo "  config set K V    Set one field in project config"
-    echo "  alias [print]     Print shell alias so you can run \"cache-catcher\" (see below)"
+    echo "  alias [print]     All UserPromptSubmit prefixes (for Claude Code), one CSV line"
+    echo "  alias set A[,B]   Save extra prefixes in .claude/cache-catcher.config.yml"
+    echo "  alias clear       Remove extra prefixes (only \"cache-catcher\" remains)"
     echo ""
     echo -e "${BOLD}Options:${NC} (for status, history, sessions, watch)"
     echo "  -s, --session ID   Session id prefix (default: latest transcript)"
@@ -144,35 +161,7 @@ cmd_help() {
     echo "  -p, --project DIR  Repo root to resolve ~/.claude/projects/ (default: cwd)"
     echo ""
     echo -e "${DIM}Hook config: project file .claude/cache-catcher.config.yml overrides the plugin default.${NC}"
-    echo -e "${DIM}Shell alias:  run ${BOLD}cache-catcher alias${NC}${DIM} for copy-paste lines.${NC}"
-}
-
-cmd_alias() {
-    local SELF
-    SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-    # Safe for single-quoted alias: escape single quotes in path
-    local Q
-    Q=$(printf '%s' "$SELF" | sed "s/'/'\\\\''/g")
-
-    if [ "$ALIAS_MODE" = "print" ]; then
-        printf "alias cache-catcher='%s'\n" "$Q"
-        return
-    fi
-
-    echo -e "${BOLD}Shell alias: run ${CYAN}cache-catcher${NC} ${BOLD}instead of the script path${NC}"
-    echo ""
-    echo -e "${BOLD}Bash / zsh${NC} — add to ~/.bashrc, ~/.zshrc, or run once per session:"
-    echo ""
-    echo -e "  ${CYAN}alias cache-catcher='${Q}'${NC}"
-    echo ""
-    echo -e "${BOLD}fish${NC}:"
-    echo ""
-    echo -e "  ${CYAN}alias cache-catcher '${Q}'${NC}"
-    echo ""
-    echo -e "${DIM}Machine-readable (e.g. append to a file):${NC}"
-    echo -e "  ${CYAN}cache-catcher alias print${NC}"
-    echo ""
-    echo -e "${DIM}After installing the plugin, the script usually lives under ~/.claude/plugins/cache/...${NC}"
+    echo -e "${DIM}Extra prompt prefixes: ${BOLD}cache-catcher alias${NC}${DIM} (config key ${BOLD}prompt_aliases${NC}${DIM}).${NC}"
 }
 
 cc_default_cfg() {
@@ -185,10 +174,10 @@ cc_project_cfg() {
 
 cc_config_valid_key() {
     case "$1" in
-        mode|lookback|threshold|min_tokens|streak|cooldown|ignore_first_turn) return 0 ;;
+        mode|lookback|threshold|min_tokens|streak|cooldown|ignore_first_turn|prompt_aliases) return 0 ;;
         *)
             echo "Unknown key: $1" >&2
-            echo "Allowed: mode lookback threshold min_tokens streak cooldown ignore_first_turn" >&2
+            echo "Allowed: mode lookback threshold min_tokens streak cooldown ignore_first_turn prompt_aliases" >&2
             return 1
             ;;
     esac
@@ -198,7 +187,7 @@ cc_config_valid_key() {
 cc_yml_get() {
     local key="$1" file="$2"
     [ -f "$file" ] || return 0
-    sed -n "s/^${key}:[[:space:]]*//p" "$file" 2>/dev/null | head -1 | sed 's/[[:space:]]*#.*$//;s/[[:space:]]*$//'
+    sed -n "s/^${key}:[[:space:]]*//p" "$file" 2>/dev/null | head -1 | sed 's/[[:space:]]*#.*$//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/'
 }
 
 cc_yml_update_or_append() {
@@ -295,7 +284,7 @@ cmd_config_get() {
     p=""
     [ -f "$PCFG" ] && p=$(cc_yml_get "$1" "$PCFG")
     val="${p:-$d}"
-    if [ -z "$val" ]; then
+    if [ -z "$val" ] && [ "$1" != "prompt_aliases" ]; then
         echo "(empty)" >&2
         exit 1
     fi
@@ -317,6 +306,110 @@ cmd_config_dispatch() {
         get) cmd_config_get "$CONFIG_KEY" ;;
         set) cmd_config_set "$CONFIG_KEY" "$CONFIG_VAL" ;;
         *) echo "Internal error: bad config subcommand" >&2; exit 1 ;;
+    esac
+}
+
+# Comma-separated extra prefixes (no spaces); drop invalid tokens; skip built-in name
+cc_prompt_aliases_validate_and_format() {
+    local raw="$1" out="" a
+    OLD_IFS=$IFS
+    IFS=','
+    for a in $raw; do
+        a=$(echo "$a" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "$a" ] && continue
+        case "$a" in
+            ''|*[!a-zA-Z0-9_.-]*)
+                echo "Invalid prefix '$a' (allowed: ASCII letters, digits, ._-)" >&2
+                return 1
+                ;;
+        esac
+        if [ "$a" = "cache-catcher" ]; then
+            echo "Skipping 'cache-catcher' (always available)." >&2
+            continue
+        fi
+        [ -n "$out" ] && out="${out},"
+        out="${out}${a}"
+    done
+    IFS=$OLD_IFS
+    printf '%s' "$out"
+}
+
+cc_prompt_aliases_format_csv() {
+    local raw="$1" out="" a
+    OLD_IFS=$IFS
+    IFS=','
+    for a in $raw; do
+        a=$(echo "$a" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "$a" ] && continue
+        [ -n "$out" ] && out="${out},"
+        out="${out}${a}"
+    done
+    IFS=$OLD_IFS
+    printf '%s' "$out"
+}
+
+cc_effective_prompt_aliases() {
+    local DEF PCFG
+    DEF=$(cc_default_cfg)
+    PCFG=$(cc_project_cfg)
+    if [ -f "$PCFG" ] && grep -q "^[[:space:]]*prompt_aliases[[:space:]]*:" "$PCFG" 2>/dev/null; then
+        cc_yml_get prompt_aliases "$PCFG"
+        return
+    fi
+    cc_yml_get prompt_aliases "$DEF"
+}
+
+cmd_alias() {
+    local PCFG csv ea norm
+    PCFG=$(cc_project_cfg)
+    case "$ALIAS_SUBCMD" in
+        print)
+            ea=$(cc_effective_prompt_aliases)
+            csv=$(cc_prompt_aliases_format_csv "$ea")
+            if [ -n "$csv" ]; then
+                printf 'cache-catcher,%s\n' "$csv"
+            else
+                printf 'cache-catcher\n'
+            fi
+            ;;
+        set)
+            norm=$(cc_prompt_aliases_validate_and_format "$ALIAS_SET_VAL") || exit 1
+            mkdir -p "$(dirname "$PCFG")"
+            cc_yml_update_or_append prompt_aliases "$norm" "$PCFG"
+            echo -e "${GREEN}Wrote prompt_aliases to ${PCFG}${NC}"
+            ea=$(cc_effective_prompt_aliases)
+            csv=$(cc_prompt_aliases_format_csv "$ea")
+            if [ -n "$csv" ]; then
+                echo -e "${DIM}Effective prefixes:${NC} cache-catcher,${csv}"
+            else
+                echo -e "${DIM}Effective prefixes:${NC} cache-catcher"
+            fi
+            ;;
+        clear)
+            mkdir -p "$(dirname "$PCFG")"
+            cc_yml_update_or_append prompt_aliases "" "$PCFG"
+            echo -e "${GREEN}Cleared prompt_aliases in ${PCFG} (only cache-catcher works).${NC}"
+            ;;
+        show)
+            echo -e "${BOLD}Claude Code command prefixes${NC} ${DIM}(UserPromptSubmit → CLI)${NC}"
+            echo ""
+            echo -e "  ${BOLD}cache-catcher${NC}  always recognized"
+            ea=$(cc_effective_prompt_aliases)
+            csv=$(cc_prompt_aliases_format_csv "$ea")
+            if [ -n "$csv" ]; then
+                echo -e "  ${BOLD}extras${NC}         ${CYAN}${csv}${NC} ${DIM}(from prompt_aliases in config)${NC}"
+            else
+                echo -e "  ${DIM}extras         (none — set e.g. ${BOLD}cache-catcher alias set cc${DIM})${NC}"
+            fi
+            echo ""
+            echo -e "${DIM}Edit with:${NC} ${CYAN}cache-catcher alias set cc,dbg${NC} ${DIM}or${NC} ${CYAN}config set prompt_aliases \"cc\"${NC}"
+            echo -e "${DIM}Machine-readable list:${NC} ${CYAN}cache-catcher alias print${NC}"
+            echo -e "${DIM}Project file:${NC} ${PCFG}"
+            ;;
+        *)
+            echo "Internal error: bad alias subcommand" >&2
+            exit 1
+            ;;
     esac
 }
 
@@ -698,6 +791,16 @@ cmd_sessions() {
 }
 
 cmd_watch() {
+    if [ -n "${CACHE_CATCHER_FROM_CLAUDE_CODE:-}" ]; then
+        local self
+        self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+        echo -e "${RED}watch is unavailable in Claude Code.${NC}" >&2
+        echo "Run the CLI in your own terminal (hooks cannot run a long-lived monitor). Example:" >&2
+        echo "  ${self} watch -p ${PROJECT_DIR}" >&2
+        echo "If you use a shell alias for this script, run: cd ${PROJECT_DIR} && cache-catcher watch" >&2
+        exit 1
+    fi
+
     local TRANSCRIPT
     TRANSCRIPT=$(find_transcript)
     [ -z "$TRANSCRIPT" ] && echo -e "${RED}No transcript found.${NC}" && exit 1

@@ -63,10 +63,20 @@ esac
 
 AP=$(run alias print 2>&1) || true
 case "$AP" in
-    alias\ cache-catcher=*) ;;
+    cache-catcher|cache-catcher,*) ;;
     *)
-        echo "FAIL: alias print"
+        echo "FAIL: alias print (expected cache-catcher[,extras])"
         echo "$AP"
+        exit 1
+        ;;
+esac
+
+WX=$(HOME="$FAKE_HOME" CACHE_CATCHER_FROM_CLAUDE_CODE=1 bash "$CLI" -p "$PROJ" watch 2>&1) || :
+case "$WX" in
+    *unavailable*Claude*Code*) ;;
+    *)
+        echo "FAIL: watch under CACHE_CATCHER_FROM_CLAUDE_CODE should refuse"
+        echo "$WX"
         exit 1
         ;;
 esac
@@ -79,5 +89,15 @@ run -p "$CFG_ROOT" config init >/dev/null || { echo "FAIL: config init"; exit 1;
 run -p "$CFG_ROOT" config set lookback 9 >/dev/null || { echo "FAIL: config set"; exit 1; }
 G=$(run -p "$CFG_ROOT" config get lookback) || true
 [ "$G" = "9" ] || { echo "FAIL: config get lookback (got '$G')"; exit 1; }
+
+run -p "$CFG_ROOT" alias set tstx >/dev/null || { echo "FAIL: alias set"; exit 1; }
+AP2=$(run -p "$CFG_ROOT" alias print) || true
+case "$AP2" in
+    *tstx*) ;;
+    *)
+        echo "FAIL: alias print after set (got '$AP2')"
+        exit 1
+        ;;
+esac
 
 echo "OK cache-catcher self-test"

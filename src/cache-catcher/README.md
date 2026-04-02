@@ -31,7 +31,7 @@ cache-catcher.sh history
 cache-catcher.sh sessions
 cache-catcher.sh sessions -n 20   # wider window for status/ratio columns
 
-# Live monitoring
+# Live monitoring (real terminal only — the Claude Code `cache-catcher watch` prompt shows how to run it in a shell)
 cache-catcher.sh watch
 
 # Show configuration (project override vs plugin default)
@@ -47,9 +47,11 @@ cache-catcher.sh -p /path/to/repo config get threshold
 cache-catcher.sh -p /path/to/repo config set mode block
 cache-catcher.sh -p /path/to/repo config set ignore_first_turn false
 
-# Copy-paste shell alias so you can type cache-catcher
-cache-catcher.sh alias
-cache-catcher.sh alias print   # one line for scripts
+# Claude Code prompt prefixes (UserPromptSubmit): always "cache-catcher", plus optional extras
+cache-catcher.sh -p /path/to/repo alias              # show built-in + extras from config
+cache-catcher.sh -p /path/to/repo alias print        # CSV: cache-catcher[,cc,...]
+cache-catcher.sh -p /path/to/repo alias set cc       # also accept "cc,dbg"
+cache-catcher.sh -p /path/to/repo alias clear        # drop extras
 ```
 
 ### Options
@@ -59,7 +61,7 @@ cache-catcher.sh alias print   # one line for scripts
 - `-t, --threshold N` — override threshold
 - `-p, --project DIR` — project root (where `.claude/` lives). Put **before** the command for `config init|get|set` so paths resolve correctly.
 
-Editable keys for `config get` / `config set`: `mode`, `lookback`, `threshold`, `min_tokens`, `streak`, `cooldown`, `ignore_first_turn`.
+Editable keys for `config get` / `config set`: `mode`, `lookback`, `threshold`, `min_tokens`, `streak`, `cooldown`, `ignore_first_turn`, `prompt_aliases` (comma-separated extra command prefixes for Claude Code; `cache-catcher` is always allowed).
 
 ### Develop / test in the hooker repo
 
@@ -67,7 +69,7 @@ Editable keys for `config get` / `config set`: `mode`, `lookback`, `threshold`, 
 bash src/cache-catcher/scripts/self-test.sh
 ```
 
-Uses a fake `HOME` and a synthetic transcript; checks `help`, `sessions`, `alias print`, and `config init` / `set` / `get`.
+Uses a fake `HOME` and a synthetic transcript; checks `help`, `sessions`, `alias print` / `set`, and `config init` / `set` / `get`.
 
 ## Configuration
 
@@ -87,6 +89,7 @@ min_tokens: 5000    # ignore small writes
 streak: 1           # bad turns before trigger
 cooldown: 60        # seconds between warnings
 ignore_first_turn: true
+prompt_aliases: cc    # optional: "cc status" works like "cache-catcher status"
 ```
 
 ## Also available as Hooker recipe

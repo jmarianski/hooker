@@ -25,3 +25,8 @@ cooldown: 60
 
 # ignore_first_turn: skip the very first turn (always has high creation)
 ignore_first_turn: true
+
+# prompt_aliases: optional extra UserPromptSubmit command prefixes (comma-separated).
+# "cache-catcher" is always recognized; add e.g. cc so both "cc status" and "cache-catcher status" work.
+# Allowed characters per prefix: letters, digits, ._-
+prompt_aliases: ""
