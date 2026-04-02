@@ -10,7 +10,10 @@
 #   history            Show cache metrics per turn
 #   sessions           List sessions with cache stats
 #   watch              Continuously monitor (like tail -f)
-#   config             Show current configuration
+#   config [show]      Show effective hook config (default)
+#   config init [-f]   Create .claude/cache-catcher.config.yml from plugin template
+#   config get KEY     Print effective value for KEY (project override wins)
+#   config set K V...  Set KEY in project file (creates file/dir if needed)
 #   alias [print]      How to add a shell alias so you can type "cache-catcher"
 #
 # Options:
@@ -36,6 +39,10 @@ SEP="─────────────────────────
 
 # --- Defaults ---
 CMD=""
+CONFIG_SUBCMD="show"
+CONFIG_KEY=""
+CONFIG_VAL=""
+CONFIG_INIT_FORCE=0
 ALIAS_MODE=""
 SESSION=""
 LAST_N=0
@@ -46,7 +53,51 @@ PROJECT_DIR="$(pwd)"
 # --- Parse args ---
 while [ $# -gt 0 ]; do
     case "$1" in
-        status|history|sessions|watch|config) CMD="$1" ;;
+        status|history|sessions|watch) CMD="$1" ;;
+        config)
+            CMD="config"
+            shift
+            CONFIG_SUBCMD=show
+            CONFIG_INIT_FORCE=0
+            if [ -n "${1:-}" ]; then
+                case "$1" in
+                    init)
+                        CONFIG_SUBCMD=init
+                        shift
+                        if [ "${1:-}" = "-f" ] || [ "${1:-}" = "--force" ]; then
+                            CONFIG_INIT_FORCE=1
+                            shift
+                        fi
+                        ;;
+                    get)
+                        CONFIG_SUBCMD=get
+                        shift
+                        CONFIG_KEY="${1:-}"
+                        [ -z "$CONFIG_KEY" ] && echo "Usage: cache-catcher config get <key>" >&2 && exit 1
+                        shift
+                        ;;
+                    set)
+                        CONFIG_SUBCMD=set
+                        shift
+                        CONFIG_KEY="${1:-}"
+                        [ -z "$CONFIG_KEY" ] && echo "Usage: cache-catcher config set <key> <value>" >&2 && exit 1
+                        shift
+                        CONFIG_VAL="$*"
+                        [ -z "$CONFIG_VAL" ] && echo "Usage: cache-catcher config set <key> <value>" >&2 && exit 1
+                        set --
+                        ;;
+                    show)
+                        CONFIG_SUBCMD=show
+                        shift
+                        ;;
+                    *)
+                        echo "Unknown config subcommand: $1 (use: show, init, get, set)" >&2
+                        exit 1
+                        ;;
+                esac
+            fi
+            continue
+            ;;
         help|-h|--help) CMD="help" ;;
         alias)
             CMD="alias"
@@ -79,7 +130,10 @@ cmd_help() {
     echo "  history           Per-turn cache read / creation metrics"
     echo "  sessions          All sessions (status = last 10 turns; -n N to change)"
     echo "  watch             Live monitor (polls transcript; Ctrl+C stops)"
-    echo "  config            Show effective hook config (project override vs default)"
+    echo "  config [show]     Show effective hook config (project vs plugin default)"
+    echo "  config init [-f]  Create .claude/cache-catcher.config.yml from template"
+    echo "  config get KEY    Print one setting (override wins)"
+    echo "  config set K V    Set one field in project config"
     echo "  alias [print]     Print shell alias so you can run \"cache-catcher\" (see below)"
     echo ""
     echo -e "${BOLD}Options:${NC} (for status, history, sessions, watch)"
@@ -121,6 +175,151 @@ cmd_alias() {
     echo -e "${DIM}After installing the plugin, the script usually lives under ~/.claude/plugins/cache/...${NC}"
 }
 
+cc_default_cfg() {
+    echo "$(cd "$(dirname "$0")" && pwd)/../config.yml"
+}
+
+cc_project_cfg() {
+    echo "${PROJECT_DIR}/.claude/cache-catcher.config.yml"
+}
+
+cc_config_valid_key() {
+    case "$1" in
+        mode|lookback|threshold|min_tokens|streak|cooldown|ignore_first_turn) return 0 ;;
+        *)
+            echo "Unknown key: $1" >&2
+            echo "Allowed: mode lookback threshold min_tokens streak cooldown ignore_first_turn" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Read scalar value for key from a cache-catcher style yml (key: value, no quotes required)
+cc_yml_get() {
+    local key="$1" file="$2"
+    [ -f "$file" ] || return 0
+    sed -n "s/^${key}:[[:space:]]*//p" "$file" 2>/dev/null | head -1 | sed 's/[[:space:]]*#.*$//;s/[[:space:]]*$//'
+}
+
+cc_yml_update_or_append() {
+    local k="$1" v="$2" f="$3"
+    local t found=0 line pref dir
+    dir=$(dirname "$f")
+    mkdir -p "$dir"
+    t=$(mktemp 2>/dev/null || echo "/tmp/cc-yml-$$.tmp")
+    if [ -f "$f" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                \#*|'') echo "$line" >> "$t" ;;
+                *)
+                    pref=${line%%:*}
+                    pref=$(echo "$pref" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    if [ "$pref" = "$k" ]; then
+                        echo "${k}: ${v}" >> "$t"
+                        found=1
+                    else
+                        echo "$line" >> "$t"
+                    fi
+                    ;;
+            esac
+        done < "$f"
+    fi
+    if [ "$found" -eq 0 ]; then
+        [ -s "$t" ] && echo "" >> "$t"
+        echo "${k}: ${v}" >> "$t"
+    fi
+    mv "$t" "$f"
+}
+
+cmd_config_show() {
+    echo -e "${BOLD}Cache Catcher Configuration${NC}"
+    echo ""
+
+    local PCFG
+    PCFG=$(cc_project_cfg)
+    local DEF
+    DEF=$(cc_default_cfg)
+
+    if [ -f "$PCFG" ]; then
+        echo -e "${DIM}Source: ${PCFG} (project override)${NC}"
+    else
+        echo -e "${DIM}Source: ${DEF} (default — no project file)${NC}"
+    fi
+    echo -e "${DIM}Project root: ${PROJECT_DIR}${NC}"
+    echo ""
+
+    local CFG="$DEF"
+    [ -f "$PCFG" ] && CFG="$PCFG"
+
+    if [ -f "$CFG" ]; then
+        while IFS= read -r LINE; do
+            case "$LINE" in
+                \#*) echo -e "${DIM}${LINE}${NC}" ;;
+                "") echo "" ;;
+                *)
+                    KEY=$(echo "$LINE" | cut -d: -f1)
+                    VAL=$(echo "$LINE" | cut -d: -f2- | sed 's/^[[:space:]]*//')
+                    echo -e "  ${BOLD}${KEY}${NC}: ${CYAN}${VAL}${NC}"
+                    ;;
+            esac
+        done < "$CFG"
+    else
+        echo -e "${YELLOW}No config file found at ${DEF}${NC}" >&2
+    fi
+}
+
+cmd_config_init() {
+    local PCFG DEF
+    PCFG=$(cc_project_cfg)
+    DEF=$(cc_default_cfg)
+    if [ ! -f "$DEF" ]; then
+        echo -e "${RED}Plugin template missing: ${DEF}${NC}" >&2
+        exit 1
+    fi
+    if [ -f "$PCFG" ] && [ "$CONFIG_INIT_FORCE" -eq 0 ] 2>/dev/null; then
+        echo -e "${YELLOW}Already exists: ${PCFG}${NC}" >&2
+        echo "Use: cache-catcher config init --force" >&2
+        exit 1
+    fi
+    mkdir -p "$(dirname "$PCFG")"
+    cp "$DEF" "$PCFG"
+    echo -e "${GREEN}Wrote ${PCFG}${NC}"
+}
+
+cmd_config_get() {
+    cc_config_valid_key "$1" || exit 1
+    local PCFG DEF d p val
+    DEF=$(cc_default_cfg)
+    PCFG=$(cc_project_cfg)
+    d=$(cc_yml_get "$1" "$DEF")
+    p=""
+    [ -f "$PCFG" ] && p=$(cc_yml_get "$1" "$PCFG")
+    val="${p:-$d}"
+    if [ -z "$val" ]; then
+        echo "(empty)" >&2
+        exit 1
+    fi
+    printf '%s\n' "$val"
+}
+
+cmd_config_set() {
+    cc_config_valid_key "$1" || exit 1
+    local PCFG
+    PCFG=$(cc_project_cfg)
+    cc_yml_update_or_append "$1" "$2" "$PCFG"
+    echo -e "${GREEN}Updated ${1} in ${PCFG}${NC}"
+}
+
+cmd_config_dispatch() {
+    case "$CONFIG_SUBCMD" in
+        show) cmd_config_show ;;
+        init) cmd_config_init ;;
+        get) cmd_config_get "$CONFIG_KEY" ;;
+        set) cmd_config_set "$CONFIG_KEY" "$CONFIG_VAL" ;;
+        *) echo "Internal error: bad config subcommand" >&2; exit 1 ;;
+    esac
+}
+
 case "$CMD" in
     ""|help)
         cmd_help
@@ -128,6 +327,10 @@ case "$CMD" in
         ;;
     alias)
         cmd_alias
+        exit 0
+        ;;
+    config)
+        cmd_config_dispatch
         exit 0
         ;;
 esac
@@ -530,36 +733,6 @@ cmd_watch() {
     done
 }
 
-cmd_config() {
-    echo -e "${BOLD}Cache Catcher Configuration${NC}"
-    echo ""
-
-    local CFG=".claude/cache-catcher.config.yml"
-    if [ -f "$CFG" ]; then
-        echo -e "${DIM}Source: ${CFG} (project override)${NC}"
-    else
-        local RECIPE_DIR
-        RECIPE_DIR=$(dirname "$0")
-        CFG="${RECIPE_DIR}/../config.yml"
-        echo -e "${DIM}Source: ${CFG} (default)${NC}"
-    fi
-    echo ""
-
-    if [ -f "$CFG" ]; then
-        while IFS= read -r LINE; do
-            case "$LINE" in
-                \#*) echo -e "${DIM}${LINE}${NC}" ;;
-                "") echo "" ;;
-                *)
-                    KEY=$(echo "$LINE" | cut -d: -f1)
-                    VAL=$(echo "$LINE" | cut -d: -f2- | sed 's/^[[:space:]]*//')
-                    echo -e "  ${BOLD}${KEY}${NC}: ${CYAN}${VAL}${NC}"
-                    ;;
-            esac
-        done < "$CFG"
-    fi
-}
-
 # --- JSON output wrapper ---
 if [ "$JSON_OUT" -eq 1 ]; then
     case "$CMD" in
@@ -626,6 +799,5 @@ case "$CMD" in
     history)  cmd_history ;;
     sessions) cmd_sessions ;;
     watch)    cmd_watch ;;
-    config)   cmd_config ;;
     *)        echo "Unknown command: $CMD" >&2; exit 1 ;;
 esac

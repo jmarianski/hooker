@@ -36,6 +36,16 @@ cache-catcher.sh watch
 
 # Show configuration (project override vs plugin default)
 cache-catcher.sh config
+# Or explicitly: cache-catcher.sh config show
+
+# Create project override from plugin template (writes .claude/cache-catcher.config.yml)
+cache-catcher.sh -p /path/to/repo config init
+cache-catcher.sh -p /path/to/repo config init --force   # overwrite existing
+
+# Read / write single keys (project file; get merges default + override)
+cache-catcher.sh -p /path/to/repo config get threshold
+cache-catcher.sh -p /path/to/repo config set mode block
+cache-catcher.sh -p /path/to/repo config set ignore_first_turn false
 
 # Copy-paste shell alias so you can type cache-catcher
 cache-catcher.sh alias
@@ -47,7 +57,9 @@ cache-catcher.sh alias print   # one line for scripts
 - `-n, --last N` — last N turns for `status` / `history`; for `sessions`, the window used for Read/Creation/Ratio/Status (default 10)
 - `-j, --json` — JSON output
 - `-t, --threshold N` — override threshold
-- `-p, --project DIR` — project directory
+- `-p, --project DIR` — project root (where `.claude/` lives). Put **before** the command for `config init|get|set` so paths resolve correctly.
+
+Editable keys for `config get` / `config set`: `mode`, `lookback`, `threshold`, `min_tokens`, `streak`, `cooldown`, `ignore_first_turn`.
 
 ### Develop / test in the hooker repo
 
@@ -55,7 +67,7 @@ cache-catcher.sh alias print   # one line for scripts
 bash src/cache-catcher/scripts/self-test.sh
 ```
 
-Uses a fake `HOME` and a synthetic transcript; checks `help`, `sessions` (no `integer expression` bug), tail-based healthy status, and `alias print`.
+Uses a fake `HOME` and a synthetic transcript; checks `help`, `sessions`, `alias print`, and `config init` / `set` / `get`.
 
 ## Configuration
 

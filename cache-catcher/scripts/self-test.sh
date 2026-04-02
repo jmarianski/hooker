@@ -71,4 +71,13 @@ case "$AP" in
         ;;
 esac
 
+CFG_ROOT=/tmp/cc-hooker-selftest-cfg
+rm -rf "$CFG_ROOT"
+mkdir -p "$CFG_ROOT"
+run -p "$CFG_ROOT" config init >/dev/null || { echo "FAIL: config init"; exit 1; }
+[ -f "$CFG_ROOT/.claude/cache-catcher.config.yml" ] || { echo "FAIL: project config missing"; exit 1; }
+run -p "$CFG_ROOT" config set lookback 9 >/dev/null || { echo "FAIL: config set"; exit 1; }
+G=$(run -p "$CFG_ROOT" config get lookback) || true
+[ "$G" = "9" ] || { echo "FAIL: config get lookback (got '$G')"; exit 1; }
+
 echo "OK cache-catcher self-test"
