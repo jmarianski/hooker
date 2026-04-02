@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,15 +17,43 @@ import (
 )
 
 func main() {
+	pluginFlag := flag.String("plugin", "all", "Plugin to build: hooker, cache-catcher, all")
+	flag.Parse()
+
 	srcDir, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(srcDir, "build.go")); err != nil {
 		srcDir, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 	}
 
-	rootDir := filepath.Join(srcDir, "..")
+	repoRoot := filepath.Join(srcDir, "..")
 
-	recipes := generators.LoadRecipes(srcDir)
-	pluginVersion := readVersion(srcDir)
+	switch *pluginFlag {
+	case "hooker":
+		buildHooker(srcDir, repoRoot)
+	case "cache-catcher":
+		buildCacheCatcher(srcDir, repoRoot)
+	case "all":
+		buildHooker(srcDir, repoRoot)
+		buildCacheCatcher(srcDir, repoRoot)
+		buildMarketplace(srcDir, repoRoot)
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown plugin: %s. Use hooker, cache-catcher, or all.\n", *pluginFlag)
+		os.Exit(1)
+	}
+
+	fmt.Println("Done.")
+}
+
+// =============================================================================
+// HOOKER BUILD
+// =============================================================================
+
+func buildHooker(srcDir, repoRoot string) {
+	hookerSrc := filepath.Join(srcDir, "hooker")
+	hookerOut := filepath.Join(repoRoot, "hooker")
+
+	recipes := generators.LoadRecipes(hookerSrc)
+	pluginVersion := readVersion(hookerSrc)
 
 	ctx := exec.NewContext(map[string]any{
 		"recipes":        recipes,
@@ -36,38 +66,129 @@ func main() {
 	fmt.Println("Building Hooker plugin...")
 
 	// 1. Commands — gonja templates
-	buildCommands(srcDir, rootDir, ctx)
+	buildCommands(hookerSrc, hookerOut, ctx)
 
 	// 2. Scripts — shell bundling (@bundle directives)
-	buildScripts(srcDir, rootDir)
+	buildScripts(hookerSrc, hookerOut)
 
 	// 3. Recipes — copy as-is + compile execute.sh
-	copyDir(filepath.Join(srcDir, "recipes"), filepath.Join(rootDir, "recipes"), "recipes")
-	compileExecutables(srcDir, rootDir, pluginVersion)
-	copyDir(filepath.Join(srcDir, "hooks"), filepath.Join(rootDir, "hooks"), "hooks")
-	copyDir(filepath.Join(srcDir, "templates"), filepath.Join(rootDir, "templates"), "templates")
+	copyDir(filepath.Join(hookerSrc, "recipes"), filepath.Join(hookerOut, "recipes"), "recipes")
+	compileExecutables(hookerSrc, hookerOut, pluginVersion)
+	copyDir(filepath.Join(hookerSrc, "hooks"), filepath.Join(hookerOut, "hooks"), "hooks")
+	copyDir(filepath.Join(hookerSrc, "templates"), filepath.Join(hookerOut, "templates"), "templates")
 
 	// 3b. Multi-language helpers (Python, JS) — for non-shell match scripts
-	copyDir(filepath.Join(srcDir, "helpers"), filepath.Join(rootDir, "helpers"), "helpers")
+	copyDir(filepath.Join(hookerSrc, "helpers"), filepath.Join(hookerOut, "helpers"), "helpers")
 
-	// 4. Plugin manifest + marketplace
-	copyFile(filepath.Join(srcDir, "plugin.json"), filepath.Join(rootDir, ".claude-plugin", "plugin.json"), "plugin.json")
-	copyFile(filepath.Join(srcDir, "marketplace.json"), filepath.Join(rootDir, ".claude-plugin", "marketplace.json"), "marketplace.json")
+	// 4. Plugin manifest
+	copyFile(filepath.Join(hookerSrc, "plugin.json"), filepath.Join(hookerOut, ".claude-plugin", "plugin.json"), "plugin.json")
 
 	// 5. .pluginignore
-	copyFile(filepath.Join(srcDir, ".pluginignore"), filepath.Join(rootDir, ".pluginignore"), ".pluginignore")
+	copyFile(filepath.Join(hookerSrc, ".pluginignore"), filepath.Join(hookerOut, ".pluginignore"), ".pluginignore")
 
-	// 6. README.md — gonja template at root level
-	buildFile(filepath.Join(srcDir, "README.md"), filepath.Join(rootDir, "README.md"), "README.md", ctx)
-
-	fmt.Println("Done.")
+	// 6. README.md — gonja template
+	buildFile(filepath.Join(hookerSrc, "README.md"), filepath.Join(hookerOut, "README.md"), "README.md", ctx)
 }
+
+// =============================================================================
+// CACHE-CATCHER BUILD
+// =============================================================================
+
+func buildCacheCatcher(srcDir, repoRoot string) {
+	ccSrc := filepath.Join(srcDir, "cache-catcher")
+	ccOut := filepath.Join(repoRoot, "cache-catcher")
+
+	if _, err := os.Stat(ccSrc); os.IsNotExist(err) {
+		fmt.Println("Skipping cache-catcher (no source directory)")
+		return
+	}
+
+	fmt.Println("Building Cache Catcher plugin...")
+
+	// 1. hooks.json
+	copyDir(filepath.Join(ccSrc, "hooks"), filepath.Join(ccOut, "hooks"), "hooks")
+
+	// 2. Scripts (CLI)
+	srcScripts := filepath.Join(ccSrc, "scripts")
+	outScripts := filepath.Join(ccOut, "scripts")
+	if _, err := os.Stat(srcScripts); err == nil {
+		os.MkdirAll(outScripts, 0755)
+		entries, _ := os.ReadDir(srcScripts)
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			src := filepath.Join(srcScripts, e.Name())
+			dst := filepath.Join(outScripts, e.Name())
+			data, _ := os.ReadFile(src)
+			writeFile(dst, data)
+			os.Chmod(dst, 0755)
+			fmt.Printf("  scripts/%s: copied\n", e.Name())
+		}
+	}
+
+	// 3. match.sh — copy as-is (self-contained, no hooker dependency)
+	copyFile(filepath.Join(ccSrc, "match.sh"), filepath.Join(ccOut, "match.sh"), "match.sh")
+	os.Chmod(filepath.Join(ccOut, "match.sh"), 0755)
+
+	// 4. Config + messages
+	copyFile(filepath.Join(ccSrc, "config.yml"), filepath.Join(ccOut, "config.yml"), "config.yml")
+	copyFile(filepath.Join(ccSrc, "messages.yml"), filepath.Join(ccOut, "messages.yml"), "messages.yml")
+
+	// 5. Plugin manifest
+	copyFile(filepath.Join(ccSrc, "plugin.json"), filepath.Join(ccOut, ".claude-plugin", "plugin.json"), "plugin.json")
+
+	// 6. .pluginignore + README
+	copyFile(filepath.Join(ccSrc, ".pluginignore"), filepath.Join(ccOut, ".pluginignore"), ".pluginignore")
+	copyFile(filepath.Join(ccSrc, "README.md"), filepath.Join(ccOut, "README.md"), "README.md")
+}
+
+// =============================================================================
+// MARKETPLACE — shared, reads both plugin.json versions
+// =============================================================================
+
+func buildMarketplace(srcDir, repoRoot string) {
+	hookerVersion := readVersion(filepath.Join(srcDir, "hooker"))
+	ccVersion := readVersion(filepath.Join(srcDir, "cache-catcher"))
+
+	marketplace := map[string]any{
+		"name":  "treetank-marketplace",
+		"owner": map[string]string{"name": "treetank"},
+		"plugins": []map[string]string{
+			{
+				"name":        "hooker",
+				"source":      "./hooker",
+				"description": "Universal hook injection framework. Inject prompts, reminders, and guardrails into 25+ Claude Code hook events.",
+				"version":     hookerVersion,
+			},
+			{
+				"name":        "cache-catcher",
+				"source":      "./cache-catcher",
+				"description": "Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads.",
+				"version":     ccVersion,
+			},
+		},
+	}
+
+	data, err := json.MarshalIndent(marketplace, "", "  ")
+	if err != nil {
+		fatal("marketplace.json", "marshaling", err)
+	}
+	data = append(data, '\n')
+
+	writeFile(filepath.Join(repoRoot, "marketplace.json"), data)
+	fmt.Println("  marketplace.json: built (repo root)")
+}
+
+// =============================================================================
+// SHARED BUILD FUNCTIONS
+// =============================================================================
 
 // --- Commands: Gonja templates ---
 
-func buildCommands(srcDir, rootDir string, ctx *exec.Context) {
-	srcCommands := filepath.Join(srcDir, "commands")
-	outCommands := filepath.Join(rootDir, "commands")
+func buildCommands(pluginSrc, pluginOut string, ctx *exec.Context) {
+	srcCommands := filepath.Join(pluginSrc, "commands")
+	outCommands := filepath.Join(pluginOut, "commands")
 
 	os.MkdirAll(outCommands, 0755)
 
@@ -116,9 +237,9 @@ func buildCommands(srcDir, rootDir string, ctx *exec.Context) {
 // --- Scripts: Shell bundling ---
 // Resolves `# @bundle path/to/file.sh` directives by inlining file contents.
 
-func buildScripts(srcDir, rootDir string) {
-	srcScripts := filepath.Join(srcDir, "scripts")
-	outScripts := filepath.Join(rootDir, "scripts")
+func buildScripts(pluginSrc, pluginOut string) {
+	srcScripts := filepath.Join(pluginSrc, "scripts")
+	outScripts := filepath.Join(pluginOut, "scripts")
 
 	entries, err := os.ReadDir(srcScripts)
 	if err != nil {
@@ -263,8 +384,8 @@ func copyFile(src, dst, label string) {
 
 // --- Read plugin version ---
 
-func readVersion(srcDir string) string {
-	data, err := os.ReadFile(filepath.Join(srcDir, "plugin.json"))
+func readVersion(pluginSrcDir string) string {
+	data, err := os.ReadFile(filepath.Join(pluginSrcDir, "plugin.json"))
 	if err != nil {
 		return "unknown"
 	}
@@ -278,9 +399,9 @@ func readVersion(srcDir string) string {
 
 // --- Compile standalone executables for recipes ---
 
-func compileExecutables(srcDir, rootDir, version string) {
+func compileExecutables(pluginSrc, pluginOut, version string) {
 	// Load bundled helpers.sh
-	helpersPath := filepath.Join(rootDir, "scripts", "helpers.sh")
+	helpersPath := filepath.Join(pluginOut, "scripts", "helpers.sh")
 	helpersContent, err := os.ReadFile(helpersPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  execute: WARNING — cannot read helpers.sh: %v\n", err)
@@ -288,10 +409,10 @@ func compileExecutables(srcDir, rootDir, version string) {
 	}
 
 	// Load multi-language helpers
-	pyHelpersContent, _ := os.ReadFile(filepath.Join(srcDir, "helpers", "hooker_helpers.py"))
-	jsHelpersContent, _ := os.ReadFile(filepath.Join(srcDir, "helpers", "hooker_helpers.js"))
+	pyHelpersContent, _ := os.ReadFile(filepath.Join(pluginSrc, "helpers", "hooker_helpers.py"))
+	jsHelpersContent, _ := os.ReadFile(filepath.Join(pluginSrc, "helpers", "hooker_helpers.js"))
 
-	recipesDir := filepath.Join(srcDir, "recipes")
+	recipesDir := filepath.Join(pluginSrc, "recipes")
 	entries, err := os.ReadDir(recipesDir)
 	if err != nil {
 		return
@@ -369,7 +490,7 @@ esac
 			continue
 		}
 		recipeDir := filepath.Join(recipesDir, e.Name())
-		outDir := filepath.Join(rootDir, "recipes", e.Name())
+		outDir := filepath.Join(pluginOut, "recipes", e.Name())
 
 		hookFiles, _ := os.ReadDir(recipeDir)
 		for _, hf := range hookFiles {
@@ -393,15 +514,11 @@ esac
 				// Remove INPUT=$(cat) — preamble handles it
 				body = regexp.MustCompile(`(?m)^INPUT=\$\(cat\)\s*\n`).ReplaceAllString(body, "")
 				body = strings.TrimSpace(body)
-				// Replace exit with return inside _hooker_main wrapper
-				// exit 0/1/2 in a bash function exits the PROCESS, not the function.
-				// _hooker_main epilogue translates return codes: 0→exit 0, 1→exit 0, 2+→exit 1
 				body = regexp.MustCompile(`\bexit (\d+)`).ReplaceAllString(body, "return $1")
 
 				var out strings.Builder
 				out.WriteString(preamble)
 				out.WriteString("# --- Inlined helpers ---\n")
-				// Strip shebang from helpers
 				h := string(helpersContent)
 				h = regexp.MustCompile(`(?m)^#!.*\n`).ReplaceAllString(h, "")
 				out.WriteString(h)
@@ -426,14 +543,11 @@ esac
 				}
 
 				body := string(matchContent)
-				// Remove shebang
 				body = regexp.MustCompile(`(?m)^#!.*\n`).ReplaceAllString(body, "")
-				// Remove hooker_helpers imports (standalone has them inlined)
 				body = regexp.MustCompile(`(?m)^from hooker_helpers import.*\n`).ReplaceAllString(body, "")
 				body = regexp.MustCompile(`(?m)^import hooker_helpers.*\n`).ReplaceAllString(body, "")
 				body = strings.TrimSpace(body)
 
-				// Strip module docstring and imports from helpers (already in preamble)
 				helpers := string(pyHelpersContent)
 				helpers = regexp.MustCompile(`(?ms)^""".*?"""\n`).ReplaceAllString(helpers, "")
 				helpers = regexp.MustCompile(`(?m)^import json\n`).ReplaceAllString(helpers, "")
@@ -490,32 +604,21 @@ except SystemExit as e:
 				}
 
 				body := string(matchContent)
-				// Remove shebang
 				body = regexp.MustCompile(`(?m)^#!.*\n`).ReplaceAllString(body, "")
-				// Capture the variable name used for hooker_helpers require
-				// e.g. "const hooker = require('hooker_helpers')" → varName = "hooker"
 				varNameMatch := regexp.MustCompile(`(?m)^const (\w+) = require\(['"]hooker_helpers['"]\)`).FindStringSubmatch(body)
-				// Remove require('hooker_helpers') variants
 				body = regexp.MustCompile(`(?m)^const .+ = require\(['"]hooker_helpers['"]\);?\n`).ReplaceAllString(body, "")
-				// Remove destructured require
 				body = regexp.MustCompile(`(?m)^const \{[^}]+\} = require\(['"]hooker_helpers['"]\);?\n`).ReplaceAllString(body, "")
-				// Remove ES module imports
 				body = regexp.MustCompile(`(?m)^import .+ from ['"]hooker_helpers['"];?\n`).ReplaceAllString(body, "")
-				// Strip namespace prefix (e.g. hooker.readInput → readInput)
 				if len(varNameMatch) > 1 {
 					prefix := varNameMatch[1] + "."
 					body = strings.ReplaceAll(body, prefix, "")
 				}
-				// Remove TS type annotations for standalone .js output (simple cases)
 				if ext == ".ts" {
-					// Remove : type annotations from variable declarations
 					body = regexp.MustCompile(`:\s*(string|number|boolean|any|object|void|Record<[^>]+>|[A-Z]\w*(?:\[\])?)\s*=`).ReplaceAllString(body, " =")
-					// Remove TS-only imports
 					body = regexp.MustCompile(`(?m)^import .+ from ['"][^'"]+['"];?\n`).ReplaceAllString(body, "")
 				}
 				body = strings.TrimSpace(body)
 
-				// Strip module comment, require('fs'), and module.exports from helpers
 				helpers := string(jsHelpersContent)
 				helpers = regexp.MustCompile(`(?ms)^/\*\*.*?\*/\n*`).ReplaceAllString(helpers, "")
 				helpers = regexp.MustCompile(`(?m)^const fs = require\('fs'\);?\n`).ReplaceAllString(helpers, "")
@@ -564,7 +667,7 @@ process.exit = function(code) {
 					}
 				}
 				if matchExists {
-					continue // match script takes precedence, already compiled above
+					continue
 				}
 
 				outPath := filepath.Join(outDir, hookName+".execute.sh")
@@ -578,7 +681,9 @@ process.exit = function(code) {
 	fmt.Printf("  recipes/: %d standalone executables compiled\n", count)
 }
 
-// --- Helpers ---
+// =============================================================================
+// HELPERS
+// =============================================================================
 
 func writeFile(path string, data []byte) {
 	if err := os.WriteFile(path, data, 0644); err != nil {

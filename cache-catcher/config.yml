@@ -1,0 +1,27 @@
+# Cache Catcher Configuration
+#
+# mode: what to do when cache anomaly detected
+#   "warn"  — inject warning, agent keeps working
+#   "block" — block tool use (deny), forces agent to stop
+mode: warn
+
+# lookback: how many recent assistant turns to analyze
+lookback: 3
+
+# threshold: minimum cache_creation / cache_read ratio to trigger
+# 1.0 means creation >= read, 0.5 means creation >= 50% of read
+threshold: 1.0
+
+# min_tokens: ignore turns where cache_creation is below this
+# (small writes are normal for incremental context growth)
+min_tokens: 5000
+
+# streak: how many consecutive bad turns before triggering
+# 1 = trigger on first observation, 2 = need two in a row, etc.
+streak: 1
+
+# cooldown: minimum seconds between warnings (prevents spam)
+cooldown: 60
+
+# ignore_first_turn: skip the very first turn (always has high creation)
+ignore_first_turn: true

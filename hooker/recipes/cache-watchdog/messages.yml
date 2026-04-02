@@ -1,0 +1,3 @@
+warning: "CACHE ANOMALY: cache_creation ({creation}) > cache_read ({read}) in last {count} turn(s). Ratio: {ratio}x. Possible broken prompt caching — context prefix may be changing between turns."
+block_reason: "Cache watchdog: cache_creation ({creation}) consistently exceeds cache_read ({read}). Ratio: {ratio}x over {count} turns. Session likely has broken caching. Consider: (1) check if hooks/tools are mutating system prompt, (2) restart session, (3) run `cache-watchdog status` for details."
+healthy: "Cache healthy: read={read}, creation={creation}, ratio={ratio}"

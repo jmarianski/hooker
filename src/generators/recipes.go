@@ -17,11 +17,20 @@ type Recipe struct {
 }
 
 var allHooks = []string{
+	// Base hooks — in plugin hooks.json, supported since CC 2.1.68
 	"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
 	"PostToolUse", "PostToolUseFailure", "Notification", "SubagentStart",
 	"SubagentStop", "Stop", "TeammateIdle", "TaskCompleted",
-	"InstructionsLoaded", "ConfigChange", "WorktreeCreate", "WorktreeRemove",
-	"PreCompact", "PostCompact", "Elicitation", "ElicitationResult", "SessionEnd",
+	"ConfigChange", "WorktreeCreate", "WorktreeRemove",
+	"PreCompact", "Elicitation", "ElicitationResult", "SessionEnd", "Setup",
+	// Overflow hooks — added via settings.json, version-gated
+	"InstructionsLoaded", // CC >= 2.1.69
+	"StopFailure",       // CC >= 2.1.78
+	"PostCompact",       // CC >= 2.1.78
+	"CwdChanged",        // CC >= 2.1.83
+	"FileChanged",       // CC >= 2.1.83
+	"TaskCreated",       // CC >= 2.1.84
+	"PermissionDenied",  // CC >= 2.1.89
 }
 
 func LoadRecipes(rootDir string) []Recipe {

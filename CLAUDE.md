@@ -2,8 +2,9 @@
 
 ## Versioning
 
-When pushing changes to skills (`commands/*.md`) or shell scripts (`scripts/*.sh`), always bump the version in:
-- `.claude-plugin/plugin.json`
+When pushing changes, bump the version in the relevant plugin's `plugin.json`:
+- Hooker: `src/hooker/plugin.json`
+- Cache Catcher: `src/cache-catcher/plugin.json`
 
 Use semantic versioning:
 - Patch (0.1.0 → 0.1.1): bug fixes, minor tweaks
@@ -12,18 +13,34 @@ Use semantic versioning:
 
 ## Structure
 
-**⚠ DO NOT edit files outside `src/` directly** — they are auto-generated build outputs.
+**⚠ DO NOT edit files outside `src/` directly** — `hooker/` and `cache-catcher/` are auto-generated build outputs.
 All changes go into `src/`, then `cd src && go run .` regenerates everything.
-Editing root files directly will be overwritten on next build.
 
-- `src/commands/*.md` — skill templates (Gonja/Jinja2) → `commands/`
-- `src/scripts/*.sh` — shell scripts with `# @bundle` includes → `scripts/`
-- `src/scripts/helpers/` — modular helper functions bundled into `scripts/helpers.sh`
-- `src/helpers/` — multi-language helper libraries (Python, JS) → `helpers/`
-- `src/recipes/` — pre-built hook configurations → `recipes/`
-- `src/hooks/` — hooks.json → `hooks/`
-- `src/templates/` — default templates → `templates/`
+### Repo layout (3 top-level dirs)
+
+- `src/` — all source code + build system
+- `hooker/` — build output (hooker plugin)
+- `cache-catcher/` — build output (cache-catcher plugin)
+- `marketplace.json` — shared marketplace (build output)
+
+### Source layout (src/)
+
+- `src/build.go` — build system (`--plugin hooker|cache-catcher|all`)
 - `src/generators/*.go` — Go functions providing template variables
+- `src/hooker/` — hooker plugin sources:
+  - `commands/*.md` — skill templates (Gonja/Jinja2) → `hooker/commands/`
+  - `scripts/*.sh` — shell scripts with `# @bundle` includes → `hooker/scripts/`
+  - `scripts/helpers/` — modular helper functions bundled into `scripts/helpers.sh`
+  - `helpers/` — multi-language helper libraries (Python, JS) → `hooker/helpers/`
+  - `recipes/` — pre-built hook configurations → `hooker/recipes/`
+  - `hooks/` — hooks.json → `hooker/hooks/`
+  - `templates/` — default templates → `hooker/templates/`
+  - `plugin.json`, `.pluginignore`, `README.md`
+- `src/cache-catcher/` — cache-catcher plugin sources:
+  - `match.sh` — standalone hook script → `cache-catcher/match.sh`
+  - `hooks/hooks.json` — just PostToolUse → `cache-catcher/hooks/`
+  - `scripts/cache-catcher.sh` — CLI tool → `cache-catcher/scripts/`
+  - `config.yml`, `messages.yml`, `plugin.json`, `.pluginignore`, `README.md`
 
 ## Cross-platform
 
@@ -42,7 +59,7 @@ Templates use YAML frontmatter with `type` field:
 
 ## Recipe structure
 
-Each recipe lives in `src/recipes/{recipe-name}/` with these files:
+Each recipe lives in `src/hooker/recipes/{recipe-name}/` with these files:
 
 - `recipe.json` — metadata (required):
   ```json
@@ -202,12 +219,25 @@ Project `.claude/hooker/` > User `~/.claude/hooker/` > Plugin `templates/`
 
 ## Build
 
-Run `cd src && go run .` to build all plugin files from sources.
+Run `cd src && go run .` to build all plugins from sources.
 
-The builder:
-- **Commands**: Gonja templates (`src/commands/`) → `commands/`
-- **Scripts**: Shell bundling (`# @bundle` directives) → `scripts/`
-- **Static files**: Copies recipes, hooks, templates, helpers, plugin.json, .pluginignore
+```bash
+cd src && go run .                        # build all (default)
+cd src && go run . --plugin hooker        # build hooker only
+cd src && go run . --plugin cache-catcher # build cache-catcher only
+```
+
+The builder for hooker:
+- **Commands**: Gonja templates (`src/hooker/commands/`) → `hooker/commands/`
+- **Scripts**: Shell bundling (`# @bundle` directives) → `hooker/scripts/`
+- **Recipes**: Copy + compile standalone executables → `hooker/recipes/`
+- **Static files**: hooks, templates, helpers, plugin.json, .pluginignore
+
+The builder for cache-catcher:
+- **match.sh**: Copied as-is (self-contained) → `cache-catcher/match.sh`
+- **Static files**: hooks.json, CLI script, config, messages, plugin.json
+
+Shared: `marketplace.json` → repo root (reads versions from both plugin.json files).
 
 Generator functions in `src/generators/*.go` provide template variables.
 

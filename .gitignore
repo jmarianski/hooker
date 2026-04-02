@@ -22,3 +22,9 @@ Thumbs.db
 
 # Generated session notes
 .claude/hooker/session-notes.md
+
+# Large extracted Claude Code bundles
+.claude-code/
+
+# Diagnostic archives
+.cc-diag-archive/
