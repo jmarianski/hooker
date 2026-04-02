@@ -176,8 +176,10 @@ func buildMarketplace(srcDir, repoRoot string) {
 	}
 	data = append(data, '\n')
 
-	writeFile(filepath.Join(repoRoot, "marketplace.json"), data)
-	fmt.Println("  marketplace.json: built (repo root)")
+	// CC defaults to .claude-plugin/marketplace.json when resolving marketplaces
+	os.MkdirAll(filepath.Join(repoRoot, ".claude-plugin"), 0755)
+	writeFile(filepath.Join(repoRoot, ".claude-plugin", "marketplace.json"), data)
+	fmt.Println("  .claude-plugin/marketplace.json: built")
 }
 
 // =============================================================================
