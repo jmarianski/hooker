@@ -2,6 +2,9 @@
   "hooks": {
     "PostToolUse": [
       { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/match.sh" }] }
+    ],
+    "UserPromptSubmit": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/prompt.sh" }] }
     ]
   }
 }

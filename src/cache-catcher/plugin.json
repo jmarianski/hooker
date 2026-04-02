@@ -1,7 +1,7 @@
 {
   "name": "cache-catcher",
   "description": "Monitor Claude Code cache health. Warns or blocks when cache writes consistently exceed reads, indicating broken prompt caching.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Jacek Mariański",
     "url": "https://treetank.net"

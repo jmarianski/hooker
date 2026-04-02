@@ -127,9 +127,11 @@ func buildCacheCatcher(srcDir, repoRoot string) {
 		}
 	}
 
-	// 3. match.sh — copy as-is (self-contained, no hooker dependency)
+	// 3. Hook scripts — copy as-is (self-contained, no hooker dependency)
 	copyFile(filepath.Join(ccSrc, "match.sh"), filepath.Join(ccOut, "match.sh"), "match.sh")
 	os.Chmod(filepath.Join(ccOut, "match.sh"), 0755)
+	copyFile(filepath.Join(ccSrc, "prompt.sh"), filepath.Join(ccOut, "prompt.sh"), "prompt.sh")
+	os.Chmod(filepath.Join(ccOut, "prompt.sh"), 0755)
 
 	// 4. Config + messages
 	copyFile(filepath.Join(ccSrc, "config.yml"), filepath.Join(ccOut, "config.yml"), "config.yml")
