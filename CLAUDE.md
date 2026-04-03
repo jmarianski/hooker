@@ -6,6 +6,9 @@ When pushing changes, bump the version in the relevant plugin's `plugin.json`:
 - Hooker: `src/hooker/plugin.json`
 - Cache Catcher: `src/cache-catcher/plugin.json`
 
+Only bump the plugin that actually changed. The build system (`go run .`) auto-generates
+`marketplace.json` from both plugin.json versions, so the marketplace always stays in sync.
+
 Use semantic versioning:
 - Patch (0.1.0 → 0.1.1): bug fixes, minor tweaks
 - Minor (0.1.0 → 0.2.0): new features, new templates
