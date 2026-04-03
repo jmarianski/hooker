@@ -8,13 +8,13 @@
       "description": "Universal hook injection framework. Inject prompts, reminders, and guardrails into 25+ Claude Code hook events.",
       "name": "hooker",
       "source": "./hooker",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     {
       "description": "Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads.",
       "name": "cache-catcher",
       "source": "./cache-catcher",
-      "version": "0.2.6"
+      "version": "0.2.7"
     }
   ]
 }
