@@ -1,15 +1,32 @@
-# hooker (monorepo)
+# hooker-marketplace
 
-This repository publishes **two** Claude Code plugins from one [marketplace](https://gitlab.com/treetank/hooker):
+Two Claude Code plugins from one [marketplace](https://gitlab.com/treetank/hooker).
 
-| Plugin | Purpose |
-|--------|---------|
-| **hooker** | Hook injection framework (recipes, merged hooks, standalone builds). |
-| **cache-catcher** | Prompt-cache health: warns or blocks when cache writes dominate reads. |
+## Hooker
 
-## Install (Claude Code)
+Universal hook injection framework for Claude Code. React to any of 25+ hook events
+(tool use, session start, compaction, stop, etc.) with simple shell/Python/JS scripts.
 
-Marketplace id matches the repo: **`hooker-marketplace`** (see `.claude-plugin/marketplace.json`).
+- **34 pre-built recipes** — safety guardrails, refactoring helpers, context injection, code quality checks
+- **Three install modes** — merged (stable), isolated, standalone (zero plugin dependency)
+- **Multi-language match scripts** — bash, Python, JS, TS, Go, PHP, Ruby
+- **Template system** — YAML frontmatter with inject/warn/block/deny/allow actions
+
+Full docs: [`hooker/README.md`](hooker/README.md)
+
+## Cache Catcher
+
+Monitors Claude Code prompt cache health in real time. Detects when `cache_creation`
+consistently exceeds `cache_read` — a sign of broken caching that silently multiplies API costs.
+
+- **PostToolUse hook** — analyzes transcript after each tool use, warns or stops the agent
+- **Resume detection** — distinguishes expected cache rebuilds (>1h gap) from bugs (<1h)
+- **Built-in CLI** — type `cache-catcher status` directly in Claude Code (zero API cost)
+- **Configurable** — warn vs block mode, thresholds, cooldown, custom aliases (`cc status`)
+
+Full docs: [`cache-catcher/README.md`](cache-catcher/README.md)
+
+## Install
 
 ```bash
 /plugin marketplace add https://gitlab.com/treetank/hooker.git
@@ -17,10 +34,7 @@ Marketplace id matches the repo: **`hooker-marketplace`** (see `.claude-plugin/m
 /plugin install cache-catcher@hooker-marketplace
 ```
 
-## Documentation
+## Contributing
 
-- **hooker** — [`hooker/README.md`](hooker/README.md) (built from `src/hooker/`)
-- **cache-catcher** — [`cache-catcher/README.md`](cache-catcher/README.md) (built from `src/cache-catcher/`)
-- **Contributing / layout** — [`CLAUDE.md`](CLAUDE.md)
-
-Source of truth for plugin sources is **`src/`**; top-level `hooker/` and `cache-catcher/` are build outputs (`cd src && go run .`).
+Source of truth is `src/`; top-level `hooker/` and `cache-catcher/` are build outputs.
+See [`CLAUDE.md`](CLAUDE.md) for structure, build system, and versioning rules.
