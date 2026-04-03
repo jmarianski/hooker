@@ -240,7 +240,7 @@ Each recipe gets its own subdirectory. No merging needed.
 
 **Pros:** Clean separation. No merging. Each recipe can use `.md` templates independently.
 **Cons:** `run.sh` finds the hooker plugin by scanning known cache paths
-(`~/.claude/plugins/cache/hooker-marketplace/hooker/`) and calling its `inject.sh`.
+(`~/.claude/plugins/cache/hooker-marketplace/hooker/`; legacy installs may use `treetank-marketplace`) and calling its `inject.sh`.
 This internal path structure is **not guaranteed by Anthropic** and may change between
 Claude Code versions. If the plugin cache layout changes, `run.sh` must be updated.
 

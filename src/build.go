@@ -156,7 +156,7 @@ func buildMarketplace(srcDir, repoRoot string) {
 	ccVersion := readVersion(filepath.Join(srcDir, "cache-catcher"))
 
 	marketplace := map[string]any{
-		"name":  "treetank-marketplace",
+		"name":  "hooker-marketplace",
 		"owner": map[string]string{"name": "treetank"},
 		"plugins": []map[string]string{
 			{

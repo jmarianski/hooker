@@ -53,7 +53,8 @@ fi
 
 # Run CLI, capture output (strip ANSI for clean block message)
 # CACHE_CATCHER_FROM_CLAUDE_CODE: watch must not run here (infinite loop / no TTY)
-OUTPUT=$(CACHE_CATCHER_FROM_CLAUDE_CODE=1 bash "$CLI" $CMD 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+ESC=$(printf '\033')
+OUTPUT=$(CACHE_CATCHER_FROM_CLAUDE_CODE=1 bash "$CLI" $CMD 2>&1 | sed "s/${ESC}\[[0-9;]*m//g")
 
 if [ -z "$OUTPUT" ]; then
     OUTPUT="cache-catcher: no output for '$CMD'"

@@ -28,3 +28,4 @@ Thumbs.db
 
 # Diagnostic archives
 .cc-diag-archive/
+.claude/cache-catcher.config.yml

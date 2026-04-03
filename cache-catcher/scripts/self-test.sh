@@ -6,12 +6,10 @@ set -e
 ROOT=$(cd "$(dirname "$0")" && pwd)
 CLI="$ROOT/cache-catcher.sh"
 FAKE_HOME=$(mktemp -d "${TMPDIR:-/tmp}/cc-selftest.XXXXXX")
-cleanup() { rm -rf "$FAKE_HOME"; }
+PROJ=$(mktemp -d "${TMPDIR:-/tmp}/cc-selftest-proj.XXXXXX")
+CFG_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/cc-selftest-cfg.XXXXXX")
+cleanup() { rm -rf "$FAKE_HOME" "$PROJ" "$CFG_ROOT"; }
 trap cleanup EXIT
-
-PROJ=/tmp/cc-hooker-selftest-proj
-rm -rf "$PROJ"
-mkdir -p "$PROJ"
 
 SLUG=$(echo "$PROJ" | sed 's|^/||; s|/|-|g')
 PROJ_DATA="$FAKE_HOME/.claude/projects/-$SLUG"
@@ -81,9 +79,7 @@ case "$WX" in
         ;;
 esac
 
-CFG_ROOT=/tmp/cc-hooker-selftest-cfg
-rm -rf "$CFG_ROOT"
-mkdir -p "$CFG_ROOT"
+# CFG_ROOT already created above via mktemp
 run -p "$CFG_ROOT" config init >/dev/null || { echo "FAIL: config init"; exit 1; }
 [ -f "$CFG_ROOT/.claude/cache-catcher.config.yml" ] || { echo "FAIL: project config missing"; exit 1; }
 run -p "$CFG_ROOT" config set lookback 9 >/dev/null || { echo "FAIL: config set"; exit 1; }

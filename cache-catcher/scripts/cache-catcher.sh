@@ -657,12 +657,12 @@ cmd_status() {
             bad|miss) BAD=$((${BAD:-0} + 1)) ;;
             resume) RESUMES=$((RESUMES + 1)) ;;
         esac
-        echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${C}:${R}:${RESUMES}" > /tmp/cache-catcher-status.tmp
+        echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${C}:${R}:${RESUMES}" > /tmp/cache-catcher-status.$$.tmp
     done
 
-    if [ -f /tmp/cache-catcher-status.tmp ]; then
-        IFS=: read -r TOTAL_C TOTAL_R BAD LAST_C LAST_R RESUMES < /tmp/cache-catcher-status.tmp
-        rm -f /tmp/cache-catcher-status.tmp
+    if [ -f /tmp/cache-catcher-status.$$.tmp ]; then
+        IFS=: read -r TOTAL_C TOTAL_R BAD LAST_C LAST_R RESUMES < /tmp/cache-catcher-status.$$.tmp
+        rm -f /tmp/cache-catcher-status.$$.tmp
 
         ANALYZED=$TOTAL_TURNS
         [ "$LAST_N" -gt 0 ] 2>/dev/null && ANALYZED=$LAST_N
@@ -855,11 +855,11 @@ if [ "$JSON_OUT" -eq 1 ]; then
                     bad|miss) BAD=$((${BAD:-0} + 1)) ;;
                     resume) RESUMES=$((RESUMES + 1)) ;;
                 esac
-                echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${TURNS}:${RESUMES}" > /tmp/cc-json.tmp
+                echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${TURNS}:${RESUMES}" > /tmp/cc-json.$$.tmp
             done
-            if [ -f /tmp/cc-json.tmp ]; then
-                IFS=: read -r TC TR B TN RS < /tmp/cc-json.tmp
-                rm -f /tmp/cc-json.tmp
+            if [ -f /tmp/cc-json.$$.tmp ]; then
+                IFS=: read -r TC TR B TN RS < /tmp/cc-json.$$.tmp
+                rm -f /tmp/cc-json.$$.tmp
                 if [ "$TR" -gt 0 ] 2>/dev/null; then
                     RATIO=$(awk "BEGIN{printf \"%.4f\", ${TC}/${TR}}")
                 else

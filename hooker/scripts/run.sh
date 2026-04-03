@@ -51,13 +51,16 @@ find_hooker() {
     #    WARNING: path structure not guaranteed by Anthropic.
     #    If broken, update .claude/hooker/hooker.env
     resolve_latest "${HOME}/.claude/plugins/cache/hooker-marketplace/hooker" && return
+    resolve_latest "${HOME}/.claude/plugins/cache/treetank-marketplace/hooker" && return
 
     # 4. Marketplace source
-    local MP="${HOME}/.claude/plugins/marketplaces/hooker-marketplace"
-    if [ -f "${MP}/scripts/inject.sh" ]; then
-        echo "$MP"
-        return
-    fi
+    local MP
+    for MP in "${HOME}/.claude/plugins/marketplaces/hooker-marketplace" "${HOME}/.claude/plugins/marketplaces/treetank-marketplace"; do
+        if [ -f "${MP}/scripts/inject.sh" ]; then
+            echo "$MP"
+            return
+        fi
+    done
 
     # 5. Brute-force: find inject.sh anywhere in plugin dirs
     local FOUND
