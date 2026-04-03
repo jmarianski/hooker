@@ -28,7 +28,7 @@ _cc_json_escape() {
 _cc_warn() {
     local ESCAPED
     ESCAPED=$(printf '%s' "$1" | _cc_json_escape)
-    echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"systemMessage\": \"${ESCAPED}\"}}"
+    echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"${ESCAPED}\"}}"
 }
 
 _cc_deny() {
@@ -80,28 +80,37 @@ SESSION_ID=$(echo "$INPUT" | _cc_json_field session_id)
 # --- Cooldown ---
 STATE_DIR="/tmp/cache-catcher"
 mkdir -p "$STATE_DIR" 2>/dev/null
+LOG="${STATE_DIR}/debug.log"
 STATE_FILE="${STATE_DIR}/${SESSION_ID}.state"
+
+log() { echo "[$(date '+%H:%M:%S')] [match] $*" >> "$LOG"; }
+
+log "PostToolUse fired. session=${SESSION_ID}"
 
 if [ -f "$STATE_FILE" ]; then
     LAST_WARN=$(sed -n 's/^last_warn:[[:space:]]*//p' "$STATE_FILE" 2>/dev/null | head -1)
     if [ -n "$LAST_WARN" ]; then
         NOW=$(date +%s 2>/dev/null || echo 0)
         ELAPSED=$((NOW - LAST_WARN))
-        [ "$ELAPSED" -lt "$COOLDOWN" ] 2>/dev/null && exit 0
+        if [ "$ELAPSED" -lt "$COOLDOWN" ] 2>/dev/null; then
+            log "Cooldown active. elapsed=${ELAPSED}s < cooldown=${COOLDOWN}s. Skipping."
+            exit 0
+        fi
     fi
 fi
 
-# --- Resume detection: skip first few turns after resume ---
+# --- Resume detection ---
+# "long" marker = >1h gap, cache expired → skip ONE turn (rebuild expected)
+# No marker or short gap → don't skip (cache should be warm, miss = bad)
 RESUME_FILE="${STATE_DIR}/${SESSION_ID}.resumed"
 if [ -f "$RESUME_FILE" ]; then
-    # Count PostToolUse calls since resume (use resume file mtime vs now)
-    RESUME_AGE=$(( $(date +%s) - $(stat -c %Y "$RESUME_FILE" 2>/dev/null || stat -f %m "$RESUME_FILE" 2>/dev/null || echo 0) ))
-    if [ "$RESUME_AGE" -lt 30 ] 2>/dev/null; then
-        # Within 30s of resume — skip (cache is rebuilding)
+    RESUME_TYPE=$(cat "$RESUME_FILE" 2>/dev/null)
+    rm -f "$RESUME_FILE" 2>/dev/null
+    if [ "$RESUME_TYPE" = "long" ]; then
+        log "Long resume marker found. Skipping one turn."
         exit 0
     fi
-    # Resume grace period expired, remove marker
-    rm -f "$RESUME_FILE" 2>/dev/null
+    log "Short resume (no skip). Cache should be warm."
 fi
 
 # --- Extract cache metrics from recent assistant turns ---
@@ -179,8 +188,9 @@ done < "$TMP_FILE"
 
 rm -f "$TMP_FILE" 2>/dev/null
 
-[ "$TURN_COUNT" -eq 0 ] && exit 0
-[ "$BAD_COUNT" -lt "$STREAK" ] 2>/dev/null && exit 0
+log "Analysis: turns=${TURN_COUNT} bad=${BAD_COUNT} streak_threshold=${STREAK} creation=${TOTAL_CREATION} read=${TOTAL_READ}"
+[ "$TURN_COUNT" -eq 0 ] && { log "No turns to analyze. Exiting."; exit 0; }
+[ "$BAD_COUNT" -lt "$STREAK" ] 2>/dev/null && { log "Bad count ${BAD_COUNT} < streak ${STREAK}. No alert."; exit 0; }
 
 # --- Calculate ratio ---
 if [ "$TOTAL_READ" -gt 0 ] 2>/dev/null; then
@@ -201,18 +211,24 @@ turns_analyzed: ${TURN_COUNT}
 EOF
 
 # --- Respond ---
+log "ALERT! mode=${MODE} ratio=${RATIO} bad=${BAD_COUNT}"
+MSG_WARNING=$(msg_get warning "CACHE ANOMALY: cache writes exceed reads. Ratio: ${RATIO}x")
+MSG_WARNING="${MSG_WARNING//\{creation\}/$TOTAL_CREATION}"
+MSG_WARNING="${MSG_WARNING//\{read\}/$TOTAL_READ}"
+MSG_WARNING="${MSG_WARNING//\{ratio\}/$RATIO}"
+MSG_WARNING="${MSG_WARNING//\{count\}/$BAD_COUNT}"
+
 if [ "$MODE" = "block" ]; then
     MSG=$(msg_get block_reason "Cache catcher: cache writes exceed reads. Ratio: ${RATIO}x")
     MSG="${MSG//\{creation\}/$TOTAL_CREATION}"
     MSG="${MSG//\{read\}/$TOTAL_READ}"
     MSG="${MSG//\{ratio\}/$RATIO}"
     MSG="${MSG//\{count\}/$BAD_COUNT}"
-    _cc_deny "$MSG"
+    ESCAPED=$(printf '%s' "$MSG" | _cc_json_escape)
+    # "continue": false → preventContinuation, agent stops
+    echo "{\"continue\": false, \"stopReason\": \"${ESCAPED}\", \"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"${ESCAPED}\"}}"
 else
-    MSG=$(msg_get warning "CACHE ANOMALY: cache writes exceed reads. Ratio: ${RATIO}x")
-    MSG="${MSG//\{creation\}/$TOTAL_CREATION}"
-    MSG="${MSG//\{read\}/$TOTAL_READ}"
-    MSG="${MSG//\{ratio\}/$RATIO}"
-    MSG="${MSG//\{count\}/$BAD_COUNT}"
-    _cc_warn "$MSG"
+    # exit 2 + stderr → blockingError visible to user in terminal, agent continues
+    echo "$MSG_WARNING" >&2
+    exit 2
 fi

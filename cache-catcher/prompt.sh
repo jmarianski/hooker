@@ -5,13 +5,15 @@
 
 INPUT=$(cat)
 
-# Extract prompt field from hook JSON
+# Extract fields from hook JSON
 PROMPT=$(echo "$INPUT" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+HOOK_CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-${HOOK_CWD:-$(pwd)}}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.yml"
-if [ -f ".claude/cache-catcher.config.yml" ]; then
-    CONFIG_FILE=".claude/cache-catcher.config.yml"
+if [ -f "${PROJECT_DIR}/.claude/cache-catcher.config.yml" ]; then
+    CONFIG_FILE="${PROJECT_DIR}/.claude/cache-catcher.config.yml"
 fi
 
 yml_get() {
@@ -54,7 +56,7 @@ fi
 # Run CLI, capture output (strip ANSI for clean block message)
 # CACHE_CATCHER_FROM_CLAUDE_CODE: watch must not run here (infinite loop / no TTY)
 ESC=$(printf '\033')
-OUTPUT=$(CACHE_CATCHER_FROM_CLAUDE_CODE=1 bash "$CLI" $CMD 2>&1 | sed "s/${ESC}\[[0-9;]*m//g")
+OUTPUT=$(CACHE_CATCHER_FROM_CLAUDE_CODE=1 bash "$CLI" -p "$PROJECT_DIR" $CMD 2>&1 | sed "s/${ESC}\[[0-9;]*m//g")
 
 if [ -z "$OUTPUT" ]; then
     OUTPUT="cache-catcher: no output for '$CMD'"

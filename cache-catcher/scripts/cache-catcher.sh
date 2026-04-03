@@ -614,6 +614,19 @@ fmt_tokens() {
     fi
 }
 
+# Convert ISO 8601 UTC timestamp to local HH:MM:SS
+# Input: 2026-04-03T08:09:25.123Z or just the timestamp string
+fmt_time() {
+    local TS="$1"
+    [ -z "$TS" ] || [ "$TS" = "?" ] && echo "?" && return
+    # Try GNU date first, then macOS date, then fallback to raw UTC
+    local LOCAL
+    LOCAL=$(date -d "$TS" '+%H:%M:%S' 2>/dev/null) || \
+    LOCAL=$(date -jf '%Y-%m-%dT%H:%M:%S' "$(echo "$TS" | sed 's/\.[0-9]*Z$//')" '+%H:%M:%S' 2>/dev/null) || \
+    LOCAL=$(echo "$TS" | sed 's/.*T\([0-9:]*\).*/\1/' | cut -c1-8)
+    echo "$LOCAL"
+}
+
 # --- Commands ---
 
 cmd_status() {
@@ -654,14 +667,14 @@ cmd_status() {
         TOTAL_R=$((${TOTAL_R:-0} + R))
         RESUMES=$((${RESUMES:-0}))
         case "$V" in
-            bad|miss) BAD=$((${BAD:-0} + 1)) ;;
+            bad|miss) BAD=$((${BAD:-0} + 1)); LAST_BAD_T=$T; LAST_BAD_C=$C; LAST_BAD_R=$R; LAST_BAD_TS=$TS ;;
             resume) RESUMES=$((RESUMES + 1)) ;;
         esac
-        echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${C}:${R}:${RESUMES}" > /tmp/cache-catcher-status.$$.tmp
+        echo "${TOTAL_C}:${TOTAL_R}:${BAD:-0}:${C}:${R}:${RESUMES}:${LAST_BAD_T:-}:${LAST_BAD_C:-}:${LAST_BAD_R:-}:${LAST_BAD_TS:-}" > /tmp/cache-catcher-status.$$.tmp
     done
 
     if [ -f /tmp/cache-catcher-status.$$.tmp ]; then
-        IFS=: read -r TOTAL_C TOTAL_R BAD LAST_C LAST_R RESUMES < /tmp/cache-catcher-status.$$.tmp
+        IFS=: read -r TOTAL_C TOTAL_R BAD LAST_C LAST_R RESUMES LAST_BAD_T LAST_BAD_C LAST_BAD_R LAST_BAD_TS < /tmp/cache-catcher-status.$$.tmp
         rm -f /tmp/cache-catcher-status.$$.tmp
 
         ANALYZED=$TOTAL_TURNS
@@ -700,6 +713,10 @@ cmd_status() {
         echo -e "  Bad turns (recent):   ${BOLD}${RECENT_BAD}${NC} / ${RECENT_WINDOW} (last ${RECENT_WINDOW})"
         echo -e "  Bad turns (total):    ${BOLD}${BAD:-0}${NC} / ${ANALYZED}"
         [ "${RESUMES:-0}" -gt 0 ] && echo -e "  Resumes detected:     ${BOLD}${RESUMES}${NC}"
+        if [ -n "$LAST_BAD_T" ]; then
+            LAST_BAD_TIME=$(fmt_time "$LAST_BAD_TS")
+            echo -e "  Last faulty turn:     ${RED}#${LAST_BAD_T}${NC} at ${LAST_BAD_TIME} (read=$(fmt_tokens "$LAST_BAD_R") creation=$(fmt_tokens "$LAST_BAD_C"))"
+        fi
         echo ""
         echo -e "  Last turn: read=$(fmt_tokens "$LAST_R") creation=$(fmt_tokens "$LAST_C")"
     fi
@@ -742,7 +759,7 @@ cmd_history() {
             RATIO="0.00"
         fi
 
-        TIME=$(echo "$TS" | sed 's/.*T\([0-9:]*\).*/\1/' | cut -c1-8)
+        TIME=$(fmt_time "$TS")
 
         printf "%-5s %-10s %-10s %-8s ${VC}%-8s${NC} %s\n" \
             "$T" "$(fmt_tokens "$R")" "$(fmt_tokens "$C")" "$RATIO" "${VI} ${V}" "$TIME"

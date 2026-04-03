@@ -245,3 +245,17 @@ Shared: `marketplace.json` → repo root (reads versions from both plugin.json f
 Generator functions in `src/generators/*.go` provide template variables.
 
 **After ANY change in src/:** run `cd src && go run .` before committing.
+
+## Hot-reloading during development
+
+Shell scripts called by hooks can be replaced in the plugin cache **without restarting
+Claude Code**. CC re-reads the script on every hook invocation. Only the hook registration
+(hooks.json) and skill/command definitions require a restart.
+
+To hot-reload during development, copy the built script to the cache:
+```bash
+cp cache-catcher/scripts/cache-catcher.sh ~/.claude/plugins/cache/hooker-marketplace/cache-catcher/*/scripts/
+```
+
+**What requires restart:** hooks.json changes, new hooks, plugin.json, skills/commands.
+**What hot-reloads:** any shell script, match script, or config file referenced by an existing hook.
