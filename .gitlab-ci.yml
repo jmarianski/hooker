@@ -9,6 +9,7 @@ mirror-github:
     - master
   variables:
     GIT_STRATEGY: clone
+    GIT_DEPTH: 0
   script:
     - git config user.email "marianski.jacek@gmail.com"
     - git config user.name "treetank CI"
