@@ -10,7 +10,7 @@ mirror-github:
   variables:
     GIT_STRATEGY: clone
   script:
-    - git config user.email "ci@treetank.net"
+    - git config user.email "marianski.jacek@gmail.com"
     - git config user.name "treetank CI"
     - git checkout master
     - |
