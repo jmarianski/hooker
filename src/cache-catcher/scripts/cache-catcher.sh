@@ -673,9 +673,21 @@ cmd_status() {
             RATIO="inf"
         fi
 
-        if [ "${BAD:-0}" -eq 0 ] 2>/dev/null; then
+        # Verdict based on RECENT turns (last 10), not entire session
+        RECENT_WINDOW=10
+        RECENT_BAD=0
+        echo "$METRICS_WITH_RESUME" | tail -n "$RECENT_WINDOW" | while IFS='|' read -r T C R I O TS RESUME; do
+            [ -z "$T" ] && continue
+            V=$(verdict "$C" "$R" "$RESUME")
+            case "$V" in bad|miss) RECENT_BAD=$((RECENT_BAD + 1)) ;; esac
+            echo "$RECENT_BAD" > /tmp/cache-catcher-recent.$$.tmp
+        done
+        RECENT_BAD=0
+        [ -f /tmp/cache-catcher-recent.$$.tmp ] && RECENT_BAD=$(cat /tmp/cache-catcher-recent.$$.tmp) && rm -f /tmp/cache-catcher-recent.$$.tmp
+
+        if [ "$RECENT_BAD" -eq 0 ] 2>/dev/null; then
             echo -e "${GREEN}${BOLD}  HEALTHY${NC}  Cache is working properly"
-        elif [ "${BAD:-0}" -le 1 ] 2>/dev/null; then
+        elif [ "$RECENT_BAD" -le 1 ] 2>/dev/null; then
             echo -e "${YELLOW}${BOLD}  WARNING${NC}  Occasional cache misses detected"
         else
             echo -e "${RED}${BOLD}  BROKEN${NC}   Cache is consistently breaking"
@@ -685,7 +697,8 @@ cmd_status() {
         echo -e "  Total cache_read:     ${BOLD}$(fmt_tokens "$TOTAL_R")${NC}"
         echo -e "  Total cache_creation: ${BOLD}$(fmt_tokens "$TOTAL_C")${NC}"
         echo -e "  Creation/Read ratio:  ${BOLD}${RATIO}${NC}"
-        echo -e "  Bad turns:            ${BOLD}${BAD:-0}${NC} / ${ANALYZED}"
+        echo -e "  Bad turns (recent):   ${BOLD}${RECENT_BAD}${NC} / ${RECENT_WINDOW} (last ${RECENT_WINDOW})"
+        echo -e "  Bad turns (total):    ${BOLD}${BAD:-0}${NC} / ${ANALYZED}"
         [ "${RESUMES:-0}" -gt 0 ] && echo -e "  Resumes detected:     ${BOLD}${RESUMES}${NC}"
         echo ""
         echo -e "  Last turn: read=$(fmt_tokens "$LAST_R") creation=$(fmt_tokens "$LAST_C")"
