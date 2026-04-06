@@ -1,13 +1,15 @@
 #!/bin/bash
 # Cache Catcher — UserPromptSubmit interceptor
-# Catches "cache-catcher <cmd>" and optional extra prefixes from config (prompt_aliases).
-# Zero API cost — prompt never reaches Claude.
+# 1. Resume guard: blocks first prompt if cache likely cold (adaptive TTL / broken CC version)
+# 2. CLI: catches "cache-catcher <cmd>" and optional prompt_aliases.
 
 INPUT=$(cat)
 
-# Extract fields from hook JSON
+# Extract common fields
 PROMPT=$(echo "$INPUT" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+SESSION_ID=$(echo "$INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 HOOK_CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-${HOOK_CWD:-$(pwd)}}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,8 +19,134 @@ if [ -f "${PROJECT_DIR}/.claude/cache-catcher.config.yml" ]; then
 fi
 
 yml_get() {
-    sed -n "s/^${1}:[[:space:]]*\"\{0,1\}\([^\"]*\).*/\1/p" "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*#.*$//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/' || true
+    _v=$(sed -n "s/^${1}:[[:space:]]*\"\{0,1\}\([^\"]*\).*/\1/p" "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*#.*$//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/')
+    [ -n "$_v" ] && echo "$_v" || echo "${2}"
 }
+
+STATE_DIR="/tmp/cache-catcher"
+mkdir -p "$STATE_DIR" 2>/dev/null
+LOG="${STATE_DIR}/debug.log"
+log() { echo "[$(date '+%H:%M:%S')] [prompt] $*" >> "$LOG"; }
+
+# --- JSON escape helper ---
+_cc_json_escape() {
+    awk '{
+        gsub(/\\/, "\\\\")
+        gsub(/"/, "\\\"")
+        gsub(/\t/, "\\t")
+        gsub(/\r/, "\\r")
+        printf "%s", (NR>1 ? "\\n" : "") $0
+    }'
+}
+
+# =========================================================
+# 1. RESUME GUARD
+# =========================================================
+if [ -n "$SESSION_ID" ]; then
+    RESUME_FILE="${STATE_DIR}/${SESSION_ID}.resumed"
+    if [ -f "$RESUME_FILE" ]; then
+        GUARD_ENABLED=$(yml_get resume_guard true)
+        if [ "$GUARD_ENABLED" != "false" ]; then
+            # Parse resume info: "short:101" or "long:3700"
+            RESUME_INFO=$(cat "$RESUME_FILE" 2>/dev/null)
+            RESUME_TYPE=${RESUME_INFO%%:*}
+            RESUME_GAP=${RESUME_INFO##*:}
+            # Fallback if gap missing (old format without colon)
+            case "$RESUME_GAP" in
+                ''|*[!0-9]*) RESUME_GAP=0 ;;
+            esac
+
+            # Read adaptive TTL
+            TTL_FILE="${STATE_DIR}/adaptive_ttl"
+            CACHE_TTL=$(cat "$TTL_FILE" 2>/dev/null | tr -d '[:space:]')
+            [ -z "$CACHE_TTL" ] && CACHE_TTL=$(yml_get cache_ttl_default 60)
+            TTL_SECS=$((CACHE_TTL * 60))
+
+            # Get CC version (from transcript or cache)
+            CC_VER_CACHE="${STATE_DIR}/cc_version"
+            CC_VERSION=$(cat "$CC_VER_CACHE" 2>/dev/null)
+            if [ -f "$TRANSCRIPT" ]; then
+                CC_VERSION=$(grep '"version":"' "$TRANSCRIPT" | tail -1 | sed -n 's/.*"version":"\([0-9][0-9.]*\)".*/\1/p')
+                [ -n "$CC_VERSION" ] && echo "$CC_VERSION" > "$CC_VER_CACHE"
+            fi
+
+            # Check if version is in broken range (2.1.69 - 2.1.92)
+            FORCE_TTL=$(yml_get resume_guard_force_ttl false)
+            IS_BROKEN=0
+            if [ "$FORCE_TTL" != "true" ] && [ -n "$CC_VERSION" ]; then
+                _major=$(echo "$CC_VERSION" | cut -d. -f1)
+                _minor=$(echo "$CC_VERSION" | cut -d. -f2)
+                _patch=$(echo "$CC_VERSION" | cut -d. -f3)
+                if [ "$_major" = "2" ] && [ "$_minor" = "1" ] && [ "$_patch" -ge 69 ] 2>/dev/null; then
+                    IS_BROKEN=1
+                fi
+            fi
+
+            # Decide whether to block
+            SHOULD_BLOCK=0
+            BLOCK_REASON=""
+            if [ "$IS_BROKEN" -eq 1 ]; then
+                SHOULD_BLOCK=1
+                BLOCK_REASON="unpatched"
+            elif [ "$RESUME_GAP" -gt "$TTL_SECS" ] 2>/dev/null; then
+                SHOULD_BLOCK=1
+                BLOCK_REASON="ttl"
+            fi
+
+            if [ "$SHOULD_BLOCK" -eq 1 ]; then
+                # Loop safety: if user sends exact same prompt again, let it through
+                PROMPT_HASH=$(printf '%s' "$PROMPT" | cksum | awk '{print $1}')
+                GUARD_FILE="${STATE_DIR}/${SESSION_ID}.guard"
+
+                if [ -f "$GUARD_FILE" ]; then
+                    STORED_HASH=$(cat "$GUARD_FILE" 2>/dev/null)
+                    if [ "$STORED_HASH" = "$PROMPT_HASH" ]; then
+                        rm -f "$GUARD_FILE"
+                        log "Guard bypassed (same prompt confirmed). Letting through."
+                        SHOULD_BLOCK=0
+                    fi
+                fi
+
+                if [ "$SHOULD_BLOCK" -eq 1 ]; then
+                    GAP_MIN=$(( (RESUME_GAP + 59) / 60 ))
+
+                    # Token estimate from last known state
+                    TOKEN_NOTE=""
+                    STATE_FILE_M="${STATE_DIR}/${SESSION_ID}.state"
+                    if [ -f "$STATE_FILE_M" ]; then
+                        EST=$(sed -n 's/^last_creation:[[:space:]]*//p' "$STATE_FILE_M" 2>/dev/null | head -1)
+                        [ -n "$EST" ] && TOKEN_NOTE="Estimated cost: ~${EST} creation tokens. "
+                    fi
+
+                    if [ "$BLOCK_REASON" = "unpatched" ]; then
+                        VER_NOTE="UNPATCHED (${CC_VERSION}, broken since 2.1.69)"
+                        PATCH_HINT="To fix: https://www.npmjs.com/package/claude-code-cache-fix
+If CC > 2.1.92 has fixed it for you, set in config: resume_guard_force_ttl: true"
+                    else
+                        VER_NOTE="patched (${CC_VERSION})"
+                        PATCH_HINT=""
+                    fi
+
+                    MSG=$(printf '⚠️  RESUME GUARD: cache likely cold after resume.\n%sVersion: %s. Gap: %d min, TTL: %d min.\n%s\nIf you are sure — send THE EXACT SAME message again (↑).\nTo disable: cache-catcher config set resume_guard false' \
+                        "$TOKEN_NOTE" "$VER_NOTE" "$GAP_MIN" "$CACHE_TTL" "$PATCH_HINT")
+
+                    echo "$PROMPT_HASH" > "$GUARD_FILE"
+                    log "Blocked. reason=${BLOCK_REASON} gap=${RESUME_GAP}s ttl=${TTL_SECS}s broken=${IS_BROKEN} ver=${CC_VERSION}"
+
+                    ESCAPED=$(printf '%s' "$MSG" | _cc_json_escape)
+                    echo "{\"decision\": \"block\", \"reason\": \"${ESCAPED}\"}"
+                    exit 0
+                fi
+            else
+                log "Resume guard: no block. broken=${IS_BROKEN} gap=${RESUME_GAP}s ttl=${TTL_SECS}s"
+            fi
+        fi
+    fi
+fi
+
+# =========================================================
+# 2. CLI COMMAND INTERCEPT
+# =========================================================
 
 # Resolve command prefix: cache-catcher always, then comma-separated prompt_aliases
 PREFIX=""
@@ -63,12 +191,5 @@ if [ -z "$OUTPUT" ]; then
 fi
 
 # Block prompt — show output to user, don't send to Claude
-ESCAPED=$(printf '%s' "$OUTPUT" | awk '{
-    gsub(/\\/, "\\\\")
-    gsub(/"/, "\\\"")
-    gsub(/\t/, "\\t")
-    gsub(/\r/, "\\r")
-    printf "%s", (NR>1 ? "\\n" : "") $0
-}')
-
+ESCAPED=$(printf '%s' "$OUTPUT" | _cc_json_escape)
 echo "{\"decision\": \"block\", \"reason\": \"${ESCAPED}\"}"

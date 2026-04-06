@@ -30,3 +30,21 @@ ignore_first_turn: true
 # "cache-catcher" is always recognized; add e.g. cc so both "cc status" and "cache-catcher status" work.
 # Allowed characters per prefix: letters, digits, ._-
 prompt_aliases: ""
+
+# --- Resume guard ---
+# Blocks the first prompt after resume when cache is likely cold.
+
+# resume_guard: enable/disable resume guard
+resume_guard: true
+
+# cache_ttl_default: assumed cache TTL in minutes (adapts automatically)
+# Set to 60 for conservative (warn after 1h idle), 5 for paranoid.
+cache_ttl_default: 60
+
+# cache_ttl_min: minimum TTL to learn down to (minutes)
+# Set after detecting bad cache on a short resume.
+cache_ttl_min: 5
+
+# resume_guard_force_ttl: if true, use TTL check even on known-broken versions.
+# Useful once CC >= 2.1.93+ fixes the resume bug and you want to opt in early.
+resume_guard_force_ttl: false

@@ -28,11 +28,11 @@ if [ -f "$STATE_FILE" ]; then
     log "Resume detected. last_active=${LAST_ACTIVE} now=${NOW} gap=${GAP}s"
 
     if [ "$GAP" -gt 3600 ] 2>/dev/null; then
-        echo "long" > "$RESUME_FILE"
-        log "Long resume (>1h). Wrote 'long' to ${RESUME_FILE}"
+        echo "long:$GAP" > "$RESUME_FILE"
+        log "Long resume (>1h). gap=${GAP}s"
     else
-        rm -f "$RESUME_FILE" 2>/dev/null
-        log "Short resume (<1h). No skip marker."
+        echo "short:$GAP" > "$RESUME_FILE"
+        log "Short resume (<1h). gap=${GAP}s"
     fi
 else
     log "First start (no session file). Creating ${STATE_FILE}"
