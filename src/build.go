@@ -55,6 +55,7 @@ func buildHooker(srcDir, repoRoot string) {
 	recipes := generators.LoadRecipes(hookerSrc)
 	pluginVersion := readVersion(hookerSrc)
 
+
 	ctx := exec.NewContext(map[string]any{
 		"recipes":        recipes,
 		"categories":     generators.GroupByCategory(recipes),
@@ -88,6 +89,70 @@ func buildHooker(srcDir, repoRoot string) {
 
 	// 6. README.md — gonja template
 	buildFile(filepath.Join(hookerSrc, "README.md"), filepath.Join(hookerOut, "README.md"), "README.md", ctx)
+
+	// 7. Plugin-recipes — recipes with "plugin" field also build as standalone plugins
+	buildPluginRecipes(hookerSrc, repoRoot, recipes)
+}
+
+// =============================================================================
+// PLUGIN-RECIPE BUILD
+// Recipes with "plugin": {"output": "..."} in recipe.json also build as
+// standalone plugins into {repoRoot}/{output}/.
+// =============================================================================
+
+func buildPluginRecipes(hookerSrc, repoRoot string, recipes []generators.Recipe) {
+	for _, r := range recipes {
+		if r.Plugin == nil {
+			continue
+		}
+		recipeDir := filepath.Join(hookerSrc, "recipes", r.ID)
+		outDir := filepath.Join(repoRoot, r.Plugin.Output)
+
+		fmt.Printf("Building plugin-recipe: %s → %s/\n", r.ID, r.Plugin.Output)
+		os.MkdirAll(outDir, 0755)
+		copyPluginRecipeFiles(recipeDir, outDir)
+		copyFile(
+			filepath.Join(recipeDir, "plugin.json"),
+			filepath.Join(outDir, ".claude-plugin", "plugin.json"),
+			"plugin.json",
+		)
+		fmt.Printf("  %s: done\n", r.Plugin.Output)
+	}
+}
+
+// copyPluginRecipeFiles copies all recipe files to the plugin output directory,
+// skipping recipe.json (hooker metadata) and plugin.json (handled separately).
+func copyPluginRecipeFiles(src, dst string) {
+	skip := map[string]bool{
+		"recipe.json": true,
+		"plugin.json": true,
+	}
+	count := 0
+	filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, path)
+		if info.IsDir() {
+			os.MkdirAll(filepath.Join(dst, rel), 0755)
+			return nil
+		}
+		if skip[rel] {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		writeFile(target, data)
+		if info.Mode()&0111 != 0 {
+			os.Chmod(target, 0755)
+		}
+		count++
+		return nil
+	})
+	fmt.Printf("  files: %d copied\n", count)
 }
 
 // =============================================================================
@@ -155,25 +220,34 @@ func buildCacheCatcher(srcDir, repoRoot string) {
 
 func buildMarketplace(srcDir, repoRoot string) {
 	hookerVersion := readVersion(filepath.Join(srcDir, "hooker"))
-	ccVersion := readVersion(filepath.Join(srcDir, "cache-catcher"))
+
+	plugins := []map[string]string{
+		{
+			"name":        "hooker",
+			"source":      "./hooker",
+			"description": "Universal hook injection framework. Inject prompts, reminders, and guardrails into 25+ Claude Code hook events.",
+			"version":     hookerVersion,
+		},
+	}
+
+	// Add plugin-recipes dynamically
+	for _, r := range generators.LoadRecipes(filepath.Join(srcDir, "hooker")) {
+		if r.Plugin == nil {
+			continue
+		}
+		ver := readVersion(filepath.Join(srcDir, "hooker", "recipes", r.ID))
+		plugins = append(plugins, map[string]string{
+			"name":        r.Plugin.Output,
+			"source":      "./" + r.Plugin.Output,
+			"description": r.Description,
+			"version":     ver,
+		})
+	}
 
 	marketplace := map[string]any{
-		"name":  "hooker-marketplace",
-		"owner": map[string]string{"name": "treetank"},
-		"plugins": []map[string]string{
-			{
-				"name":        "hooker",
-				"source":      "./hooker",
-				"description": "Universal hook injection framework. Inject prompts, reminders, and guardrails into 25+ Claude Code hook events.",
-				"version":     hookerVersion,
-			},
-			{
-				"name":        "cache-catcher",
-				"source":      "./cache-catcher",
-				"description": "Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads.",
-				"version":     ccVersion,
-			},
-		},
+		"name":    "hooker-marketplace",
+		"owner":   map[string]string{"name": "treetank"},
+		"plugins": plugins,
 	}
 
 	data, err := json.MarshalIndent(marketplace, "", "  ")
