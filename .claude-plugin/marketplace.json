@@ -15,6 +15,12 @@
       "name": "cache-catcher",
       "source": "./cache-catcher",
       "version": "0.4.0"
+    },
+    {
+      "description": "Blocks git push --force to main/master branches.",
+      "name": "no-force-push-main",
+      "source": "./no-force-push-main",
+      "version": "1.0.0"
     }
   ]
 }

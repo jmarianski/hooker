@@ -105,6 +105,7 @@ func buildPluginRecipes(hookerSrc, hookerOut, repoRoot string, recipes []generat
 		outDir := filepath.Join(repoRoot, r.Plugin.Output)
 
 		fmt.Printf("Building plugin-recipe: %s → %s/\n", r.ID, r.Plugin.Output)
+		os.RemoveAll(outDir)
 		os.MkdirAll(outDir, 0755)
 
 		// 1. Copy recipe files (skip recipe.json, plugin.json, hooks/)

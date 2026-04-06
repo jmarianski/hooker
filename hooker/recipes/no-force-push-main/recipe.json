@@ -1,6 +1,7 @@
 {
   "name": "No Force Push to Main",
   "description": "Blocks git push --force to main/master branches.",
+  "version": "1.0.0",
   "hooks": ["PreToolUse"],
   "matchers": {"PreToolUse": "Bash"},
   "cron": true,
@@ -10,5 +11,8 @@
     "author": "Common pattern (paddo.dev, Cameron Westland)",
     "license": "Blog posts",
     "url": "https://paddo.dev/blog/claude-code-hooks-guardrails/"
+  },
+  "plugin": {
+    "output": "no-force-push-main"
   }
 }
