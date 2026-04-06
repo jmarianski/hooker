@@ -103,14 +103,20 @@ fi
 # "long" marker = >1h gap, cache expired → skip ONE turn (rebuild expected)
 # No marker or short gap → don't skip (cache should be warm, miss = bad)
 RESUME_FILE="${STATE_DIR}/${SESSION_ID}.resumed"
+PTU_FILE="${STATE_DIR}/${SESSION_ID}.ptu_fired"
 if [ -f "$RESUME_FILE" ]; then
     RESUME_TYPE=$(cat "$RESUME_FILE" 2>/dev/null)
     rm -f "$RESUME_FILE" 2>/dev/null
+    # Signal Stop hook that PostToolUse handled this resume
+    echo "1" > "$PTU_FILE"
     if [ "$RESUME_TYPE" = "long" ]; then
         log "Long resume marker found. Skipping one turn."
         exit 0
     fi
     log "Short resume (no skip). Cache should be warm."
+else
+    # No resume — still mark PTU fired so Stop hook doesn't double-check
+    echo "1" > "$PTU_FILE"
 fi
 
 # --- Extract cache metrics from recent assistant turns ---

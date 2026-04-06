@@ -134,6 +134,8 @@ func buildCacheCatcher(srcDir, repoRoot string) {
 	os.Chmod(filepath.Join(ccOut, "prompt.sh"), 0755)
 	copyFile(filepath.Join(ccSrc, "session-start.sh"), filepath.Join(ccOut, "session-start.sh"), "session-start.sh")
 	os.Chmod(filepath.Join(ccOut, "session-start.sh"), 0755)
+	copyFile(filepath.Join(ccSrc, "stop.sh"), filepath.Join(ccOut, "stop.sh"), "stop.sh")
+	os.Chmod(filepath.Join(ccOut, "stop.sh"), 0755)
 
 	// 4. Config + messages
 	copyFile(filepath.Join(ccSrc, "config.yml"), filepath.Join(ccOut, "config.yml"), "config.yml")
