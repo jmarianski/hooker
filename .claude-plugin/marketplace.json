@@ -8,19 +8,13 @@
       "description": "Universal hook injection framework. Inject prompts, reminders, and guardrails into 25+ Claude Code hook events.",
       "name": "hooker",
       "source": "./hooker",
-      "version": "1.1.1"
+      "version": "1.2.0"
     },
     {
       "description": "Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads, indicating broken prompt caching.",
       "name": "cache-catcher",
       "source": "./cache-catcher",
-      "version": "0.4.0"
-    },
-    {
-      "description": "Blocks git push --force to main/master branches.",
-      "name": "no-force-push-main",
-      "source": "./no-force-push-main",
-      "version": "1.0.0"
+      "version": "0.5.0"
     }
   ]
 }
