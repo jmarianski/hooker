@@ -1,0 +1,15 @@
+{
+  "name": "Cache Catcher",
+  "description": "Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads, indicating broken prompt caching.",
+  "hooks": ["SessionStart", "UserPromptSubmit", "PostToolUse", "Stop"],
+  "category": "monitoring",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Mariański",
+    "license": "MIT",
+    "url": "https://treetank.net"
+  },
+  "plugin": {
+    "output": "cache-catcher"
+  }
+}

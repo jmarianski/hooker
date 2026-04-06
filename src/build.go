@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	pluginFlag := flag.String("plugin", "all", "Plugin to build: hooker, cache-catcher, all")
+	pluginFlag := flag.String("plugin", "all", "Plugin to build: hooker, all")
 	flag.Parse()
 
 	srcDir, _ := os.Getwd()
@@ -28,16 +28,11 @@ func main() {
 	repoRoot := filepath.Join(srcDir, "..")
 
 	switch *pluginFlag {
-	case "hooker":
+	case "hooker", "all":
 		buildHooker(srcDir, repoRoot)
-	case "cache-catcher":
-		buildCacheCatcher(srcDir, repoRoot)
-	case "all":
-		buildHooker(srcDir, repoRoot)
-		buildCacheCatcher(srcDir, repoRoot)
 		buildMarketplace(srcDir, repoRoot)
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown plugin: %s. Use hooker, cache-catcher, or all.\n", *pluginFlag)
+		fmt.Fprintf(os.Stderr, "Unknown plugin: %s. Use hooker or all.\n", *pluginFlag)
 		os.Exit(1)
 	}
 
@@ -153,65 +148,6 @@ func copyPluginRecipeFiles(src, dst string) {
 		return nil
 	})
 	fmt.Printf("  files: %d copied\n", count)
-}
-
-// =============================================================================
-// CACHE-CATCHER BUILD
-// =============================================================================
-
-func buildCacheCatcher(srcDir, repoRoot string) {
-	ccSrc := filepath.Join(srcDir, "cache-catcher")
-	ccOut := filepath.Join(repoRoot, "cache-catcher")
-
-	if _, err := os.Stat(ccSrc); os.IsNotExist(err) {
-		fmt.Println("Skipping cache-catcher (no source directory)")
-		return
-	}
-
-	fmt.Println("Building Cache Catcher plugin...")
-
-	// 1. hooks.json
-	copyDir(filepath.Join(ccSrc, "hooks"), filepath.Join(ccOut, "hooks"), "hooks")
-
-	// 2. Scripts (CLI)
-	srcScripts := filepath.Join(ccSrc, "scripts")
-	outScripts := filepath.Join(ccOut, "scripts")
-	if _, err := os.Stat(srcScripts); err == nil {
-		os.MkdirAll(outScripts, 0755)
-		entries, _ := os.ReadDir(srcScripts)
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			src := filepath.Join(srcScripts, e.Name())
-			dst := filepath.Join(outScripts, e.Name())
-			data, _ := os.ReadFile(src)
-			writeFile(dst, data)
-			os.Chmod(dst, 0755)
-			fmt.Printf("  scripts/%s: copied\n", e.Name())
-		}
-	}
-
-	// 3. Hook scripts — copy as-is (self-contained, no hooker dependency)
-	copyFile(filepath.Join(ccSrc, "match.sh"), filepath.Join(ccOut, "match.sh"), "match.sh")
-	os.Chmod(filepath.Join(ccOut, "match.sh"), 0755)
-	copyFile(filepath.Join(ccSrc, "prompt.sh"), filepath.Join(ccOut, "prompt.sh"), "prompt.sh")
-	os.Chmod(filepath.Join(ccOut, "prompt.sh"), 0755)
-	copyFile(filepath.Join(ccSrc, "session-start.sh"), filepath.Join(ccOut, "session-start.sh"), "session-start.sh")
-	os.Chmod(filepath.Join(ccOut, "session-start.sh"), 0755)
-	copyFile(filepath.Join(ccSrc, "stop.sh"), filepath.Join(ccOut, "stop.sh"), "stop.sh")
-	os.Chmod(filepath.Join(ccOut, "stop.sh"), 0755)
-
-	// 4. Config + messages
-	copyFile(filepath.Join(ccSrc, "config.yml"), filepath.Join(ccOut, "config.yml"), "config.yml")
-	copyFile(filepath.Join(ccSrc, "messages.yml"), filepath.Join(ccOut, "messages.yml"), "messages.yml")
-
-	// 5. Plugin manifest
-	copyFile(filepath.Join(ccSrc, "plugin.json"), filepath.Join(ccOut, ".claude-plugin", "plugin.json"), "plugin.json")
-
-	// 6. .pluginignore + README
-	copyFile(filepath.Join(ccSrc, ".pluginignore"), filepath.Join(ccOut, ".pluginignore"), ".pluginignore")
-	copyFile(filepath.Join(ccSrc, "README.md"), filepath.Join(ccOut, "README.md"), "README.md")
 }
 
 // =============================================================================
