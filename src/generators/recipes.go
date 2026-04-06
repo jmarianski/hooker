@@ -8,18 +8,27 @@ import (
 	"strings"
 )
 
-// PluginConfig — present in recipe.json when a recipe also builds as a standalone plugin.
 type PluginConfig struct {
 	Output string `json:"output"` // output directory name, e.g. "cache-catcher"
 }
 
+type Attribution struct {
+	Type    string `json:"type"`
+	Author  string `json:"author"`
+	License string `json:"license"`
+	URL     string `json:"url,omitempty"`
+}
+
 type Recipe struct {
-	ID          string        `json:"id"`
-	Name        string        `json:"name"`
-	Description string        `json:"description"`
-	Hooks       []string      `json:"hooks"`
-	Category    string        `json:"category"`
-	Plugin      *PluginConfig `json:"plugin,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Version     string            `json:"version,omitempty"`
+	Hooks       []string          `json:"hooks"`
+	Matchers    map[string]string `json:"matchers,omitempty"`
+	Category    string            `json:"category"`
+	Attribution *Attribution      `json:"attribution,omitempty"`
+	Plugin      *PluginConfig     `json:"plugin,omitempty"`
 }
 
 var allHooks = []string{

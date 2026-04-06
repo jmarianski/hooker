@@ -1,16 +1,48 @@
 {
   "hooks": {
-    "SessionStart": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/session-start.sh" }] }
-    ],
     "PostToolUse": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/match.sh" }] }
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/PostToolUse.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/SessionStart.sh"
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/stop.sh" }] }
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/Stop.sh"
+          }
+        ]
+      }
     ],
     "UserPromptSubmit": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/prompt.sh" }] }
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/UserPromptSubmit.sh"
+          }
+        ]
+      }
     ]
   }
 }
