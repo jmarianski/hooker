@@ -14,7 +14,7 @@
       "description": "Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads, indicating broken prompt caching.",
       "name": "cache-catcher",
       "source": "./cache-catcher",
-      "version": "0.5.2"
+      "version": "0.5.3"
     }
   ]
 }

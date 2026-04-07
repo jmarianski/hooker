@@ -119,16 +119,15 @@ if [ -n "$SESSION_ID" ]; then
                     fi
 
                     if [ "$BLOCK_REASON" = "unpatched" ]; then
-                        VER_NOTE="UNPATCHED (${CC_VERSION}, broken since 2.1.69)"
-                        PATCH_HINT="To fix: https://www.npmjs.com/package/claude-code-cache-fix
-If CC > 2.1.92 has fixed it for you, set in config: resume_guard_force_ttl: true"
+                        WHY="Your CC version (${CC_VERSION}) has a known bug that breaks prompt cache on every resume."
+                        FIX_HINT="Fix: https://www.npmjs.com/package/claude-code-cache-fix"
                     else
-                        VER_NOTE="patched (${CC_VERSION})"
-                        PATCH_HINT=""
+                        WHY="Session was idle for ${GAP_MIN} min (cache TTL: ${CACHE_TTL} min)."
+                        FIX_HINT=""
                     fi
 
-                    MSG=$(printf '⚠️  RESUME GUARD: cache likely cold after resume.\n%sVersion: %s. Gap: %d min, TTL: %d min.\n%s\nIf you are sure — send THE EXACT SAME message again (↑).\nTo disable: cache-catcher config set resume_guard false' \
-                        "$TOKEN_NOTE" "$VER_NOTE" "$GAP_MIN" "$CACHE_TTL" "$PATCH_HINT")
+                    MSG=$(printf '⚠️  Cache Catcher: prompt cache is likely cold.\n\n%s\n%s%s\nWhat to do:\n  → Press ↑ then Enter to send the same message anyway\n  → Or start a new session (/exit) for a clean cache\n\nTo disable this warning, type this as your next message:\n  cache-catcher config set resume_guard false' \
+                        "$WHY" "$TOKEN_NOTE" "$FIX_HINT")
 
                     echo "$PROMPT_HASH" > "$GUARD_FILE"
                     log "Blocked. reason=${BLOCK_REASON} gap=${RESUME_GAP}s ttl=${TTL_SECS}s broken=${IS_BROKEN} ver=${CC_VERSION}"

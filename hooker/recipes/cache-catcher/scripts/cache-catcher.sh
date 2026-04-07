@@ -25,6 +25,19 @@
 
 set -e
 
+# --- Chat detection ---
+# CACHE_CATCHER_FROM_CLAUDE_CODE is set by UserPromptSubmit.sh hook
+_from_chat() { [ -n "${CACHE_CATCHER_FROM_CLAUDE_CODE:-}" ]; }
+
+# Format hint for commands: in chat context, tell user to type as message
+_cmd_hint() {
+    if _from_chat; then
+        echo "Type as your next message: $1"
+    else
+        echo "Usage: $1"
+    fi
+}
+
 # --- Colors ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -74,17 +87,17 @@ while [ $# -gt 0 ]; do
                         CONFIG_SUBCMD=get
                         shift
                         CONFIG_KEY="${1:-}"
-                        [ -z "$CONFIG_KEY" ] && echo "Usage: cache-catcher config get <key>" >&2 && exit 1
+                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config get <key>" && exit 1
                         shift
                         ;;
                     set)
                         CONFIG_SUBCMD=set
                         shift
                         CONFIG_KEY="${1:-}"
-                        [ -z "$CONFIG_KEY" ] && echo "Usage: cache-catcher config set <key> <value>" >&2 && exit 1
+                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config set <key> <value>" && exit 1
                         shift
                         CONFIG_VAL="$*"
-                        [ -z "$CONFIG_VAL" ] && echo "Usage: cache-catcher config set <key> <value>" >&2 && exit 1
+                        [ -z "$CONFIG_VAL" ] && _cmd_hint "cache-catcher config set <key> <value>" && exit 1
                         set --
                         ;;
                     show)
@@ -113,7 +126,7 @@ while [ $# -gt 0 ]; do
                     ALIAS_SUBCMD="set"
                     shift
                     ALIAS_SET_VAL="$*"
-                    [ -z "$ALIAS_SET_VAL" ] && echo "Usage: cache-catcher alias set <prefix>[,prefix...]" >&2 && exit 1
+                    [ -z "$ALIAS_SET_VAL" ] && _cmd_hint "cache-catcher alias set <prefix>[,prefix...]" && exit 1
                     set --
                     ;;
                 clear)
@@ -128,7 +141,7 @@ while [ $# -gt 0 ]; do
         -j|--json) JSON_OUT=1 ;;
         -t|--threshold) THRESHOLD="$2"; shift ;;
         -p|--project) PROJECT_DIR="$2"; shift ;;
-        *) echo "Unknown: $1. Use cache-catcher help." >&2; exit 1 ;;
+        *) echo "Unknown option: $1"; _cmd_hint "cache-catcher help"; exit 1 ;;
     esac
     shift
 done
@@ -137,7 +150,11 @@ done
 cmd_help() {
     echo -e "${BOLD}cache-catcher${NC} — cache usage analysis for Claude Code transcripts"
     echo ""
-    echo -e "${BOLD}Usage:${NC} cache-catcher <command> [options]"
+    if _from_chat; then
+        echo -e "${BOLD}Usage:${NC} Type any command below as your next message in chat."
+    else
+        echo -e "${BOLD}Usage:${NC} cache-catcher <command> [options]"
+    fi
     echo ""
     echo -e "${BOLD}Commands:${NC}"
     echo "  help              Show this list (also: no command, -h, --help)"
@@ -932,5 +949,5 @@ case "$CMD" in
     history)  cmd_history ;;
     sessions) cmd_sessions ;;
     watch)    cmd_watch ;;
-    *)        echo "Unknown command: $CMD" >&2; exit 1 ;;
+    *)        echo "Unknown command: $CMD"; _cmd_hint "cache-catcher help"; exit 1 ;;
 esac
