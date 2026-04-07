@@ -154,7 +154,7 @@ func copyPluginRecipeFiles(src, dst string) {
 		}
 		target := filepath.Join(dst, rel)
 		writeFile(target, data)
-		if info.Mode()&0111 != 0 {
+		if info.Mode()&0111 != 0 || strings.HasSuffix(rel, ".sh") {
 			os.Chmod(target, 0755)
 		}
 		count++
