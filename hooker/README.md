@@ -32,11 +32,13 @@ enabled = true
 EOF
 ```
 
-Restart Codex to pick up the plugin. Skills (`/hooker:recipe`, `/hooker:config`, `/hooker:status`) will be available automatically.
+Restart Codex to pick up the plugin. Then use the recipe skill to install hooks:
 
-> **Note:** Codex does not auto-load hooks from plugins. To use standalone recipes,
-> wire them in `.codex/hooks.json` or `~/.codex/hooks.json` with absolute paths
-> to the recipe's `.execute.sh` script. See [Codex Compatibility](#codex-compatibility) below.
+```
+/hooker:recipe install no-force-push-main
+```
+
+The skill detects Codex automatically and wires hooks in `.codex/hooks.json` instead of Claude's `settings.json`.
 
 ## How It Works
 
