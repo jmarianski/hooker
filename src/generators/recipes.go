@@ -219,6 +219,28 @@ func GroupByCategory(recipes []Recipe) []CategoryGroup {
 	return out
 }
 
+// CodexNativeCount returns the number of recipes with codex "native" compatibility.
+func CodexNativeCount(recipes []Recipe) int {
+	count := 0
+	for _, r := range recipes {
+		if r.Compatibility != nil && r.Compatibility.Codex == "native" {
+			count++
+		}
+	}
+	return count
+}
+
+// CodexUnsupportedCount returns the number of recipes with codex "unsupported" compatibility.
+func CodexUnsupportedCount(recipes []Recipe) int {
+	count := 0
+	for _, r := range recipes {
+		if r.Compatibility == nil || r.Compatibility.Codex != "native" {
+			count++
+		}
+	}
+	return count
+}
+
 // JoinStrings for use in templates
 func JoinStrings(items []string, sep string) string {
 	return strings.Join(items, sep)

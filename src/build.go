@@ -52,18 +52,23 @@ func buildHooker(srcDir, repoRoot string) {
 
 
 	ctx := exec.NewContext(map[string]any{
-		"recipes":        recipes,
-		"categories":     generators.GroupByCategory(recipes),
-		"uncoveredHooks": generators.UncoveredHooks(recipes),
-		"coveredHooks":   generators.CoveredHooks(recipes),
-		"allHooks":       generators.AllHooks(),
-		"codexHooks":     generators.CodexHooks(),
+		"recipes":              recipes,
+		"categories":           generators.GroupByCategory(recipes),
+		"uncoveredHooks":       generators.UncoveredHooks(recipes),
+		"coveredHooks":         generators.CoveredHooks(recipes),
+		"allHooks":             generators.AllHooks(),
+		"codexHooks":           generators.CodexHooks(),
+		"codexNativeCount":     generators.CodexNativeCount(recipes),
+		"codexUnsupportedCount": generators.CodexUnsupportedCount(recipes),
 	})
 
 	fmt.Println("Building Hooker plugin...")
 
 	// 1. Commands — gonja templates
 	buildCommands(hookerSrc, hookerOut, ctx)
+
+	// 1b. Codex skills — convert commands to Codex skill format
+	buildCodexSkills(hookerOut)
 
 	// 2. Scripts — shell bundling (@bundle directives)
 	buildScripts(hookerSrc, hookerOut)
@@ -79,7 +84,10 @@ func buildHooker(srcDir, repoRoot string) {
 	copyDir(filepath.Join(hookerSrc, "helpers"), filepath.Join(hookerOut, "helpers"), "helpers")
 
 	// 4. Plugin manifest
-	copyFile(filepath.Join(hookerSrc, "plugin.json"), filepath.Join(hookerOut, ".claude-plugin", "plugin.json"), "plugin.json")
+	copyFile(filepath.Join(hookerSrc, "plugin.json"), filepath.Join(hookerOut, ".claude-plugin", "plugin.json"), ".claude-plugin/plugin.json")
+
+	// 4b. Also generate .codex-plugin/plugin.json for Codex
+	copyFile(filepath.Join(hookerSrc, "plugin.json"), filepath.Join(hookerOut, ".codex-plugin", "plugin.json"), ".codex-plugin/plugin.json")
 
 	// 5. .pluginignore
 	copyFile(filepath.Join(hookerSrc, ".pluginignore"), filepath.Join(hookerOut, ".pluginignore"), ".pluginignore")
@@ -380,6 +388,77 @@ func buildCommands(pluginSrc, pluginOut string, ctx *exec.Context) {
 		writeFile(outPath, []byte(result))
 		fmt.Printf("  commands/%s: built\n", e.Name())
 	}
+}
+
+// --- Codex Skills: Convert commands to Codex skill format ---
+// Reads built commands from {pluginOut}/commands/, extracts frontmatter,
+// and writes {pluginOut}/skills/{name}/SKILL.md with Codex frontmatter.
+
+func buildCodexSkills(pluginOut string) {
+	commandsDir := filepath.Join(pluginOut, "commands")
+	skillsDir := filepath.Join(pluginOut, "skills")
+
+	entries, err := os.ReadDir(commandsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  skills/: WARNING — cannot read commands/: %v\n", err)
+		return
+	}
+
+	count := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+
+		data, err := os.ReadFile(filepath.Join(commandsDir, e.Name()))
+		if err != nil {
+			continue
+		}
+
+		content := string(data)
+		name := strings.TrimSuffix(e.Name(), ".md")
+
+		// Parse YAML frontmatter (between first and second ---)
+		description := ""
+		body := content
+		if strings.HasPrefix(content, "---\n") {
+			endIdx := strings.Index(content[4:], "\n---\n")
+			if endIdx >= 0 {
+				frontmatter := content[4 : 4+endIdx]
+				body = content[4+endIdx+5:] // after second ---\n
+
+				// Extract description from frontmatter
+				for _, line := range strings.Split(frontmatter, "\n") {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "description:") {
+						desc := strings.TrimPrefix(line, "description:")
+						desc = strings.TrimSpace(desc)
+						desc = strings.Trim(desc, "\"'")
+						description = desc
+						break
+					}
+				}
+			}
+		}
+
+		// Write skills/{name}/SKILL.md
+		skillDir := filepath.Join(skillsDir, name)
+		os.MkdirAll(skillDir, 0755)
+
+		var out strings.Builder
+		out.WriteString("---\n")
+		out.WriteString(fmt.Sprintf("name: %s\n", name))
+		if description != "" {
+			out.WriteString(fmt.Sprintf("description: \"%s\"\n", description))
+		}
+		out.WriteString("---\n")
+		out.WriteString(body)
+
+		writeFile(filepath.Join(skillDir, "SKILL.md"), []byte(out.String()))
+		count++
+		fmt.Printf("  skills/%s/SKILL.md: built\n", name)
+	}
+	fmt.Printf("  skills/: %d Codex skills generated\n", count)
 }
 
 // --- Scripts: Shell bundling ---

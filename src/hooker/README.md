@@ -203,6 +203,33 @@ The `src/` directory is not needed at runtime and should be excluded from plugin
 
 No AI coding tool currently supports install-time file exclusion. We include a `.pluginignore` file as a proposed convention — see the file for details. If you're building a plugin installer or marketplace, please consider supporting it.
 
+## Codex Compatibility
+
+Hooker supports both Claude Code and OpenAI Codex. The build system generates dual plugin manifests (`.claude-plugin/` and `.codex-plugin/`) and converts commands into Codex skills automatically.
+
+### What works in Codex
+
+- **Skills/commands** — all three slash commands (`recipe`, `status`, `config`) are available in both runtimes as Codex skills (`skills/{name}/SKILL.md`)
+- **Hook events** — Codex supports 5 of Claude Code's 25+ hook events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`
+- **Recipes** — recipes that only use Codex-supported hooks work natively; others are unsupported
+
+### Recipe compatibility
+
+Each recipe's `recipe.json` includes a `compatibility` field (auto-detected at build time):
+
+```json
+{
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
+  }
+}
+```
+
+Values: `native` (works out of the box), `unsupported` (uses hooks not available in Codex).
+
+**{{ codexNativeCount }}** recipes are Codex-native, **{{ codexUnsupportedCount }}** require Claude Code-only hooks.
+
 ## Known Issues
 
 - **Newer hooks break older Claude Code versions:** Some hook events (e.g. `PostCompact`) were added in recent Claude Code releases. If `hooks.json` (plugin) or `settings.json` (standalone) contains an event the installed CC version doesn't recognize, Claude Code rejects **all hooks in that file** with an `invalid_key` error — not just the unsupported one. Downgrading Claude Code can trigger this unexpectedly. There is no graceful fallback — Claude Code validates all hook event names strictly at load time.

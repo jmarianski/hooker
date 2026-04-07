@@ -104,6 +104,10 @@ cache_ttl_min: 5            # minimum TTL after bad cache detected
 resume_guard_force_ttl: false  # true = use TTL even on known-broken CC versions
 ```
 
+## Codex Compatibility
+
+Cache Catcher is currently **Claude Code only**. Codex uses different cache telemetry and token reporting, so the cache health analysis does not apply. The `PostToolUse` and `Stop` hooks that Cache Catcher relies on are available in Codex, but the token fields in the transcript differ.
+
 ## Develop / test
 
 ```bash
