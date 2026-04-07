@@ -11,47 +11,63 @@ Monitor Claude Code prompt cache health in real time. Detects when `cache_creati
 
 ## How it works
 
-After each tool use, Cache Catcher reads the session transcript and compares cache write vs read tokens in recent turns. If writes consistently exceed reads (configurable threshold), it warns the agent or blocks further tool use.
+Cache Catcher hooks into four Claude Code events:
+
+- **SessionStart** — detects resumes, tracks idle gap for adaptive TTL
+- **UserPromptSubmit** — resume guard blocks the first prompt when cache is likely cold (broken CC versions or long idle gap)
+- **PostToolUse** — after each tool use, compares cache write vs read tokens in recent turns
+- **Stop** — catches cache anomalies on text-only turns (no tool use)
+
+If writes consistently exceed reads (configurable threshold), it warns the agent or blocks further tool use.
+
+### Resume guard
+
+On CC versions 2.1.69–2.1.92, prompt cache breaks on every session resume. Cache Catcher blocks the first prompt after resume with a clear warning and options:
+
+- Press ↑ then Enter to proceed anyway
+- Start a new session (`/exit`) for a clean cache
+- Disable the guard via `cache-catcher config set resume_guard false`
+
+The guard adapts: if bad cache is detected on a short resume, TTL drops to 5 min. If cache is healthy, TTL returns to 60 min.
 
 ## CLI
 
-Invoke the bundled script (path depends on plugin install, often under `~/.claude/plugins/cache/.../scripts/cache-catcher.sh`). With no arguments it prints command help.
+Type commands directly in Claude Code chat (e.g. `cache-catcher status`) or run the script from a terminal.
 
 ```bash
-# List commands (same as: cache-catcher.sh help)
-cache-catcher.sh
+# List commands
+cache-catcher help
 
 # Show current session cache health
-cache-catcher.sh status
+cache-catcher status
 
 # Per-turn cache metrics
-cache-catcher.sh history
+cache-catcher history
 
-# All sessions overview (status uses the last 10 assistant turns per file; not the whole session)
-cache-catcher.sh sessions
-cache-catcher.sh sessions -n 20   # wider window for status/ratio columns
+# All sessions overview
+cache-catcher sessions
+cache-catcher sessions -n 20   # wider window for status/ratio columns
 
-# Live monitoring (real terminal only — the Claude Code `cache-catcher watch` prompt shows how to run it in a shell)
-cache-catcher.sh watch
+# Live monitoring (real terminal only)
+cache-catcher watch
 
 # Show configuration (project override vs plugin default)
-cache-catcher.sh config
-# Or explicitly: cache-catcher.sh config show
+cache-catcher config
+cache-catcher config show
 
-# Create project override from plugin template (writes .claude/cache-catcher.config.yml)
-cache-catcher.sh -p /path/to/repo config init
-cache-catcher.sh -p /path/to/repo config init --force   # overwrite existing
+# Create project override from plugin template
+cache-catcher config init
+cache-catcher config init --force   # overwrite existing
 
-# Read / write single keys (project file; get merges default + override)
-cache-catcher.sh -p /path/to/repo config get threshold
-cache-catcher.sh -p /path/to/repo config set mode block
-cache-catcher.sh -p /path/to/repo config set ignore_first_turn false
+# Read / write single keys
+cache-catcher config get threshold
+cache-catcher config set mode block
+cache-catcher config set resume_guard false
 
-# Claude Code prompt prefixes (UserPromptSubmit): always "cache-catcher", plus optional extras
-cache-catcher.sh -p /path/to/repo alias              # show built-in + extras from config
-cache-catcher.sh -p /path/to/repo alias print        # CSV: cache-catcher[,cc,...]
-cache-catcher.sh -p /path/to/repo alias set cc       # also accept "cc,dbg"
-cache-catcher.sh -p /path/to/repo alias clear        # drop extras
+# Claude Code prompt prefixes: always "cache-catcher", plus optional extras
+cache-catcher alias              # show built-in + extras from config
+cache-catcher alias set cc       # also accept "cc status", "cc history", etc.
+cache-catcher alias clear        # drop extras
 ```
 
 ### Options
@@ -59,25 +75,15 @@ cache-catcher.sh -p /path/to/repo alias clear        # drop extras
 - `-n, --last N` — last N turns for `status` / `history`; for `sessions`, the window used for Read/Creation/Ratio/Status (default 10)
 - `-j, --json` — JSON output
 - `-t, --threshold N` — override threshold
-- `-p, --project DIR` — project root (where `.claude/` lives). Put **before** the command for `config init|get|set` so paths resolve correctly.
-
-Editable keys for `config get` / `config set`: `mode`, `lookback`, `threshold`, `min_tokens`, `streak`, `cooldown`, `ignore_first_turn`, `prompt_aliases` (comma-separated extra command prefixes for Claude Code; `cache-catcher` is always allowed).
-
-### Develop / test in the hooker repo
-
-```bash
-bash src/cache-catcher/scripts/self-test.sh
-```
-
-Uses a fake `HOME` and a synthetic transcript; checks `help`, `sessions`, `alias print` / `set`, and `config init` / `set` / `get`.
+- `-p, --project DIR` — project root (where `.claude/` lives)
 
 ## Configuration
 
-Defaults ship with the plugin as `config.yml` next to `match.sh` (read-only from your perspective unless you fork the plugin). **Per-project overrides** go in the repo root:
+Defaults ship with the plugin as `config.yml`. **Per-project overrides** go in the repo root:
 
 `.claude/cache-catcher.config.yml`
 
-The hook resolves the project directory when Claude Code runs it (typically your project root), so that file is the supported way to change thresholds, mode, etc. Optional: `.claude/cache-catcher.messages.yml` overrides `messages.yml` the same way.
+Optional: `.claude/cache-catcher.messages.yml` overrides `messages.yml` the same way.
 
 Example override file:
 
@@ -89,9 +95,17 @@ min_tokens: 5000    # ignore small writes
 streak: 1           # bad turns before trigger
 cooldown: 60        # seconds between warnings
 ignore_first_turn: true
-prompt_aliases: cc    # optional: "cc status" works like "cache-catcher status"
+prompt_aliases: cc  # "cc status" works like "cache-catcher status"
+
+# Resume guard
+resume_guard: true          # block first prompt on resume if cache likely cold
+cache_ttl_default: 60       # assumed cache TTL in minutes (adapts automatically)
+cache_ttl_min: 5            # minimum TTL after bad cache detected
+resume_guard_force_ttl: false  # true = use TTL even on known-broken CC versions
 ```
 
-## Also available as Hooker recipe
+## Develop / test
 
-If you use the [Hooker](https://gitlab.com/treetank/hooker) plugin, this is available as the `cache-watchdog` recipe with full integration.
+```bash
+bash src/hooker/recipes/cache-catcher/scripts/self-test.sh
+```
