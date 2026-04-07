@@ -1,8 +1,10 @@
-# Hooker - Universal Hook Injection Framework for Claude Code
+# Hooker - Universal Hook Injection Framework
 
-Inject custom prompts, reminders, guardrails, and context into any of Claude Code's 25+ hook events. Mix and match pre-built recipes or create your own with simple shell scripts. Now with standalone mode — recipes work without hooker installed.
+Inject custom prompts, reminders, guardrails, and context into Claude Code (25+ hook events) and OpenAI Codex (5 hook events). Mix and match pre-built recipes or create your own with simple shell scripts. Now with standalone mode — recipes work without hooker installed.
 
 ## Installation
+
+### Claude Code
 
 ```bash
 # From GitLab marketplace
@@ -11,6 +13,26 @@ Inject custom prompts, reminders, guardrails, and context into any of Claude Cod
 
 # Or local
 claude --plugin-dir /path/to/hooker
+```
+
+### OpenAI Codex
+
+```bash
+# 1. Clone into Codex plugin cache
+git clone https://gitlab.com/treetank/hooker.git \
+  ~/.codex/plugins/cache/hooker-marketplace/hooker/local
+
+# 2. Enable in ~/.codex/config.toml
+cat >> ~/.codex/config.toml << 'EOF'
+[features]
+plugins = true
+
+[plugins."hooker@hooker-marketplace"]
+enabled = true
+EOF
+
+# 3. (Optional) Add hooks to .codex/hooks.json for standalone recipes
+# Codex does not auto-load hooks from plugins — see Codex Compatibility below.
 ```
 
 ## How It Works
