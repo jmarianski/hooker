@@ -30,10 +30,13 @@ plugins = true
 [plugins."hooker@hooker-marketplace"]
 enabled = true
 EOF
-
-# 3. (Optional) Add hooks to .codex/hooks.json for standalone recipes
-# Codex does not auto-load hooks from plugins — see Codex Compatibility below.
 ```
+
+Restart Codex to pick up the plugin. Skills (`/hooker:recipe`, `/hooker:config`, `/hooker:status`) will be available automatically.
+
+> **Note:** Codex does not auto-load hooks from plugins. To use standalone recipes,
+> wire them in `.codex/hooks.json` or `~/.codex/hooks.json` with absolute paths
+> to the recipe's `.execute.sh` script. See [Codex Compatibility](#codex-compatibility) below.
 
 ## How It Works
 
