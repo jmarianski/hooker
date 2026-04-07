@@ -1,13 +1,21 @@
 {
+  "id": "compact-context",
   "name": "Compact Context",
   "description": "Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves.",
-  "hooks": ["PreCompact"],
-  "matchers": {"PreCompact": ""},
-  "cron": true,
+  "hooks": [
+    "PreCompact"
+  ],
+  "matchers": {
+    "PreCompact": ""
+  },
   "category": "context",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

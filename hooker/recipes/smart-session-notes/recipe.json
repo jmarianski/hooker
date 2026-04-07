@@ -1,13 +1,21 @@
 {
+  "id": "smart-session-notes",
   "name": "Smart Session Notes",
   "description": "Creates filtered markdown session notes before compaction. Configurable: include/exclude user messages, assistant text, errors, tool calls. Saves to .claude/hooker/session-notes.md.",
-  "hooks": ["PreCompact"],
-  "matchers": {"PreCompact": ""},
-  "cron": true,
+  "hooks": [
+    "PreCompact"
+  ],
+  "matchers": {
+    "PreCompact": ""
+  },
   "category": "monitoring",
   "attribution": {
     "type": "original",
-    "author": "Jacek Maria\u0144ski",
+    "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

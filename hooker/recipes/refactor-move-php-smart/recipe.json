@@ -1,15 +1,25 @@
 {
+  "id": "refactor-move-php-smart",
   "name": "Refactor Move PHP (smart)",
   "description": "After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable.",
-  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
-  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
-  "async": {"PostToolUse": true},
-  "cron": true,
+  "hooks": [
+    "PostToolUse",
+    "PostCompact",
+    "SessionStart"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "PostToolUse": "Bash",
+    "SessionStart": ""
+  },
   "category": "refactoring",
-  "dependencies": ["phpactor (composer global)"],
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

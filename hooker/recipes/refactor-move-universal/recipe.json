@@ -1,14 +1,25 @@
 {
+  "id": "refactor-move-universal",
   "name": "Refactor Move Universal",
   "description": "After mv of any file, finds and replaces old path references in all text files (config, YAML, Dockerfile, scripts, etc.). Catches what language-specific recipes miss. Pure bash/sed.",
-  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
-  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
-  "async": {"PostToolUse": true},
-  "cron": true,
+  "hooks": [
+    "PostToolUse",
+    "PostCompact",
+    "SessionStart"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "PostToolUse": "Bash",
+    "SessionStart": ""
+  },
   "category": "refactoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

@@ -1,15 +1,25 @@
 {
+  "id": "refactor-move-ts-simple",
   "name": "Refactor Move JS/TS (simple)",
   "description": "After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook.",
-  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
-  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
-  "async": {"PostToolUse": true},
-  "cron": true,
-  "dependencies": ["python3 (recommended)"],
+  "hooks": [
+    "PostToolUse",
+    "PostCompact",
+    "SessionStart"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "PostToolUse": "Bash",
+    "SessionStart": ""
+  },
   "category": "refactoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

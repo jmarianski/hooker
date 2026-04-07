@@ -1,14 +1,22 @@
 {
+  "id": "git-context-on-start",
   "name": "Git Context on Start",
   "description": "Injects current git branch, status, and recent commits on session start.",
-  "hooks": ["SessionStart"],
-  "matchers": {"SessionStart": ""},
-  "cron": true,
+  "hooks": [
+    "SessionStart"
+  ],
+  "matchers": {
+    "SessionStart": ""
+  },
   "category": "context",
   "attribution": {
     "type": "inspired",
     "author": "Common pattern (claudefa.st, disler)",
     "license": "Blog posts / no license",
     "url": "https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
   }
 }

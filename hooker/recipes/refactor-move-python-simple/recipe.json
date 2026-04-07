@@ -1,14 +1,25 @@
 {
+  "id": "refactor-move-python-simple",
   "name": "Refactor Move Python (simple)",
   "description": "After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook.",
-  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
-  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
-  "async": {"PostToolUse": true},
-  "cron": true,
+  "hooks": [
+    "PostToolUse",
+    "PostCompact",
+    "SessionStart"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "PostToolUse": "Bash",
+    "SessionStart": ""
+  },
   "category": "refactoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

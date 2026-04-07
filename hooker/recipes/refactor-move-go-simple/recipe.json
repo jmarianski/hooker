@@ -1,14 +1,25 @@
 {
+  "id": "refactor-move-go-simple",
   "name": "Refactor Move Go (simple)",
   "description": "After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required).",
-  "hooks": ["PostToolUse", "PostCompact", "SessionStart"],
-  "matchers": {"PostToolUse": "Bash", "PostCompact": "", "SessionStart": ""},
-  "async": {"PostToolUse": true},
-  "cron": true,
+  "hooks": [
+    "PostToolUse",
+    "PostCompact",
+    "SessionStart"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "PostToolUse": "Bash",
+    "SessionStart": ""
+  },
   "category": "refactoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

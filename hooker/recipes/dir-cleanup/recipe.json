@@ -1,14 +1,21 @@
 {
+  "id": "dir-cleanup",
   "name": "Directory Cleanup",
   "description": "Auto-removes oldest files from configured directories when they exceed thresholds. DESTRUCTIVE — deletes files. Shares config with dir-watchdog (dir-watchdog.yml). Only acts on rules with action: cleanup.",
-  "hooks": ["UserPromptSubmit"],
-  "matchers": {"UserPromptSubmit": ""},
-  "async": {"UserPromptSubmit": true},
-  "cron": true,
+  "hooks": [
+    "UserPromptSubmit"
+  ],
+  "matchers": {
+    "UserPromptSubmit": ""
+  },
   "category": "monitoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
   }
 }

@@ -1,14 +1,25 @@
 {
+  "id": "scheduled-tasks",
   "name": "Scheduled Tasks Manager",
   "description": "Auto-installs/updates crontab from schedules.yml on session start. Saves results from headless sessions. Notifies about unread cron results in interactive sessions.",
-  "hooks": ["SessionStart", "UserPromptSubmit", "SessionEnd"],
-  "matchers": {"SessionStart": "", "UserPromptSubmit": "", "SessionEnd": ""},
-  "async": {"SessionStart": true},
-  "cron": true,
+  "hooks": [
+    "SessionStart",
+    "UserPromptSubmit",
+    "SessionEnd"
+  ],
+  "matchers": {
+    "SessionEnd": "",
+    "SessionStart": "",
+    "UserPromptSubmit": ""
+  },
   "category": "monitoring",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

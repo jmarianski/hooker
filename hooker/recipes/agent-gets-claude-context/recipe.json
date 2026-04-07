@@ -1,13 +1,21 @@
 {
+  "id": "agent-gets-claude-context",
   "name": "Agent Gets All Claude Context",
   "description": "Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory.",
-  "hooks": ["SubagentStart"],
-  "matchers": {"SubagentStart": ""},
-  "cron": true,
+  "hooks": [
+    "SubagentStart"
+  ],
+  "matchers": {
+    "SubagentStart": ""
+  },
   "category": "context",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

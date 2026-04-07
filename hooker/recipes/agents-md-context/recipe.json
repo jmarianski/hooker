@@ -1,13 +1,23 @@
 {
+  "id": "agents-md-context",
   "name": "AGENTS.md Context Injection",
   "description": "Injects AGENTS.md content into session context on start and after compaction. Walks up from CWD to find the nearest AGENTS.md, respecting the convention used by multi-agent projects.",
-  "hooks": ["SessionStart", "PostCompact"],
-  "matchers": {"SessionStart": "", "PostCompact": ""},
-  "cron": true,
+  "hooks": [
+    "SessionStart",
+    "PostCompact"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "SessionStart": ""
+  },
   "category": "context",
   "attribution": {
     "type": "original",
     "author": "Jacek Mariański",
     "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
   }
 }

@@ -1,14 +1,22 @@
 {
+  "id": "skip-acknowledgments",
   "name": "Skip Acknowledgments",
   "description": "Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution.",
-  "hooks": ["UserPromptSubmit"],
-  "matchers": {"UserPromptSubmit": ""},
-  "cron": false,
+  "hooks": [
+    "UserPromptSubmit"
+  ],
+  "matchers": {
+    "UserPromptSubmit": ""
+  },
   "category": "quality",
   "attribution": {
     "type": "adapted",
     "author": "Chris Wiles",
     "license": "MIT",
     "url": "https://github.com/ChrisWiles/claude-code-showcase"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
   }
 }

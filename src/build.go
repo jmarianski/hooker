@@ -70,6 +70,7 @@ func buildHooker(srcDir, repoRoot string) {
 
 	// 3. Recipes — copy as-is + compile execute.sh
 	copyDir(filepath.Join(hookerSrc, "recipes"), filepath.Join(hookerOut, "recipes"), "recipes")
+	writeEnrichedRecipeJson(recipes, filepath.Join(hookerOut, "recipes"))
 	compileExecutables(hookerSrc, hookerOut, pluginVersion)
 	copyDir(filepath.Join(hookerSrc, "hooks"), filepath.Join(hookerOut, "hooks"), "hooks")
 	copyDir(filepath.Join(hookerSrc, "templates"), filepath.Join(hookerOut, "templates"), "templates")
@@ -269,7 +270,15 @@ func generatePluginJson(outDir string, r generators.Recipe) {
 
 	os.MkdirAll(filepath.Join(outDir, ".claude-plugin"), 0755)
 	writeFile(filepath.Join(outDir, ".claude-plugin", "plugin.json"), data)
-	fmt.Printf("  plugin.json: generated (v%s)\n", r.Version)
+
+	// Also generate .codex-plugin/plugin.json for Codex-compatible recipes
+	if r.Compatibility != nil && r.Compatibility.Codex != "unsupported" {
+		os.MkdirAll(filepath.Join(outDir, ".codex-plugin"), 0755)
+		writeFile(filepath.Join(outDir, ".codex-plugin", "plugin.json"), data)
+		fmt.Printf("  plugin.json: generated (v%s) [claude + codex]\n", r.Version)
+	} else {
+		fmt.Printf("  plugin.json: generated (v%s) [claude only]\n", r.Version)
+	}
 }
 
 // =============================================================================
@@ -823,6 +832,26 @@ process.exit = function(code) {
 // =============================================================================
 // HELPERS
 // =============================================================================
+
+// writeEnrichedRecipeJson overwrites recipe.json in the build output with
+// auto-detected fields (compatibility, etc.) that aren't in the source file.
+func writeEnrichedRecipeJson(recipes []generators.Recipe, recipesOut string) {
+	count := 0
+	for _, r := range recipes {
+		outPath := filepath.Join(recipesOut, r.ID, "recipe.json")
+		if _, err := os.Stat(outPath); os.IsNotExist(err) {
+			continue
+		}
+		data, err := json.MarshalIndent(r, "", "  ")
+		if err != nil {
+			continue
+		}
+		data = append(data, '\n')
+		writeFile(outPath, data)
+		count++
+	}
+	fmt.Printf("  recipes/: %d recipe.json enriched\n", count)
+}
 
 func writeFile(path string, data []byte) {
 	if err := os.WriteFile(path, data, 0644); err != nil {

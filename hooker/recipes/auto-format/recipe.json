@@ -1,15 +1,22 @@
 {
+  "id": "auto-format",
   "name": "Auto Format",
   "description": "Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit.",
-  "hooks": ["PostToolUse"],
-  "matchers": {"PostToolUse": "Edit"},
-  "async": {"PostToolUse": true},
-  "cron": true,
+  "hooks": [
+    "PostToolUse"
+  ],
+  "matchers": {
+    "PostToolUse": "Edit"
+  },
   "category": "workflow",
   "attribution": {
     "type": "adapted",
     "author": "Ryan Lewis",
     "license": "MIT",
     "url": "https://github.com/ryanlewis/claude-format-hook"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
   }
 }

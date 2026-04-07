@@ -1,15 +1,22 @@
 {
+  "id": "detect-lazy-code",
   "name": "Detect Lazy Code",
   "description": "Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders.",
-  "hooks": ["PostToolUse"],
-  "matchers": {"PostToolUse": "Edit"},
-  "async": {"PostToolUse": true},
-  "cron": true,
+  "hooks": [
+    "PostToolUse"
+  ],
+  "matchers": {
+    "PostToolUse": "Edit"
+  },
   "category": "quality",
   "attribution": {
     "type": "adapted",
     "author": "Carl Rannaberg (claudekit)",
     "license": "MIT",
     "url": "https://github.com/carlrannaberg/claudekit"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
   }
 }
