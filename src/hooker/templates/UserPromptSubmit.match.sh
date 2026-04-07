@@ -8,7 +8,8 @@ INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -z "$SESSION_ID" ] && exit 1
 
-PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
+PLUGIN_DIR="${HOOKER_PLUGIN_DIR:-${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}}"
+HOOKER_HOST="${HOOKER_HOST:-unknown}"
 COOLDOWN_DIR="/tmp/hooker_discovery"
 mkdir -p "$COOLDOWN_DIR" 2>/dev/null
 
@@ -16,7 +17,7 @@ mkdir -p "$COOLDOWN_DIR" 2>/dev/null
 # 1. OVERFLOW HOOKS — run once per session, patch settings.json if needed
 # =============================================================================
 OVERFLOW_DONE="${COOLDOWN_DIR}/${SESSION_ID}_overflow"
-if [ ! -f "$OVERFLOW_DONE" ]; then
+if [ "$HOOKER_HOST" = "claude" ] && [ ! -f "$OVERFLOW_DONE" ]; then
     touch "$OVERFLOW_DONE" 2>/dev/null
 
     OVERFLOW_CONF="${PLUGIN_DIR}/recipes/hook-discovery/overflow_hooks.conf"

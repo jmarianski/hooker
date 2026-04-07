@@ -111,7 +111,6 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 |--------|------|-------------|
 | **behavior-watchdog** | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
 | **cache-catcher** | SessionStart, UserPromptSubmit, PostToolUse, Stop | Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads, indicating broken prompt caching. |
-| **cache-watchdog** | PostToolUse | Monitors cache_creation vs cache_read from transcripts. Warns or blocks when cache writes consistently exceed reads, indicating broken prompt caching. |
 | **dir-cleanup** | UserPromptSubmit | Auto-removes oldest files from configured directories when they exceed thresholds. DESTRUCTIVE — deletes files. Shares config with dir-watchdog (dir-watchdog.yml). Only acts on rules with action: cleanup. |
 | **dir-watchdog** | UserPromptSubmit | Monitors directories for file bloat (too many files of same type). Warns about bloated directories — never deletes anything. Configure thresholds in dir-watchdog.yml. Use dir-cleanup for auto-removal. |
 | **scheduled-tasks** | SessionStart, UserPromptSubmit, SessionEnd | Auto-installs/updates crontab from schedules.yml on session start. Saves results from headless sessions. Notifies about unread cron results in interactive sessions. |

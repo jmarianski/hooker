@@ -33,7 +33,19 @@ if [ -z "$HOOK_EVENT" ]; then
 fi
 
 # --- Export env vars for match scripts ---
-PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-${HOOKER_PLUGIN_DIR:-${SCRIPT_DIR}/..}}"
+if [ -f "${PLUGIN_DIR}/.codex-plugin/plugin.json" ]; then
+    HOOKER_HOST="${HOOKER_HOST:-codex}"
+elif [ -f "${PLUGIN_DIR}/.claude-plugin/plugin.json" ]; then
+    HOOKER_HOST="${HOOKER_HOST:-claude}"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+    HOOKER_HOST="${HOOKER_HOST:-claude}"
+else
+    HOOKER_HOST="${HOOKER_HOST:-unknown}"
+fi
+export HOOKER_PLUGIN_DIR="$PLUGIN_DIR"
+export HOOKER_HOST
 export HOOKER_HELPERS="${PLUGIN_DIR}/scripts/helpers.sh"
 export HOOKER_EVENT="$HOOK_EVENT"
 
@@ -47,10 +59,18 @@ HOOKER_CWD=$(echo "$INPUT" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\
 export HOOKER_CWD
 HOOKER_TRANSCRIPT=$(echo "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 export HOOKER_TRANSCRIPT
-# TODO: verify project dir derivation works on Windows (Git Bash gives /c/Users/... paths)
+HOOKER_PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-${HOOKER_CWD:-$(pwd)}}"
+export HOOKER_PROJECT_ROOT
+# Claude-only convenience path used by a few recipes that inspect Claude's
+# internal per-project storage. Codex does not expose an equivalent location.
 HOOKER_PROJECT_SLUG=$(echo "$HOOKER_CWD" | sed 's|/|-|g; s|^-||')
-HOOKER_PROJECT_DIR="${HOME}/.claude/projects/-${HOOKER_PROJECT_SLUG}"
-export HOOKER_PROJECT_SLUG HOOKER_PROJECT_DIR
+HOOKER_PROJECT_DIR="${HOOKER_PROJECT_ROOT}"
+HOOKER_CLAUDE_PROJECT_DIR=""
+if [ "$HOOKER_HOST" = "claude" ] && [ -n "$HOOKER_PROJECT_SLUG" ]; then
+    HOOKER_CLAUDE_PROJECT_DIR="${HOME}/.claude/projects/-${HOOKER_PROJECT_SLUG}"
+    HOOKER_PROJECT_DIR="${HOOKER_CLAUDE_PROJECT_DIR}"
+fi
+export HOOKER_PROJECT_SLUG HOOKER_PROJECT_DIR HOOKER_CLAUDE_PROJECT_DIR
 
 # --- Logging ---
 HOOKER_CONFIG="${HOOKER_CWD:-.}/.claude/hooker.json"
@@ -66,7 +86,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$HOOK_EVENT] $*" >> "$LOG_FILE"
 }
 
-log "Hook triggered in $(pwd)${RECIPE_DIR:+ (recipe: $RECIPE_DIR)}"
+log "Hook triggered in $(pwd) host=${HOOKER_HOST}${RECIPE_DIR:+ (recipe: $RECIPE_DIR)}"
 
 # --- Runtime resolution for multi-language match scripts ---
 # Runtime resolution for multi-language match scripts.

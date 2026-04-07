@@ -57,6 +57,7 @@ func buildHooker(srcDir, repoRoot string) {
 		"uncoveredHooks": generators.UncoveredHooks(recipes),
 		"coveredHooks":   generators.CoveredHooks(recipes),
 		"allHooks":       generators.AllHooks(),
+		"codexHooks":     generators.CodexHooks(),
 	})
 
 	fmt.Println("Building Hooker plugin...")

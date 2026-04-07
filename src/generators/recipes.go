@@ -20,15 +20,21 @@ type Attribution struct {
 }
 
 type Recipe struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Version     string            `json:"version,omitempty"`
-	Hooks       []string          `json:"hooks"`
-	Matchers    map[string]string `json:"matchers,omitempty"`
-	Category    string            `json:"category"`
-	Attribution *Attribution      `json:"attribution,omitempty"`
-	Plugin      *PluginConfig     `json:"plugin,omitempty"`
+	ID            string              `json:"id"`
+	Name          string              `json:"name"`
+	Description   string              `json:"description"`
+	Version       string              `json:"version,omitempty"`
+	Hooks         []string            `json:"hooks"`
+	Matchers      map[string]string   `json:"matchers,omitempty"`
+	Category      string              `json:"category"`
+	Attribution   *Attribution        `json:"attribution,omitempty"`
+	Plugin        *PluginConfig       `json:"plugin,omitempty"`
+	Compatibility *RecipeCompatibility `json:"compatibility,omitempty"`
+}
+
+type RecipeCompatibility struct {
+	Claude string `json:"claude,omitempty"`
+	Codex  string `json:"codex,omitempty"`
 }
 
 var allHooks = []string{
@@ -46,6 +52,14 @@ var allHooks = []string{
 	"FileChanged",       // CC >= 2.1.83
 	"TaskCreated",       // CC >= 2.1.84
 	"PermissionDenied",  // CC >= 2.1.89
+}
+
+var codexHooks = []string{
+	"SessionStart",
+	"UserPromptSubmit",
+	"PreToolUse",
+	"PostToolUse",
+	"Stop",
 }
 
 func LoadRecipes(rootDir string) []Recipe {
@@ -70,6 +84,7 @@ func LoadRecipes(rootDir string) []Recipe {
 			continue
 		}
 		r.ID = e.Name()
+		applyDefaultCompatibility(&r)
 		recipes = append(recipes, r)
 	}
 
@@ -77,6 +92,38 @@ func LoadRecipes(rootDir string) []Recipe {
 		return recipes[i].ID < recipes[j].ID
 	})
 	return recipes
+}
+
+func applyDefaultCompatibility(r *Recipe) {
+	if r.Compatibility == nil {
+		r.Compatibility = &RecipeCompatibility{}
+	}
+	if strings.TrimSpace(r.Compatibility.Claude) == "" {
+		r.Compatibility.Claude = "native"
+	}
+	if strings.TrimSpace(r.Compatibility.Codex) == "" {
+		if recipeUsesOnlyHooks(r.Hooks, codexHooks) {
+			r.Compatibility.Codex = "native"
+		} else {
+			r.Compatibility.Codex = "unsupported"
+		}
+	}
+}
+
+func recipeUsesOnlyHooks(recipeHooks, supportedHooks []string) bool {
+	if len(recipeHooks) == 0 {
+		return true
+	}
+	supported := make(map[string]bool, len(supportedHooks))
+	for _, hook := range supportedHooks {
+		supported[hook] = true
+	}
+	for _, hook := range recipeHooks {
+		if !supported[hook] {
+			return false
+		}
+	}
+	return true
 }
 
 func CoveredHooks(recipes []Recipe) []string {
@@ -113,6 +160,10 @@ func UncoveredHooks(recipes []Recipe) []string {
 
 func AllHooks() []string {
 	return allHooks
+}
+
+func CodexHooks() []string {
+	return codexHooks
 }
 
 type CategoryGroup struct {

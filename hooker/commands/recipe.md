@@ -5,13 +5,32 @@ args: "[recipe-name | natural language description | list|install|remove|install
 
 # Hooker
 
-Universal hook injection framework for Claude Code. This is the main entry point.
+Universal hook injection framework for Claude Code and Codex. This is the main entry point.
+
+## Runtime detection
+
+Before suggesting or installing anything, detect the host runtime:
+
+1. If `HOOKER_HOST` is present, trust it:
+   - `claude`
+   - `codex`
+2. Otherwise inspect the plugin root:
+   - `.claude-plugin/plugin.json` => Claude Code
+   - `.codex-plugin/plugin.json` => Codex
+3. If still unclear, inspect the available hook events and settings files:
+   - Claude defaults to `.claude/settings.json` and supports many more events
+   - Codex currently supports only: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop
+
+Always filter recipes by compatibility for the detected host:
+- `native` => safe to offer normally
+- `degraded` => offer only with a clear warning about reduced behavior
+- `unsupported` => do not offer unless the user explicitly asks for a port
 
 ## Hook file locations (priority order)
 
 1. **Project-level**: `.claude/hooker/` — overrides everything, version-controllable
 2. **User-global**: `~/.claude/hooker/` — applies to all projects unless overridden
-3. **Plugin defaults**: `${CLAUDE_PLUGIN_ROOT}/templates/` — ships with plugin
+3. **Plugin defaults**: `${HOOKER_PLUGIN_DIR}`/`templates/` — ships with plugin
 
 When creating, editing, or troubleshooting hooks — check all three locations.
 
@@ -104,84 +123,84 @@ Available recipes (no need to scan filesystem — this is the full list):
 
 ### Safety
 Guardrails and protection rules. No external dependencies — pure bash/sed.
-| Recipe | Hook | Description |
-|--------|------|-------------|
-| `block-dangerous-commands` | PreToolUse | Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands. |
-| `no-force-push-main` | PreToolUse | Blocks git push --force to main/master branches. |
-| `protect-sensitive-files` | PreToolUse | Blocks reading or editing .env, SSH keys, credentials, and other sensitive files. |
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
+| `block-dangerous-commands` | PreToolUse | native | native | Blocks rm -rf, fork bombs, curl|sh, DROP TABLE, and other destructive bash commands. |
+| `no-force-push-main` | PreToolUse | native | native | Blocks git push --force to main/master branches. |
+| `protect-sensitive-files` | PreToolUse | native | native | Blocks reading or editing .env, SSH keys, credentials, and other sensitive files. |
 
 ### Refactoring
 Import/link updates after file moves. Two tiers:
 - **simple** recipes: pure bash/sed, zero dependencies, work everywhere (including Docker-only envs)
 - **smart** recipes: use external tools (typescript, phpactor, rope) for AST-aware accuracy. Falls back to sed if tool unavailable. For projects with multiple smart recipes on the same hook (PostToolUse), consider **isolated mode** installation to avoid merging conflicts.
-| Recipe | Hook | Description |
-|--------|------|-------------|
-| `refactor-move-csharp-smart` | PostToolUse, PostCompact, SessionStart | After mv of .cs files, updates namespace declarations and using statements across the project. Derives namespace from directory structure + .csproj. Pure bash/sed. |
-| `refactor-move-go-simple` | PostToolUse, PostCompact, SessionStart | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
-| `refactor-move-java-smart` | PostToolUse, PostCompact, SessionStart | After mv of .java files, updates package declarations and import statements across the project. Derives package from directory structure. Pure bash/sed. |
-| `refactor-move-markdown` | PostToolUse, PostCompact, SessionStart | After mv of any file, updates relative links in .md files ([text](path) and image refs). Pure bash/sed — no external dependencies. |
-| `refactor-move-php-smart` | PostToolUse, PostCompact, SessionStart | After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable. |
-| `refactor-move-python-simple` | PostToolUse, PostCompact, SessionStart | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
-| `refactor-move-python-smart` | PostToolUse, PostCompact, SessionStart | After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable. |
-| `refactor-move-symbol` | PostToolUse, PostCompact, SessionStart | EXPERIMENTAL. Detects when a function/class/export is cut from one file and pasted into another (via two Edit calls). Tracks removals in state file, matches with additions, then suggests import updates. Uses Python for diff analysis. May produce false positives. |
-| `refactor-move-ts-simple` | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
-| `refactor-move-ts-smart` | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
-| `refactor-move-universal` | PostToolUse, PostCompact, SessionStart | After mv of any file, finds and replaces old path references in all text files (config, YAML, Dockerfile, scripts, etc.). Catches what language-specific recipes miss. Pure bash/sed. |
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
+| `refactor-move-csharp-smart` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .cs files, updates namespace declarations and using statements across the project. Derives namespace from directory structure + .csproj. Pure bash/sed. |
+| `refactor-move-go-simple` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .go files, updates import paths across the project. Reads go.mod for module path. Pure bash/sed — no external dependencies (gorename not required). |
+| `refactor-move-java-smart` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .java files, updates package declarations and import statements across the project. Derives package from directory structure. Pure bash/sed. |
+| `refactor-move-markdown` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of any file, updates relative links in .md files ([text](path) and image refs). Pure bash/sed — no external dependencies. |
+| `refactor-move-php-smart` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable. |
+| `refactor-move-python-simple` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
+| `refactor-move-python-smart` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable. |
+| `refactor-move-symbol` | PostToolUse, PostCompact, SessionStart | native | unsupported | EXPERIMENTAL. Detects when a function/class/export is cut from one file and pasted into another (via two Edit calls). Tracks removals in state file, matches with additions, then suggests import updates. Uses Python for diff analysis. May produce false positives. |
+| `refactor-move-ts-simple` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
+| `refactor-move-ts-smart` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
+| `refactor-move-universal` | PostToolUse, PostCompact, SessionStart | native | unsupported | After mv of any file, finds and replaces old path references in all text files (config, YAML, Dockerfile, scripts, etc.). Catches what language-specific recipes miss. Pure bash/sed. |
 
 ### Workflow
 Git operations, formatting, changelog enforcement. No external dependencies.
-| Recipe | Hook | Description |
-|--------|------|-------------|
-| `auto-checkpoint` | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
-| `auto-format` | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
-| `require-changelog-before-tag` | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
+| `auto-checkpoint` | Stop | native | native | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
+| `auto-format` | PostToolUse | native | native | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
+| `require-changelog-before-tag` | PreToolUse | native | native | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
 
 ### Context
 Session context injection and preservation across compaction.
-| Recipe | Hook | Description |
-|--------|------|-------------|
-| `agent-gets-claude-context` | SubagentStart | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
-| `agents-md-context` | SessionStart, PostCompact | Injects AGENTS.md content into session context on start and after compaction. Walks up from CWD to find the nearest AGENTS.md, respecting the convention used by multi-agent projects. |
-| `compact-context` | PreCompact | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
-| `git-context-on-start` | SessionStart | Injects current git branch, status, and recent commits on session start. |
-| `hook-discovery` | UserPromptSubmit | Detects when user might want hooks/automation and suggests /hooker:recipe. |
-| `reinject-after-compact` | SessionStart | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
+| `agent-gets-claude-context` | SubagentStart | native | unsupported | Injects CLAUDE.md and MEMORY.md into every subagent so they share the main session's project instructions and memory. |
+| `agents-md-context` | SessionStart, PostCompact | native | unsupported | Injects AGENTS.md content into session context on start and after compaction. Walks up from CWD to find the nearest AGENTS.md, respecting the convention used by multi-agent projects. |
+| `compact-context` | PreCompact | native | unsupported | Injects custom instructions into the compaction prompt. Lightweight alternative to the kompakt plugin — edit PreCompact.md to customize what the compactor preserves. |
+| `git-context-on-start` | SessionStart | native | native | Injects current git branch, status, and recent commits on session start. |
+| `hook-discovery` | UserPromptSubmit | native | native | Detects when user might want hooks/automation and suggests /hooker:recipe. |
+| `reinject-after-compact` | SessionStart | native | native | Re-injects critical project context (from .claude/hooker/context.md) after compaction to prevent context loss. |
 
 ### Quality
 Code quality checks and behavioral nudges.
-| Recipe | Hook | Description |
-|--------|------|-------------|
-| `detect-lazy-code` | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
-| `no-dismiss-failures` | PostToolUse | After test/lint commands fail, injects a reminder that dismissing failures is unacceptable. Agent must investigate root cause, fix, or explain to user. |
-| `remind-to-update-docs` | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
-| `skip-acknowledgments` | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
+| `detect-lazy-code` | PostToolUse | native | native | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
+| `no-dismiss-failures` | PostToolUse | native | native | After test/lint commands fail, injects a reminder that dismissing failures is unacceptable. Agent must investigate root cause, fix, or explain to user. |
+| `remind-to-update-docs` | Stop | native | native | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
+| `skip-acknowledgments` | UserPromptSubmit | native | native | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
 
 ### Monitoring
 Session lifecycle management and observation.
-| Recipe | Hook | Description |
-|--------|------|-------------|
-| `behavior-watchdog` | UserPromptSubmit | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
-| `cache-catcher` | SessionStart, UserPromptSubmit, PostToolUse, Stop | Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads, indicating broken prompt caching. |
-| `cache-watchdog` | PostToolUse | Monitors cache_creation vs cache_read from transcripts. Warns or blocks when cache writes consistently exceed reads, indicating broken prompt caching. |
-| `dir-cleanup` | UserPromptSubmit | Auto-removes oldest files from configured directories when they exceed thresholds. DESTRUCTIVE — deletes files. Shares config with dir-watchdog (dir-watchdog.yml). Only acts on rules with action: cleanup. |
-| `dir-watchdog` | UserPromptSubmit | Monitors directories for file bloat (too many files of same type). Warns about bloated directories — never deletes anything. Configure thresholds in dir-watchdog.yml. Use dir-cleanup for auto-removal. |
-| `scheduled-tasks` | SessionStart, UserPromptSubmit, SessionEnd | Auto-installs/updates crontab from schedules.yml on session start. Saves results from headless sessions. Notifies about unread cron results in interactive sessions. |
-| `session-guardian` | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
-| `smart-session-notes` | PreCompact | Creates filtered markdown session notes before compaction. Configurable: include/exclude user messages, assistant text, errors, tool calls. Saves to .claude/hooker/session-notes.md. |
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
+| `behavior-watchdog` | UserPromptSubmit | native | native | Periodically and on frustration signals, silently reminds Claude to check if its behavior is causing issues and suggests /hooker:recipe as a fix. |
+| `cache-catcher` | SessionStart, UserPromptSubmit, PostToolUse, Stop | native | unsupported | Monitor Claude Code cache health. Warns or blocks when cache writes exceed reads, indicating broken prompt caching. |
+| `dir-cleanup` | UserPromptSubmit | native | native | Auto-removes oldest files from configured directories when they exceed thresholds. DESTRUCTIVE — deletes files. Shares config with dir-watchdog (dir-watchdog.yml). Only acts on rules with action: cleanup. |
+| `dir-watchdog` | UserPromptSubmit | native | native | Monitors directories for file bloat (too many files of same type). Warns about bloated directories — never deletes anything. Configure thresholds in dir-watchdog.yml. Use dir-cleanup for auto-removal. |
+| `scheduled-tasks` | SessionStart, UserPromptSubmit, SessionEnd | native | unsupported | Auto-installs/updates crontab from schedules.yml on session start. Saves results from headless sessions. Notifies about unread cron results in interactive sessions. |
+| `session-guardian` | PostToolUseFailure, TaskCompleted, PostCompact, SessionEnd, SubagentStop | native | unsupported | Lifecycle reminders: verify failed tools, check tests before task completion, re-inject context after compaction, remind to commit on session end, review subagent output. |
+| `smart-session-notes` | PreCompact | native | unsupported | Creates filtered markdown session notes before compaction. Configurable: include/exclude user messages, assistant text, errors, tool calls. Saves to .claude/hooker/session-notes.md. |
 
 **Hooks without recipes**: PermissionRequest, Notification, TeammateIdle, ConfigChange, WorktreeCreate, WorktreeRemove, Elicitation, ElicitationResult, Setup, InstructionsLoaded, StopFailure, CwdChanged, FileChanged, TaskCreated, PermissionDenied
 
 ## Without arguments
 1. **Detect project context:**
    - Check project stack (package.json, pyproject.toml, go.mod, etc.)
+   - Detect runtime (`claude` or `codex`) before recommending recipes
    - Check `.claude/hooker/` for already installed recipes:
      - **Isolated/standalone**: subdirectories in `.claude/hooker/*/`
      - **Merged mode**: grep for `# @recipe` markers in `.claude/hooker/*.match.*`
    - Check `.claude/hooker/runtimes.conf` for configured runtimes
-2. Show the catalog with [installed] / [ready] status
+2. Show the catalog with [installed] / [ready] status, but only for recipes compatible with the current runtime
 3. Based on project stack, **highlight relevant recipes** (e.g. TS refactoring recipes for Node
    projects, Python smart recipes for Python projects)
-4. Ask user which recipe(s) to install
+4. Ask user which recipe(s) to install from the compatible subset
 5. If user wants custom hooks, ask about preferred language and generate accordingly
 
 ## Shared vs Local installation
@@ -248,6 +267,11 @@ exit 1
 ## Installation modes
 
 When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:
+
+Host-specific rule:
+- In `claude`, the installation modes below apply as written.
+- In `codex`, do not generate Claude-specific `.claude/settings*.json` wiring or `$CLAUDE_*` paths.
+- In `codex`, only use recipes marked `native` or `degraded`, and prefer preparing recipe files plus `hooks.json` entries for a Codex-oriented plugin/package rather than Claude local-install flows.
 
 ### Merged mode (stable, default)
 

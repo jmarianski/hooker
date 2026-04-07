@@ -4,7 +4,7 @@
 
 load_md() {
     local FILE=""
-    for DIR in ".claude/hooker" "${HOME}/.claude/hooker" "${CLAUDE_PLUGIN_ROOT:-}/templates"; do
+    for DIR in ".claude/hooker" "${HOME}/.claude/hooker" "${HOOKER_PLUGIN_DIR:-${CLAUDE_PLUGIN_ROOT:-}}/templates"; do
         if [ -f "${DIR}/$1" ]; then
             FILE="${DIR}/$1"
             break

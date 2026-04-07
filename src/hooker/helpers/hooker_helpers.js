@@ -6,6 +6,8 @@
  *   // or: import * as hooker from 'hooker_helpers';  (with appropriate runtime)
  *
  * Environment (set by inject.sh):
+ *   HOOKER_HOST      — host runtime: claude, codex, or unknown
+ *   HOOKER_PLUGIN_DIR — resolved plugin root directory
  *   HOOKER_EVENT      — hook event name (PostToolUse, PreToolUse, etc.)
  *   HOOKER_CWD        — project working directory
  *   HOOKER_TRANSCRIPT — path to conversation transcript

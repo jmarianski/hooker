@@ -5,13 +5,32 @@ args: "[recipe-name | natural language description | list|install|remove|install
 
 # Hooker
 
-Universal hook injection framework for Claude Code. This is the main entry point.
+Universal hook injection framework for Claude Code and Codex. This is the main entry point.
+
+## Runtime detection
+
+Before suggesting or installing anything, detect the host runtime:
+
+1. If `HOOKER_HOST` is present, trust it:
+   - `claude`
+   - `codex`
+2. Otherwise inspect the plugin root:
+   - `.claude-plugin/plugin.json` => Claude Code
+   - `.codex-plugin/plugin.json` => Codex
+3. If still unclear, inspect the available hook events and settings files:
+   - Claude defaults to `.claude/settings.json` and supports many more events
+   - Codex currently supports only: {{ codexHooks | join(d=", ") }}
+
+Always filter recipes by compatibility for the detected host:
+- `native` => safe to offer normally
+- `degraded` => offer only with a clear warning about reduced behavior
+- `unsupported` => do not offer unless the user explicitly asks for a port
 
 ## Hook file locations (priority order)
 
 1. **Project-level**: `.claude/hooker/` — overrides everything, version-controllable
 2. **User-global**: `~/.claude/hooker/` — applies to all projects unless overridden
-3. **Plugin defaults**: `${CLAUDE_PLUGIN_ROOT}/templates/` — ships with plugin
+3. **Plugin defaults**: `${HOOKER_PLUGIN_DIR}`/`templates/` — ships with plugin
 
 When creating, editing, or troubleshooting hooks — check all three locations.
 
@@ -120,10 +139,10 @@ Code quality checks and behavioral nudges.
 Session lifecycle management and observation.
 {% endif -%}
 
-| Recipe | Hook | Description |
-|--------|------|-------------|
+| Recipe | Hook | Claude | Codex | Description |
+|--------|------|--------|-------|-------------|
 {%- for r in cat.Recipes %}
-| `{{ r.ID }}` | {{ r.Hooks | join(d=", ") }} | {{ r.Description }} |
+| `{{ r.ID }}` | {{ r.Hooks | join(d=", ") }} | {{ r.Compatibility.Claude }} | {{ r.Compatibility.Codex }} | {{ r.Description }} |
 {%- endfor %}
 
 {% endfor -%}
@@ -133,14 +152,15 @@ Session lifecycle management and observation.
 ## Without arguments
 1. **Detect project context:**
    - Check project stack (package.json, pyproject.toml, go.mod, etc.)
+   - Detect runtime (`claude` or `codex`) before recommending recipes
    - Check `.claude/hooker/` for already installed recipes:
      - **Isolated/standalone**: subdirectories in `.claude/hooker/*/`
      - **Merged mode**: grep for `# @recipe` markers in `.claude/hooker/*.match.*`
    - Check `.claude/hooker/runtimes.conf` for configured runtimes
-2. Show the catalog with [installed] / [ready] status
+2. Show the catalog with [installed] / [ready] status, but only for recipes compatible with the current runtime
 3. Based on project stack, **highlight relevant recipes** (e.g. TS refactoring recipes for Node
    projects, Python smart recipes for Python projects)
-4. Ask user which recipe(s) to install
+4. Ask user which recipe(s) to install from the compatible subset
 5. If user wants custom hooks, ask about preferred language and generate accordingly
 
 ## Shared vs Local installation
@@ -207,6 +227,11 @@ exit 1
 ## Installation modes
 
 When the user requests recipe installation, **always ask which mode they prefer** and explain the tradeoffs:
+
+Host-specific rule:
+- In `claude`, the installation modes below apply as written.
+- In `codex`, do not generate Claude-specific `.claude/settings*.json` wiring or `$CLAUDE_*` paths.
+- In `codex`, only use recipes marked `native` or `degraded`, and prefer preparing recipe files plus `hooks.json` entries for a Codex-oriented plugin/package rather than Claude local-install flows.
 
 ### Merged mode (stable, default)
 

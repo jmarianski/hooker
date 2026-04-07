@@ -11,7 +11,13 @@ You are managing the Hooker plugin configuration. Read the current state, help t
 
 1. **Project-level**: `.claude/hooker/` — overrides everything, version-controllable
 2. **User-global**: `~/.claude/hooker/` — applies to all projects unless overridden
-3. **Plugin defaults**: `${CLAUDE_PLUGIN_ROOT}/templates/` — ships with plugin
+3. **Plugin defaults**: `${HOOKER_PLUGIN_DIR}`/`templates/` — ships with plugin
+
+Before editing or troubleshooting, detect the host runtime:
+- `.claude-plugin/plugin.json` => Claude Code
+- `.codex-plugin/plugin.json` => Codex
+
+Only reason about hooks and recipes supported by that runtime.
 
 When the user asks to edit/fix/disable a hook, check ALL three locations to find where it lives.
 
@@ -44,7 +50,7 @@ If user describes what they want (e.g. "fix the stop hook", "disable remind", "s
 
 ### `on` / `off` (no args = show status)
 - Show which hooks have templates/scripts (active) vs nothing (inactive/passthrough)
-- Group by category:
+- Group by category for the current runtime:
   - **Session**: SessionStart, SessionEnd, Setup (+InstructionsLoaded CC>=2.1.69)
   - **Tools**: PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest (+PermissionDenied CC>=2.1.89)
   - **Flow**: UserPromptSubmit, Stop, TaskCompleted (+StopFailure CC>=2.1.78, +TaskCreated CC>=2.1.84)
