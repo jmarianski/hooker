@@ -83,11 +83,14 @@ func buildHooker(srcDir, repoRoot string) {
 	// 3b. Multi-language helpers (Python, JS) — for non-shell match scripts
 	copyDir(filepath.Join(hookerSrc, "helpers"), filepath.Join(hookerOut, "helpers"), "helpers")
 
-	// 4. Plugin manifest
+	// 4. Plugin manifest — Claude Code
 	copyFile(filepath.Join(hookerSrc, "plugin.json"), filepath.Join(hookerOut, ".claude-plugin", "plugin.json"), ".claude-plugin/plugin.json")
 
-	// 4b. Also generate .codex-plugin/plugin.json for Codex
-	copyFile(filepath.Join(hookerSrc, "plugin.json"), filepath.Join(hookerOut, ".codex-plugin", "plugin.json"), ".codex-plugin/plugin.json")
+	// 4b. Generate .codex-plugin/plugin.json with Codex-native schema
+	buildCodexPluginJson(hookerSrc, hookerOut)
+
+	// 4c. Generate hooks-codex.json — only Codex-supported events
+	buildCodexHooksJson(hookerOut)
 
 	// 5. .pluginignore
 	copyFile(filepath.Join(hookerSrc, ".pluginignore"), filepath.Join(hookerOut, ".pluginignore"), ".pluginignore")
@@ -97,6 +100,115 @@ func buildHooker(srcDir, repoRoot string) {
 
 	// 7. Plugin-recipes — recipes with "plugin" field also build as standalone plugins
 	buildPluginRecipes(hookerSrc, hookerOut, repoRoot, recipes)
+}
+
+// =============================================================================
+// CODEX-NATIVE OUTPUTS
+// =============================================================================
+
+// buildCodexPluginJson generates .codex-plugin/plugin.json with the Codex-native
+// schema (paths, hooks, interface fields) from the Claude Code plugin.json source.
+func buildCodexPluginJson(pluginSrc, pluginOut string) {
+	// Read source plugin.json for base fields
+	data, err := os.ReadFile(filepath.Join(pluginSrc, "plugin.json"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  .codex-plugin/plugin.json: WARNING — %v\n", err)
+		return
+	}
+
+	var base map[string]any
+	if err := json.Unmarshal(data, &base); err != nil {
+		fatal(".codex-plugin/plugin.json", "parsing source", err)
+	}
+
+	// Build Codex manifest — keep shared fields, add Codex-specific ones
+	codex := map[string]any{
+		"name":        base["name"],
+		"version":     base["version"],
+		"description": base["description"],
+	}
+	if a, ok := base["author"]; ok {
+		codex["author"] = a
+	}
+	if l, ok := base["license"]; ok {
+		codex["license"] = l
+	}
+	if k, ok := base["keywords"]; ok {
+		codex["keywords"] = k
+	}
+
+	// Codex path references
+	codex["skills"] = "./skills/"
+	codex["hooks"] = "./hooks-codex.json"
+
+	// Codex interface metadata
+	codex["interface"] = map[string]any{
+		"displayName":      "Hooker",
+		"shortDescription": "Universal hook injection framework for coding agents",
+		"longDescription":  "Inject custom prompts, reminders, guardrails, and context into hook events via simple template files. Includes a recipe catalog with pre-built hooks for safety, refactoring, workflow, and code quality.",
+		"developerName":    "Jacek Mariański",
+		"category":         "Coding",
+		"capabilities":     []string{"Interactive"},
+		"websiteURL":       "https://treetank.net",
+		"defaultPrompt": []string{
+			"Install a hook recipe",
+			"Show active hooks",
+		},
+	}
+
+	out, err := json.MarshalIndent(codex, "", "  ")
+	if err != nil {
+		fatal(".codex-plugin/plugin.json", "marshaling", err)
+	}
+	out = append(out, '\n')
+
+	os.MkdirAll(filepath.Join(pluginOut, ".codex-plugin"), 0755)
+	writeFile(filepath.Join(pluginOut, ".codex-plugin", "plugin.json"), out)
+	fmt.Println("  .codex-plugin/plugin.json: built (Codex-native)")
+}
+
+// buildCodexHooksJson generates hooks-codex.json containing only Codex-supported
+// events, reading from the full hooks/hooks.json.
+func buildCodexHooksJson(pluginOut string) {
+	srcPath := filepath.Join(pluginOut, "hooks", "hooks.json")
+	data, err := os.ReadFile(srcPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  hooks-codex.json: WARNING — %v\n", err)
+		return
+	}
+
+	var full struct {
+		Hooks map[string]json.RawMessage `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &full); err != nil {
+		fatal("hooks-codex.json", "parsing", err)
+	}
+
+	// Filter to Codex-supported events and fix paths
+	codexSet := make(map[string]bool)
+	for _, h := range generators.CodexHooks() {
+		codexSet[h] = true
+	}
+
+	filtered := make(map[string]json.RawMessage)
+	for name, val := range full.Hooks {
+		if codexSet[name] {
+			// Replace ${CLAUDE_PLUGIN_ROOT}/ with ./ for Codex
+			// Codex resolves relative paths from the plugin root directory
+			s := strings.ReplaceAll(string(val), "${CLAUDE_PLUGIN_ROOT}/", "./")
+			filtered[name] = json.RawMessage(s)
+		}
+	}
+
+	wrapper := map[string]any{"hooks": filtered}
+	out, err := json.MarshalIndent(wrapper, "", "  ")
+	if err != nil {
+		fatal("hooks-codex.json", "marshaling", err)
+	}
+	out = append(out, '\n')
+
+	writeFile(filepath.Join(pluginOut, "hooks-codex.json"), out)
+	fmt.Printf("  hooks-codex.json: built (%d events)\n", len(filtered))
 }
 
 // =============================================================================
@@ -334,6 +446,70 @@ func buildMarketplace(srcDir, repoRoot string) {
 	os.MkdirAll(filepath.Join(repoRoot, ".claude-plugin"), 0755)
 	writeFile(filepath.Join(repoRoot, ".claude-plugin", "marketplace.json"), data)
 	fmt.Println("  .claude-plugin/marketplace.json: built")
+
+	// Codex marketplace — .agents/plugins/marketplace.json
+	buildCodexMarketplace(repoRoot, plugins)
+}
+
+func buildCodexMarketplace(repoRoot string, ccPlugins []map[string]string) {
+	type codexSource struct {
+		Source string `json:"source"`
+		Path   string `json:"path"`
+	}
+	type codexPolicy struct {
+		Installation   string `json:"installation"`
+		Authentication string `json:"authentication"`
+	}
+	type codexPluginEntry struct {
+		Name     string      `json:"name"`
+		Source   codexSource `json:"source"`
+		Policy   codexPolicy `json:"policy"`
+		Category string      `json:"category,omitempty"`
+	}
+
+	var codexPlugins []codexPluginEntry
+	for _, p := range ccPlugins {
+		// Only include plugins that have a .codex-plugin manifest
+		codexManifest := filepath.Join(repoRoot, p["name"], ".codex-plugin", "plugin.json")
+		if _, err := os.Stat(codexManifest); os.IsNotExist(err) {
+			continue
+		}
+		codexPlugins = append(codexPlugins, codexPluginEntry{
+			Name: p["name"],
+			Source: codexSource{
+				Source: "local",
+				Path:   "./" + p["name"],
+			},
+			Policy: codexPolicy{
+				Installation:   "AVAILABLE",
+				Authentication: "ON_INSTALL",
+			},
+			Category: "Coding",
+		})
+	}
+
+	if len(codexPlugins) == 0 {
+		return
+	}
+
+	marketplace := map[string]any{
+		"name": "hooker-marketplace",
+		"interface": map[string]string{
+			"displayName": "Hooker Marketplace",
+		},
+		"plugins": codexPlugins,
+	}
+
+	data, err := json.MarshalIndent(marketplace, "", "  ")
+	if err != nil {
+		fatal("codex marketplace", "marshaling", err)
+	}
+	data = append(data, '\n')
+
+	codexDir := filepath.Join(repoRoot, ".agents", "plugins")
+	os.MkdirAll(codexDir, 0755)
+	writeFile(filepath.Join(codexDir, "marketplace.json"), data)
+	fmt.Println("  .agents/plugins/marketplace.json: built (Codex)")
 }
 
 // =============================================================================

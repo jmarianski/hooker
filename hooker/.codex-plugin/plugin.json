@@ -1,11 +1,34 @@
 {
-  "name": "hooker",
-  "description": "Universal hook injection framework for Claude Code. Inject custom prompts, reminders, and context into any of 25+ hook events via simple template files.",
-  "version": "1.3.0",
   "author": {
     "name": "Jacek Mariański",
     "url": "https://treetank.net"
   },
+  "description": "Universal hook injection framework for Claude Code. Inject custom prompts, reminders, and context into any of 25+ hook events via simple template files.",
+  "hooks": "./hooks-codex.json",
+  "interface": {
+    "capabilities": [
+      "Interactive"
+    ],
+    "category": "Coding",
+    "defaultPrompt": [
+      "Install a hook recipe",
+      "Show active hooks"
+    ],
+    "developerName": "Jacek Mariański",
+    "displayName": "Hooker",
+    "longDescription": "Inject custom prompts, reminders, guardrails, and context into hook events via simple template files. Includes a recipe catalog with pre-built hooks for safety, refactoring, workflow, and code quality.",
+    "shortDescription": "Universal hook injection framework for coding agents",
+    "websiteURL": "https://treetank.net"
+  },
+  "keywords": [
+    "hooks",
+    "injection",
+    "framework",
+    "reminders",
+    "context"
+  ],
   "license": "MIT",
-  "keywords": ["hooks", "injection", "framework", "reminders", "context"]
+  "name": "hooker",
+  "skills": "./skills/",
+  "version": "1.3.0"
 }
