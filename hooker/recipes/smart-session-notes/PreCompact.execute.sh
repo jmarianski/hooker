@@ -95,6 +95,63 @@ _hooker_strip_hidden() {
     '
 }
 
+_hooker_resolve_codex_home() {
+    if [ -n "${HOOKER_CODEX_HOME:-}" ]; then
+        echo "$HOOKER_CODEX_HOME"
+        return
+    fi
+
+    if [ -n "${CODEX_HOME:-}" ]; then
+        echo "$CODEX_HOME"
+        return
+    fi
+
+    case "${HOOKER_PLUGIN_DIR:-${CLAUDE_PLUGIN_ROOT:-}}" in
+        */plugins/cache/*)
+            echo "${HOOKER_PLUGIN_DIR%%/plugins/cache/*}"
+            return
+            ;;
+    esac
+
+    echo "${HOME}/.codex"
+}
+
+_hooker_project_hook_dir() {
+    if [ "${HOOKER_HOST:-unknown}" = "codex" ]; then
+        echo "${HOOKER_CWD:-.}/.codex/hooker"
+    else
+        echo "${HOOKER_CWD:-.}/.claude/hooker"
+    fi
+}
+
+_hooker_legacy_project_hook_dir() {
+    echo "${HOOKER_CWD:-.}/.claude/hooker"
+}
+
+_hooker_user_hook_dir() {
+    if [ "${HOOKER_HOST:-unknown}" = "codex" ]; then
+        echo "$(_hooker_resolve_codex_home)/hooker"
+    else
+        echo "${HOME}/.claude/hooker"
+    fi
+}
+
+_hooker_legacy_user_hook_dir() {
+    echo "${HOME}/.claude/hooker"
+}
+
+_hooker_project_hook_config() {
+    if [ "${HOOKER_HOST:-unknown}" = "codex" ]; then
+        echo "${HOOKER_CWD:-.}/.codex/hooker.json"
+    else
+        echo "${HOOKER_CWD:-.}/.claude/hooker.json"
+    fi
+}
+
+_hooker_legacy_project_hook_config() {
+    echo "${HOOKER_CWD:-.}/.claude/hooker.json"
+}
+
 # Runtime resolution for multi-language match scripts.
 # Supports any file extension with configurable runtimes.
 
@@ -117,26 +174,33 @@ _hooker_default_runtime() {
 # Priority: env HOOKER_RUNTIME_<ext> > project runtimes.conf > user runtimes.conf > defaults
 _hooker_resolve_runtime() {
     local EXT="$1"
+    local VAL
+    local PROJECT_CONF
+    local USER_CONF
 
     # 1. Environment variable override (e.g. HOOKER_RUNTIME_py=python3.12)
     eval "local ENV_VAL=\${HOOKER_RUNTIME_${EXT}:-}"
     [ -n "$ENV_VAL" ] && echo "$ENV_VAL" && return
 
     # 2. Project runtimes.conf
-    local PROJECT_CONF="${HOOKER_CWD:-.}/.claude/hooker/runtimes.conf"
-    if [ -f "$PROJECT_CONF" ]; then
-        local VAL
+    for PROJECT_CONF in \
+        "$(_hooker_project_hook_dir)/runtimes.conf" \
+        "$(_hooker_legacy_project_hook_dir)/runtimes.conf"
+    do
+        [ -f "$PROJECT_CONF" ] || continue
         VAL=$(grep "^${EXT}=" "$PROJECT_CONF" 2>/dev/null | head -1 | cut -d= -f2-)
         [ -n "$VAL" ] && echo "$VAL" && return
-    fi
+    done
 
     # 3. User runtimes.conf
-    local USER_CONF="${HOME}/.claude/hooker/runtimes.conf"
-    if [ -f "$USER_CONF" ]; then
-        local VAL
+    for USER_CONF in \
+        "$(_hooker_user_hook_dir)/runtimes.conf" \
+        "$(_hooker_legacy_user_hook_dir)/runtimes.conf"
+    do
+        [ -f "$USER_CONF" ] || continue
         VAL=$(grep "^${EXT}=" "$USER_CONF" 2>/dev/null | head -1 | cut -d= -f2-)
         [ -n "$VAL" ] && echo "$VAL" && return
-    fi
+    done
 
     # 4. Built-in default
     _hooker_default_runtime "$EXT"
@@ -262,11 +326,18 @@ context() {
 
 # File loaders.
 # Only useful inside inject() — JSON helpers (block, deny, etc.) are always visible.
-# Looks in: .claude/hooker/ → ~/.claude/hooker/ → plugin templates/
+# Claude: .claude/hooker/ → ~/.claude/hooker/ → plugin templates/
+# Codex: .codex/hooker/ → ${CODEX_HOME}/hooker/ → legacy .claude fallbacks → plugin templates/
 
 load_md() {
     local FILE=""
-    for DIR in ".claude/hooker" "${HOME}/.claude/hooker" "${HOOKER_PLUGIN_DIR:-${CLAUDE_PLUGIN_ROOT:-}}/templates"; do
+    for DIR in \
+        "$(_hooker_project_hook_dir)" \
+        "$(_hooker_user_hook_dir)" \
+        "$(_hooker_legacy_project_hook_dir)" \
+        "$(_hooker_legacy_user_hook_dir)" \
+        "${HOOKER_PLUGIN_DIR:-${CLAUDE_PLUGIN_ROOT:-}}/templates"
+    do
         if [ -f "${DIR}/$1" ]; then
             FILE="${DIR}/$1"
             break

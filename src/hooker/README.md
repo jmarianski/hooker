@@ -18,27 +18,21 @@ claude --plugin-dir /path/to/hooker
 ### OpenAI Codex
 
 ```bash
-# 1. Clone into Codex plugin cache
-git clone https://gitlab.com/treetank/hooker.git \
-  ~/.codex/plugins/cache/hooker-marketplace/hooker/local
-
-# 2. Enable in ~/.codex/config.toml
-cat >> ~/.codex/config.toml << 'EOF'
-[features]
-plugins = true
-
-[plugins."hooker@hooker-marketplace"]
-enabled = true
-EOF
+bash install-codex.sh
 ```
 
-Restart Codex to pick up the plugin. Then use the recipe skill to install hooks:
+This registers the marketplace in `~/.agents/plugins/marketplace.json`. Restart Codex
+and the plugin appears in `/plugins`. Update with `bash install-codex.sh --update`.
+
+Then use the recipe skill to install hooks:
 
 ```
-/hooker:recipe install no-force-push-main
+use the hooker recipe skill to install no-force-push-main
 ```
 
-The skill detects Codex automatically and wires hooks in `.codex/hooks.json` instead of Claude's `settings.json`.
+The skill detects Codex automatically and wires hooks in `.codex/hooks.json` instead of
+Claude's `settings.json`. Hook files live in `.codex/hooker/` and `${CODEX_HOME}/hooker/`
+with legacy fallback to `.claude/hooker/`.
 
 ## How It Works
 

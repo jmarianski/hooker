@@ -35,3 +35,60 @@ _hooker_strip_hidden() {
     !skip { print }
     '
 }
+
+_hooker_resolve_codex_home() {
+    if [ -n "${HOOKER_CODEX_HOME:-}" ]; then
+        echo "$HOOKER_CODEX_HOME"
+        return
+    fi
+
+    if [ -n "${CODEX_HOME:-}" ]; then
+        echo "$CODEX_HOME"
+        return
+    fi
+
+    case "${HOOKER_PLUGIN_DIR:-${CLAUDE_PLUGIN_ROOT:-}}" in
+        */plugins/cache/*)
+            echo "${HOOKER_PLUGIN_DIR%%/plugins/cache/*}"
+            return
+            ;;
+    esac
+
+    echo "${HOME}/.codex"
+}
+
+_hooker_project_hook_dir() {
+    if [ "${HOOKER_HOST:-unknown}" = "codex" ]; then
+        echo "${HOOKER_CWD:-.}/.codex/hooker"
+    else
+        echo "${HOOKER_CWD:-.}/.claude/hooker"
+    fi
+}
+
+_hooker_legacy_project_hook_dir() {
+    echo "${HOOKER_CWD:-.}/.claude/hooker"
+}
+
+_hooker_user_hook_dir() {
+    if [ "${HOOKER_HOST:-unknown}" = "codex" ]; then
+        echo "$(_hooker_resolve_codex_home)/hooker"
+    else
+        echo "${HOME}/.claude/hooker"
+    fi
+}
+
+_hooker_legacy_user_hook_dir() {
+    echo "${HOME}/.claude/hooker"
+}
+
+_hooker_project_hook_config() {
+    if [ "${HOOKER_HOST:-unknown}" = "codex" ]; then
+        echo "${HOOKER_CWD:-.}/.codex/hooker.json"
+    else
+        echo "${HOOKER_CWD:-.}/.claude/hooker.json"
+    fi
+}
+
+_hooker_legacy_project_hook_config() {
+    echo "${HOOKER_CWD:-.}/.claude/hooker.json"
+}

@@ -66,14 +66,33 @@ export HOOKER_PROJECT_ROOT
 HOOKER_PROJECT_SLUG=$(echo "$HOOKER_CWD" | sed 's|/|-|g; s|^-||')
 HOOKER_PROJECT_DIR="${HOOKER_PROJECT_ROOT}"
 HOOKER_CLAUDE_PROJECT_DIR=""
+HOOKER_CODEX_HOME="${CODEX_HOME:-}"
+if [ -z "$HOOKER_CODEX_HOME" ] && [ "$HOOKER_HOST" = "codex" ]; then
+    case "$PLUGIN_DIR" in
+        */plugins/cache/*)
+            HOOKER_CODEX_HOME="${PLUGIN_DIR%%/plugins/cache/*}"
+            ;;
+    esac
+fi
+if [ -z "$HOOKER_CODEX_HOME" ] && [ "$HOOKER_HOST" = "codex" ]; then
+    HOOKER_CODEX_HOME="${HOME}/.codex"
+fi
 if [ "$HOOKER_HOST" = "claude" ] && [ -n "$HOOKER_PROJECT_SLUG" ]; then
     HOOKER_CLAUDE_PROJECT_DIR="${HOME}/.claude/projects/-${HOOKER_PROJECT_SLUG}"
     HOOKER_PROJECT_DIR="${HOOKER_CLAUDE_PROJECT_DIR}"
 fi
-export HOOKER_PROJECT_SLUG HOOKER_PROJECT_DIR HOOKER_CLAUDE_PROJECT_DIR
+export HOOKER_PROJECT_SLUG HOOKER_PROJECT_DIR HOOKER_CLAUDE_PROJECT_DIR HOOKER_CODEX_HOME
+
+# Shared helper functions include runtime/path resolution used below.
+# shellcheck disable=SC1090
+. "${PLUGIN_DIR}/scripts/helpers.sh"
+HOOKER_PROJECT_HOOK_DIR=$(_hooker_project_hook_dir)
+HOOKER_USER_HOOK_DIR=$(_hooker_user_hook_dir)
+export HOOKER_PROJECT_HOOK_DIR HOOKER_USER_HOOK_DIR
 
 # --- Logging ---
-HOOKER_CONFIG="${HOOKER_CWD:-.}/.claude/hooker.json"
+HOOKER_CONFIG=$(_hooker_project_hook_config)
+[ -f "$HOOKER_CONFIG" ] || HOOKER_CONFIG=$(_hooker_legacy_project_hook_config)
 LOGGING_ENABLED="${HOOKER_LOG:-0}"
 if [ -f "$HOOKER_CONFIG" ]; then
     grep -q '"logs"[[:space:]]*:[[:space:]]*true' "$HOOKER_CONFIG" 2>/dev/null && LOGGING_ENABLED="1"
@@ -111,26 +130,33 @@ _hooker_default_runtime() {
 # Priority: env HOOKER_RUNTIME_<ext> > project runtimes.conf > user runtimes.conf > defaults
 _hooker_resolve_runtime() {
     local EXT="$1"
+    local VAL
+    local PROJECT_CONF
+    local USER_CONF
 
     # 1. Environment variable override (e.g. HOOKER_RUNTIME_py=python3.12)
     eval "local ENV_VAL=\${HOOKER_RUNTIME_${EXT}:-}"
     [ -n "$ENV_VAL" ] && echo "$ENV_VAL" && return
 
     # 2. Project runtimes.conf
-    local PROJECT_CONF="${HOOKER_CWD:-.}/.claude/hooker/runtimes.conf"
-    if [ -f "$PROJECT_CONF" ]; then
-        local VAL
+    for PROJECT_CONF in \
+        "$(_hooker_project_hook_dir)/runtimes.conf" \
+        "$(_hooker_legacy_project_hook_dir)/runtimes.conf"
+    do
+        [ -f "$PROJECT_CONF" ] || continue
         VAL=$(grep "^${EXT}=" "$PROJECT_CONF" 2>/dev/null | head -1 | cut -d= -f2-)
         [ -n "$VAL" ] && echo "$VAL" && return
-    fi
+    done
 
     # 3. User runtimes.conf
-    local USER_CONF="${HOME}/.claude/hooker/runtimes.conf"
-    if [ -f "$USER_CONF" ]; then
-        local VAL
+    for USER_CONF in \
+        "$(_hooker_user_hook_dir)/runtimes.conf" \
+        "$(_hooker_legacy_user_hook_dir)/runtimes.conf"
+    do
+        [ -f "$USER_CONF" ] || continue
         VAL=$(grep "^${EXT}=" "$USER_CONF" 2>/dev/null | head -1 | cut -d= -f2-)
         [ -n "$VAL" ] && echo "$VAL" && return
-    fi
+    done
 
     # 4. Built-in default
     _hooker_default_runtime "$EXT"
@@ -184,8 +210,10 @@ _hooker_run_match() {
 # With --recipe path/Hook: look only in that directory
 # Without --recipe: priority: project > user global > plugin default
 # Standalone match scripts (no .md) are allowed — they handle everything via output
-PROJECT_DIR="${HOOKER_CWD:-.}/.claude/hooker"
-USER_DIR="${HOME}/.claude/hooker"
+PROJECT_DIR="$(_hooker_project_hook_dir)"
+LEGACY_PROJECT_DIR="$(_hooker_legacy_project_hook_dir)"
+USER_DIR="$(_hooker_user_hook_dir)"
+LEGACY_USER_DIR="$(_hooker_legacy_user_hook_dir)"
 
 TEMPLATE_FILE=""
 MATCH_SCRIPT=""
@@ -200,7 +228,7 @@ if [ -n "$RECIPE_DIR" ]; then
     [ -n "$MATCH_SCRIPT" ] && log "Using recipe match script: ${MATCH_SCRIPT}"
 else
     # Default mode — check project first, then user global, then plugin defaults
-    for DIR in "$PROJECT_DIR" "$USER_DIR" "${PLUGIN_DIR}/templates"; do
+    for DIR in "$PROJECT_DIR" "$USER_DIR" "$LEGACY_PROJECT_DIR" "$LEGACY_USER_DIR" "${PLUGIN_DIR}/templates"; do
         if [ -f "${DIR}/${HOOK_EVENT}.md" ] && [ -z "$TEMPLATE_FILE" ]; then
             TEMPLATE_FILE="${DIR}/${HOOK_EVENT}.md"
             log "Using template: ${TEMPLATE_FILE}"

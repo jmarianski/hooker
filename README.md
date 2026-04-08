@@ -34,6 +34,19 @@ Full docs: [`cache-catcher/README.md`](cache-catcher/README.md)
 /plugin install cache-catcher@hooker-marketplace
 ```
 
+### Codex
+
+Register the marketplace and Codex discovers plugins automatically:
+
+```bash
+bash install-codex.sh
+```
+
+This clones the repo to `~/.codex/marketplaces/hooker-marketplace/` and registers it
+in `~/.agents/plugins/marketplace.json`. After restarting Codex, plugins appear in `/plugins`.
+
+Update with `bash install-codex.sh --update` or `git pull` in the clone directory.
+
 ## Contributing
 
 Source of truth is `src/`; top-level `hooker/` and `cache-catcher/` are build outputs.
