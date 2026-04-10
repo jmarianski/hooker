@@ -15,6 +15,12 @@
       "name": "cache-catcher",
       "source": "./cache-catcher",
       "version": "0.6.3"
+    },
+    {
+      "description": "Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop.",
+      "name": "ralph-wiggum",
+      "source": "./ralph-wiggum",
+      "version": "0.1.0"
     }
   ]
 }

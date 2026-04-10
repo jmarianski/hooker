@@ -1,13 +1,20 @@
 {
   "name": "Ralph Wiggum",
-  "description": "Auto-detects Ralph Wiggum loop sessions (phrase 'ralph wiggum' in prompt or RALPH_ITERATION env). Provides state persistence between iterations via SessionStart (load) and Stop (save). User provides outer loop externally.",
-  "hooks": ["UserPromptSubmit", "SessionStart", "Stop"],
-  "matchers": {"UserPromptSubmit": "", "SessionStart": "", "Stop": ""},
+  "description": "Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop.",
+  "version": "0.1.0",
+  "hooks": ["SessionStart", "UserPromptSubmit", "Stop"],
+  "compatibility": {
+    "claude": "native",
+    "codex": "native"
+  },
   "category": "workflow",
   "attribution": {
     "type": "inspired",
     "author": "Geoffrey Huntley",
     "license": "MIT",
     "url": "https://ghuntley.com/ralph"
+  },
+  "plugin": {
+    "output": "ralph-wiggum"
   }
 }

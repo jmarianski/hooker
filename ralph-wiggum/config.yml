@@ -1,0 +1,16 @@
+# Ralph Wiggum configuration
+# Copy to .claude/hooker/ralph-wiggum/config.yml to customize
+
+# State file location (relative to project root)
+state_file: ".claude/ralph-state.json"
+
+# Completion marker - when Claude outputs this, task is considered done
+completion_marker: "RALPH_DONE"
+
+# Activation phrases (case insensitive, checked in user prompt)
+# Any of these triggers Ralph mode for the session
+activation_phrases:
+  - "ralph wiggum"
+  - "you're ralph"
+  - "ralph mode"
+  - "ralph iteration"

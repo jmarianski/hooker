@@ -1,0 +1,4 @@
+activated: "Ralph Wiggum mode activated. State persists between iterations. Output RALPH_DONE when complete."
+continue: "Ralph iteration {iteration}. Previous: {summary}. Continue or output RALPH_DONE if complete."
+stop_remind: "Ralph iteration ending. Summarize progress. If done, say RALPH_DONE."
+completed: "Task marked complete (RALPH_DONE detected)."

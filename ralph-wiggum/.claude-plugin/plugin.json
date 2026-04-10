@@ -1,0 +1,10 @@
+{
+  "author": {
+    "name": "Geoffrey Huntley",
+    "url": "https://ghuntley.com/ralph"
+  },
+  "description": "Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop.",
+  "license": "MIT",
+  "name": "ralph-wiggum",
+  "version": "0.1.0"
+}
