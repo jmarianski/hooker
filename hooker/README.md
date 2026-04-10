@@ -105,7 +105,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 |--------|------|-------------|
 | **auto-checkpoint** | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
 | **auto-format** | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
-| **ralph-wiggum** | SessionStart, UserPromptSubmit, Stop | Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop. |
+| **ralph-wiggum** | SessionStart, Stop | Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop. |
 | **require-changelog-before-tag** | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
 
 #### Context

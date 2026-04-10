@@ -1,110 +1,94 @@
 ---
 name: ralph
-description: "Ralph Wiggum — autonomous multi-iteration task execution with fresh context"
+description: "Ralph Wiggum — autonomous multi-iteration task execution"
 ---
 
-# Ralph Wiggum — Skill Assistant
+# Ralph Wiggum
 
-Autonomous iteration loop. Each iteration = fresh context (no rot). State persists via `.claude/ralph-state.json`.
+Run long tasks across multiple fresh Claude sessions to prevent context rot.
+Each iteration gets fresh context; state persists via `.claude/ralph-state.json`.
 
-## When invoked
+## When user provides a task
 
-### With task description: `/hooker:ralph build feature X with tests`
+### 1. Check prerequisites
 
-1. **Check prerequisites:**
-   - Is `ralph-wiggum` recipe installed? Check `.claude/hooker/ralph-wiggum/` or merged hooks
-   - If not: install it first (`/hooker:recipe install ralph-wiggum`)
-
-2. **Initialize state:**
-   ```bash
-   mkdir -p .claude
-   echo '{"iteration": 0, "completed": false, "task": "USER_TASK_HERE"}' > .claude/ralph-state.json
-   ```
-
-3. **If everything ready — run the loop:**
-   ```bash
-   MAX_ITER=10
-   TIMEOUT=240
-   
-   for i in $(seq 1 $MAX_ITER); do
-     echo "=== Ralph iteration $i ==="
-     OUTPUT=$(timeout ${TIMEOUT}s claude -p "RALPH_START iteration=$i. TASK_HERE" 2>&1) || true
-     echo "$OUTPUT"
-     
-     # Check completion
-     if echo "$OUTPUT" | grep -q "RALPH_DONE"; then
-       echo "Complete after $i iterations"
-       break
-     fi
-     grep -q '"completed": true' .claude/ralph-state.json 2>/dev/null && break
-     sleep 2
-   done
-   ```
-
-4. **Monitor and report** — after loop ends, summarize what was accomplished
-
-### With `status`: `/hooker:ralph status`
-
-Read and display `.claude/ralph-state.json`:
-- Current iteration
-- Task description  
-- Last summary
-- Completed status
-
-### With `stop`: `/hooker:ralph stop`
-
-Mark task complete and clean up:
+Ralph-wiggum plugin must be installed (provides SessionStart/Stop hooks for spawned sessions):
 ```bash
-# Update state to completed
-jq '.completed = true' .claude/ralph-state.json > tmp && mv tmp .claude/ralph-state.json
-# Or if no jq:
-sed -i 's/"completed": false/"completed": true/' .claude/ralph-state.json
+ls ~/.claude/plugins/cache/hooker-marketplace/ralph-wiggum 2>/dev/null && echo "installed" || echo "not installed"
 ```
 
-### With `help`: `/hooker:ralph help`
+If not installed, tell user: `claude plugins add hooker-marketplace/ralph-wiggum`
 
-Explain how Ralph Wiggum works:
-- Fresh context per iteration prevents context rot on long tasks
-- `SessionStart` hook loads previous iteration summary
-- `Stop` hook asks "done?" and saves progress
-- Outer loop checks for `RALPH_DONE` marker
-- Timeout 4min per iteration fits API TTL
+### 2. Start the loop in background
 
-## Decision logic
-
-```
-Is ralph-wiggum recipe installed?
-├─ NO → Offer to install, then continue
-└─ YES
-    │
-    Is task description provided?
-    ├─ NO → Show status or help
-    └─ YES
-        │
-        Is task clear and actionable?
-        ├─ NO → Ask clarifying questions
-        └─ YES
-            │
-            Initialize state and RUN THE LOOP
-            (use bash with timeout, monitor output)
+```bash
+mkdir -p .claude
+(
+  i=1
+  while [ $i -le 20 ]; do  # safety limit
+    echo "iteration $i started at $(date)" >> .claude/ralph.log
+    RALPH_ITERATION=$i RALPH_TASK="TASK_HERE" timeout 300 claude -p "TASK_HERE" >> .claude/ralph-$i.log 2>&1
+    
+    if grep -q "RALPH_DONE" .claude/ralph-$i.log; then
+      echo '{"completed":true,"iteration":'$i',"timestamp":"'$(date -Iseconds)'"}' > .claude/ralph-state.json
+      echo "completed at iteration $i" >> .claude/ralph.log
+      break
+    fi
+    i=$((i+1))
+    sleep 2
+  done
+) &
+echo $! > .claude/ralph-pid
+echo "Ralph started in background. PID: $(cat .claude/ralph-pid)"
 ```
 
-## Key parameters
+### 3. Check progress (every ~4 minutes)
 
-- `MAX_ITER=10` — safety limit, adjustable
-- `TIMEOUT=240` — 4 minutes per iteration (API TTL safe)
-- `RALPH_START` — marker that triggers SessionStart hook
-- `RALPH_DONE` — marker that signals completion
-
-## State file
-
-`.claude/ralph-state.json`:
-```json
-{
-  "iteration": 3,
-  "completed": false,
-  "task": "Build feature X",
-  "summary": "Core done, need tests",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
+```bash
+# Is it still running?
+if [ -f .claude/ralph-pid ] && kill -0 $(cat .claude/ralph-pid) 2>/dev/null; then
+  ITER=$(ls .claude/ralph-*.log 2>/dev/null | wc -l)
+  echo "Running. Iteration: $ITER"
+  # Last few lines of current iteration
+  [ -f ".claude/ralph-$ITER.log" ] && tail -5 ".claude/ralph-$ITER.log"
+else
+  # Finished - check result
+  cat .claude/ralph-state.json 2>/dev/null || echo "No state file"
+  echo "=== Final output ==="
+  LAST=$(ls .claude/ralph-*.log 2>/dev/null | tail -1)
+  [ -n "$LAST" ] && tail -20 "$LAST"
+fi
 ```
+
+### 4. Stop if needed
+
+```bash
+[ -f .claude/ralph-pid ] && kill $(cat .claude/ralph-pid) 2>/dev/null
+rm -f .claude/ralph-pid
+echo "Stopped"
+```
+
+### 5. Cleanup
+
+```bash
+rm -f .claude/ralph-*.log .claude/ralph-pid .claude/ralph-state.json .claude/ralph.log
+```
+
+## Key points
+
+- **Fresh context per iteration** — prevents context rot on long tasks
+- **Background execution** — doesn't pollute main conversation
+- **4 min timeout per iteration** — safe for API cache TTL
+- **RALPH_DONE marker** — spawned session outputs this when task complete
+- **Hooks inject context** — SessionStart loads previous summary, Stop saves progress
+
+## Without plugin (manual)
+
+If user doesn't want to install plugin, the pattern still works:
+```bash
+RALPH_ITERATION=1 claude -p "Task. When done write RALPH_DONE"
+# Check output, if not done:
+RALPH_ITERATION=2 claude -p "Continue task. Previous: [summary]. When done write RALPH_DONE"
+```
+
+The plugin just automates the summary injection.

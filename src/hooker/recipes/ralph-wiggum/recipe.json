@@ -2,7 +2,7 @@
   "name": "Ralph Wiggum",
   "description": "Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop.",
   "version": "0.1.0",
-  "hooks": ["SessionStart", "UserPromptSubmit", "Stop"],
+  "hooks": ["SessionStart", "Stop"],
   "compatibility": {
     "claude": "native",
     "codex": "native"

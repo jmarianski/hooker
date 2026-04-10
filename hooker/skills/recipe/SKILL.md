@@ -154,7 +154,7 @@ Git operations, formatting, changelog enforcement. No external dependencies.
 |--------|------|--------|-------|-------------|
 | `auto-checkpoint` | Stop | native | native | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
 | `auto-format` | PostToolUse | native | native | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
-| `ralph-wiggum` | SessionStart, UserPromptSubmit, Stop | native | native | Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop. |
+| `ralph-wiggum` | SessionStart, Stop | native | native | Autonomous multi-iteration task execution with fresh context. Activates when RALPH_ITERATION env var is set by outer loop. |
 | `require-changelog-before-tag` | PreToolUse | native | native | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
 
 ### Context
