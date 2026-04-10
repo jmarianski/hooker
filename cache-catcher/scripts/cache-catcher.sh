@@ -386,14 +386,24 @@ cmd_config_get() {
 
 cmd_config_set() {
     cc_config_valid_key "$1" || exit 1
-    local CFG target_label
+    local CFG DEF target_label
 
+    DEF=$(cc_default_cfg)
     if [ "$CONFIG_SCOPE" = "project" ]; then
         CFG=$(cc_project_cfg)
         target_label="project"
     else
         CFG=$(cc_global_cfg)
         target_label="global"
+    fi
+
+    # If config doesn't exist, copy from default template first
+    if [ ! -f "$CFG" ]; then
+        mkdir -p "$(dirname "$CFG")"
+        if [ -f "$DEF" ]; then
+            cp "$DEF" "$CFG"
+            echo -e "${DIM}Created ${target_label} config from template${NC}"
+        fi
     fi
 
     cc_yml_update_or_append "$1" "$2" "$CFG"
