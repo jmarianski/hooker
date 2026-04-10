@@ -150,6 +150,85 @@ if [ -z "$TEMPLATE_FILE" ] && [ -z "$MATCH_SCRIPT" ]; then
     exit 0
 fi
 
+# --- Check declarative matchers in recipe.json ---
+# If in recipe mode, check if recipe.json has a "match" field with declarative rules.
+# Format: "match": {"tool": ["Bash"], "command_pattern": "rm.*-rf", "file_pattern": "\\.env$"}
+# All specified conditions must match (AND logic). Missing conditions are ignored.
+check_declarative_match() {
+    local RECIPE_JSON="$1"
+    local INPUT_DATA="$2"
+
+    [ -f "$RECIPE_JSON" ] || return 0  # No recipe.json = pass through
+
+    # Check if "match" field exists
+    grep -q '"match"[[:space:]]*:' "$RECIPE_JSON" 2>/dev/null || return 0
+
+    # Extract tool_name from input
+    local TOOL_NAME=$(echo "$INPUT_DATA" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+
+    # Check tool matcher: "tool": ["Bash", "Edit"] or "tool": "Bash"
+    local MATCH_TOOLS=$(sed -n 's/.*"match"[^}]*"tool"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' "$RECIPE_JSON" | head -1)
+    if [ -z "$MATCH_TOOLS" ]; then
+        # Try single tool: "tool": "Bash"
+        MATCH_TOOLS=$(sed -n 's/.*"match"[^}]*"tool"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RECIPE_JSON" | head -1)
+    fi
+    if [ -n "$MATCH_TOOLS" ]; then
+        # Clean up: remove quotes, spaces
+        MATCH_TOOLS=$(echo "$MATCH_TOOLS" | sed 's/"//g; s/,/ /g; s/[[:space:]]\+/ /g')
+        local TOOL_MATCHED=false
+        for t in $MATCH_TOOLS; do
+            [ "$t" = "$TOOL_NAME" ] && TOOL_MATCHED=true
+        done
+        if [ "$TOOL_MATCHED" = false ]; then
+            log "Declarative match: tool '$TOOL_NAME' not in [$MATCH_TOOLS]"
+            return 1
+        fi
+    fi
+
+    # Check command_pattern matcher (for Bash tool)
+    local CMD_PATTERN=$(sed -n 's/.*"match"[^}]*"command_pattern"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RECIPE_JSON" | head -1)
+    if [ -n "$CMD_PATTERN" ]; then
+        local COMMAND=$(echo "$INPUT_DATA" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+        if [ -z "$COMMAND" ] || ! echo "$COMMAND" | grep -qE "$CMD_PATTERN" 2>/dev/null; then
+            log "Declarative match: command does not match pattern '$CMD_PATTERN'"
+            return 1
+        fi
+    fi
+
+    # Check file_pattern matcher (for Edit/Read/Write tools)
+    local FILE_PATTERN=$(sed -n 's/.*"match"[^}]*"file_pattern"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RECIPE_JSON" | head -1)
+    if [ -n "$FILE_PATTERN" ]; then
+        local FILE_PATH=$(echo "$INPUT_DATA" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+        if [ -z "$FILE_PATH" ] || ! echo "$FILE_PATH" | grep -qE "$FILE_PATTERN" 2>/dev/null; then
+            log "Declarative match: file does not match pattern '$FILE_PATTERN'"
+            return 1
+        fi
+    fi
+
+    # Check content_pattern matcher (for content in Edit/Write)
+    local CONTENT_PATTERN=$(sed -n 's/.*"match"[^}]*"content_pattern"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RECIPE_JSON" | head -1)
+    if [ -n "$CONTENT_PATTERN" ]; then
+        # Content can be in new_string, content, or old_string
+        local CONTENT=$(echo "$INPUT_DATA" | sed -n 's/.*"new_string"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+        [ -z "$CONTENT" ] && CONTENT=$(echo "$INPUT_DATA" | sed -n 's/.*"content"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+        if [ -z "$CONTENT" ] || ! echo "$CONTENT" | grep -qE "$CONTENT_PATTERN" 2>/dev/null; then
+            log "Declarative match: content does not match pattern '$CONTENT_PATTERN'"
+            return 1
+        fi
+    fi
+
+    log "Declarative match: all conditions passed"
+    return 0
+}
+
+if [ -n "$RECIPE_DIR" ]; then
+    RECIPE_JSON="${RECIPE_DIR}/recipe.json"
+    if ! check_declarative_match "$RECIPE_JSON" "$INPUT"; then
+        log "Declarative matcher did not match, skipping recipe"
+        exit 0
+    fi
+fi
+
 # --- Run match script ---
 # Match scripts can:
 #   exit 0 (no output)  → matched, fall through to template

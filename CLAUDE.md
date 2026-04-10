@@ -106,6 +106,43 @@ Each recipe lives in `src/hooker/recipes/{recipe-name}/` with these files:
 - `dependencies` — optional array of external tools needed (e.g. `["ts-morph (npm)"]`)
 - `attribution.type`: `original` (we wrote it), `inspired` (clean-room from idea), `adapted` (derived from code)
 
+## Declarative matchers
+
+For simple matching logic, recipes can use declarative matchers in `recipe.json` instead of
+writing a `.match.sh` script. The `match` field defines conditions that must ALL pass (AND logic):
+
+```json
+{
+  "name": "Block rm -rf",
+  "hooks": ["PreToolUse"],
+  "match": {
+    "tool": ["Bash"],
+    "command_pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*|--recursive).*-f|-f.*-r"
+  },
+  "category": "safety"
+}
+```
+
+**Available match conditions:**
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `tool` | Tool name(s) to match | `["Bash"]`, `["Edit", "Write"]`, `"Bash"` |
+| `command_pattern` | Regex for Bash command | `"rm\\s+-rf"`, `"git\\s+push.*--force"` |
+| `file_pattern` | Regex for file_path (Edit/Read/Write) | `"\\.env$"`, `"secrets/"` |
+| `content_pattern` | Regex for content (Edit/Write) | `"console\\.log"`, `"TODO"` |
+
+**Execution order:**
+1. Declarative matchers are checked FIRST (if `match` field exists)
+2. If declarative match fails → skip recipe (no `.match.sh` runs)
+3. If declarative match passes → run `.match.sh` if it exists
+4. If no `.match.sh` → use template directly
+
+**When to use:**
+- Simple tool/pattern filtering — use declarative matcher
+- Complex logic, transcript analysis, external tools — use `.match.sh`
+- Combine both: declarative for fast pre-filtering, `.match.sh` for detailed logic
+
 ## Gotchas
 
 - **Match script exit codes**: `exit 0` = matched, `exit 1` = no match (silent skip),

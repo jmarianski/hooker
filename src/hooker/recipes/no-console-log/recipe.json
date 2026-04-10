@@ -1,0 +1,15 @@
+{
+  "name": "No console.log",
+  "description": "Blocks writing console.log statements. Uses declarative matcher only, no match script needed.",
+  "hooks": ["PreToolUse"],
+  "match": {
+    "tool": ["Edit", "Write"],
+    "content_pattern": "console\\.log"
+  },
+  "category": "quality",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Marianski",
+    "license": "MIT"
+  }
+}

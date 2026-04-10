@@ -1,0 +1,3 @@
+updated: "Updated {count} file(s) with new mod/use paths."
+no_refs: "No use/mod references found for moved file."
+no_cargo: "No Cargo.toml found. Cannot determine crate structure. Check mod declarations manually."

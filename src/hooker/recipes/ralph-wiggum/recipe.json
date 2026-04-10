@@ -1,0 +1,13 @@
+{
+  "name": "Ralph Wiggum",
+  "description": "Auto-detects Ralph Wiggum loop sessions (phrase 'ralph wiggum' in prompt or RALPH_ITERATION env). Provides state persistence between iterations via SessionStart (load) and Stop (save). User provides outer loop externally.",
+  "hooks": ["UserPromptSubmit", "SessionStart", "Stop"],
+  "matchers": {"UserPromptSubmit": "", "SessionStart": "", "Stop": ""},
+  "category": "workflow",
+  "attribution": {
+    "type": "inspired",
+    "author": "Geoffrey Huntley",
+    "license": "MIT",
+    "url": "https://ghuntley.com/ralph"
+  }
+}

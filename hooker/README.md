@@ -93,6 +93,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | **refactor-move-php-smart** | PostToolUse, PostCompact, SessionStart | After mv of .php files, uses phpactor for AST-aware namespace/use rewriting. Reads composer.json PSR-4 mappings. Falls back to sed if phpactor unavailable. |
 | **refactor-move-python-simple** | PostToolUse, PostCompact, SessionStart | After mv of .py files, updates import statements (from X import Y, import X) across the project. Pure bash/sed — no external dependencies. Best adapted as a project-specific hook. |
 | **refactor-move-python-smart** | PostToolUse, PostCompact, SessionStart | After mv of .py files, uses rope for AST-aware import rewriting. Handles relative imports, from/import, __init__.py re-exports. Falls back to sed if rope unavailable. |
+| **refactor-move-rust-smart** | PostToolUse, PostCompact, SessionStart | After mv of .rs files, updates mod declarations and use paths. Reads Cargo.toml for crate name. Handles mod.rs and inline modules. Optionally runs cargo fmt. Pure bash/sed. |
 | **refactor-move-symbol** | PostToolUse, PostCompact, SessionStart | EXPERIMENTAL. Detects when a function/class/export is cut from one file and pasted into another (via two Edit calls). Tracks removals in state file, matches with additions, then suggests import updates. Uses Python for diff analysis. May produce false positives. |
 | **refactor-move-ts-simple** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, updates import/require paths across the project. Reads tsconfig.json for baseUrl/path aliases. Requires python3 for reliable relative path computation (falls back to simpler approach without it). Best adapted as a project-specific hook. |
 | **refactor-move-ts-smart** | PostToolUse, PostCompact, SessionStart | After mv of .ts/.tsx/.js/.jsx files, uses TypeScript Language Service API (getEditsForFileRename — same as VS Code) for AST-aware import rewriting. Handles path aliases, re-exports, barrel files. Requires typescript (global or local). Falls back to sed. |
@@ -104,6 +105,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 |--------|------|-------------|
 | **auto-checkpoint** | Stop | Creates a git checkpoint commit when Claude stops responding. Easy rollback of changes. |
 | **auto-format** | PostToolUse | Runs the appropriate formatter (prettier, ruff, gofmt, etc.) after every file edit. |
+| **ralph-wiggum** | UserPromptSubmit, SessionStart, Stop | Auto-detects Ralph Wiggum loop sessions (phrase 'ralph wiggum' in prompt or RALPH_ITERATION env). Provides state persistence between iterations via SessionStart (load) and Stop (save). User provides outer loop externally. |
 | **require-changelog-before-tag** | PreToolUse | Blocks git tag and push --tags unless CHANGELOG.md was updated in the current commit or staging area. |
 
 #### Context
@@ -122,6 +124,7 @@ Pre-built hook configurations. Install with `/hooker:recipe <name>`.
 | Recipe | Hook | What it does |
 |--------|------|-------------|
 | **detect-lazy-code** | PostToolUse | Catches when Claude replaces code with comments like '// ... rest of implementation' or leaves vague TODO/FIXME placeholders. |
+| **no-console-log** | PreToolUse | Blocks writing console.log statements. Uses declarative matcher only, no match script needed. |
 | **no-dismiss-failures** | PostToolUse | After test/lint commands fail, injects a reminder that dismissing failures is unacceptable. Agent must investigate root cause, fix, or explain to user. |
 | **remind-to-update-docs** | Stop | Context-aware reminder on stop — checks what was edited (code/docs/tests) and shows appropriate message from messages.yml. Only fires if Edit/Write/NotebookEdit was used in the last turn. |
 | **skip-acknowledgments** | UserPromptSubmit | Stops Claude from opening with 'Great question!', 'You're right!', etc. Focus on the solution. |
@@ -302,7 +305,7 @@ Each recipe's `recipe.json` includes a `compatibility` field (auto-detected at b
 
 Values: `native` (works out of the box), `unsupported` (uses hooks not available in Codex).
 
-**16** recipes are Codex-native, **18** require Claude Code-only hooks.
+**18** recipes are Codex-native, **19** require Claude Code-only hooks.
 
 ## Known Issues
 

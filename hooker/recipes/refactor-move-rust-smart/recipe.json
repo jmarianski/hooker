@@ -1,0 +1,25 @@
+{
+  "id": "refactor-move-rust-smart",
+  "name": "Refactor Move Rust (smart)",
+  "description": "After mv of .rs files, updates mod declarations and use paths. Reads Cargo.toml for crate name. Handles mod.rs and inline modules. Optionally runs cargo fmt. Pure bash/sed.",
+  "hooks": [
+    "PostToolUse",
+    "PostCompact",
+    "SessionStart"
+  ],
+  "matchers": {
+    "PostCompact": "",
+    "PostToolUse": "Bash",
+    "SessionStart": ""
+  },
+  "category": "refactoring",
+  "attribution": {
+    "type": "original",
+    "author": "Jacek Marianski",
+    "license": "MIT"
+  },
+  "compatibility": {
+    "claude": "native",
+    "codex": "unsupported"
+  }
+}

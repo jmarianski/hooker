@@ -26,6 +26,25 @@ _hooker_last_turn() {
         | awk '/"type":"user"/ && !/sourceToolAssistantUUID/{exit} {print}' || true
 }
 
+# Get last N assistant turns from transcript. Filters noise (progress, hook_progress),
+# stops after N real user prompts (not tool_result).
+# Usage: _hooker_last_turns "$TRANSCRIPT_PATH" [N]
+# N defaults to 1 (same as _hooker_last_turn). Use N=2 for last 2 turns, etc.
+_hooker_last_turns() {
+    local TRANSCRIPT="$1"
+    local N="${2:-1}"
+    [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && return 1
+    [ "$N" -lt 1 ] 2>/dev/null && N=1
+    # Reverse, filter noise, stop after N user prompts (turn boundaries)
+    awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}' "$TRANSCRIPT" \
+        | grep -v '"type":"progress"' | grep -v '"type":"hook_progress"' \
+        | awk -v n="$N" '
+            /"type":"user"/ && !/sourceToolAssistantUUID/ { count++ }
+            count > n { exit }
+            { print }
+        ' || true
+}
+
 # Strip <hidden> tags from a string, return visible part only.
 # Handles both single-line (<hidden>...</hidden> on one line) and multiline.
 _hooker_strip_hidden() {
