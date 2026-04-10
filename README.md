@@ -1,6 +1,8 @@
+> **Mirror**: This is a read-only mirror of [gitlab.com/treetank/hooker](https://github.com/jmarianski/hooker). Active development happens there.
+
 # hooker-marketplace
 
-Two Claude Code plugins from one [marketplace](https://gitlab.com/treetank/hooker).
+Two Claude Code plugins from one [marketplace](https://github.com/jmarianski/hooker).
 
 ## Hooker
 
@@ -29,7 +31,7 @@ Full docs: [`cache-catcher/README.md`](cache-catcher/README.md)
 ## Install
 
 ```bash
-/plugin marketplace add https://gitlab.com/treetank/hooker.git
+/plugin marketplace add https://github.com/jmarianski/hooker.git
 /plugin install hooker@hooker-marketplace
 /plugin install cache-catcher@hooker-marketplace
 ```

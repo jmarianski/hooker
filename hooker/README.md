@@ -8,7 +8,7 @@ Inject custom prompts, reminders, guardrails, and context into Claude Code (25+ 
 
 ```bash
 # From GitLab marketplace
-/plugin marketplace add https://gitlab.com/treetank/hooker.git
+/plugin marketplace add https://github.com/jmarianski/hooker.git
 /plugin install hooker@hooker-marketplace
 
 # Or local
