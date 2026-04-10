@@ -68,10 +68,16 @@ fi
 
 log "Short resume, no PostToolUse. Checking cache metrics."
 
-# --- Config ---
+# --- Config resolution (priority: project > global > recipe default) ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.yml"
 
+# Global config (user's machine-wide settings)
+if [ -f "${HOME}/.claude/cache-catcher.config.yml" ]; then
+    CONFIG_FILE="${HOME}/.claude/cache-catcher.config.yml"
+fi
+
+# Project-level override (highest priority)
 if [ -f ".claude/cache-catcher.config.yml" ]; then
     CONFIG_FILE=".claude/cache-catcher.config.yml"
 fi

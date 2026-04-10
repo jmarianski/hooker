@@ -14,6 +14,13 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-${HOOK_CWD:-$(pwd)}}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.yml"
+
+# Global config (user's machine-wide settings)
+if [ -f "${HOME}/.claude/cache-catcher.config.yml" ]; then
+    CONFIG_FILE="${HOME}/.claude/cache-catcher.config.yml"
+fi
+
+# Project-level override (highest priority)
 if [ -f "${PROJECT_DIR}/.claude/cache-catcher.config.yml" ]; then
     CONFIG_FILE="${PROJECT_DIR}/.claude/cache-catcher.config.yml"
 fi
