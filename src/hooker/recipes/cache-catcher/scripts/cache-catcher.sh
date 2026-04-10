@@ -14,6 +14,8 @@
 #   config init [--scope global|project] [-f]   Create config from template (default: global)
 #   config get [--scope global|project] KEY     Print value from scope (default: global)
 #   config set [--scope global|project] K V     Set in scope (default: global)
+#   config unset [--scope global|project] KEY   Remove key from scope (default: global)
+#   config clear [--scope global|project]       Remove entire config file (default: project)
 #   alias [print|set|clear]  Claude Code prompt prefixes (see help)
 #
 # Options:
@@ -121,8 +123,32 @@ while [ $# -gt 0 ]; do
                         CONFIG_SUBCMD=show
                         shift
                         ;;
+                    clear)
+                        CONFIG_SUBCMD=clear
+                        shift
+                        # Check for --scope (default: project for clear)
+                        CONFIG_SCOPE="project"
+                        if [ "${1:-}" = "--scope" ]; then
+                            shift
+                            CONFIG_SCOPE="${1:-project}"
+                            shift
+                        fi
+                        ;;
+                    unset)
+                        CONFIG_SUBCMD=unset
+                        shift
+                        # Check for --scope
+                        if [ "${1:-}" = "--scope" ]; then
+                            shift
+                            CONFIG_SCOPE="${1:-global}"
+                            shift
+                        fi
+                        CONFIG_KEY="${1:-}"
+                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config unset [--scope global|project] <key>" && exit 1
+                        shift
+                        ;;
                     *)
-                        echo "Unknown config subcommand: $1 (use: show, init, get, set)" >&2
+                        echo "Unknown config subcommand: $1 (use: show, init, get, set, unset, clear)" >&2
                         exit 1
                         ;;
                 esac
@@ -183,6 +209,8 @@ cmd_help() {
     echo "  config init [--scope global|project] [-f]  Create config from template (default: global)"
     echo "  config get [--scope global|project] KEY    Print setting from scope (default: global)"
     echo "  config set [--scope global|project] K V    Set in scope (default: global)"
+    echo "  config unset [--scope global|project] KEY  Remove key from scope (default: global)"
+    echo "  config clear [--scope global|project]      Remove config file (default: project)"
     echo "  alias [print]     All UserPromptSubmit prefixes (for Claude Code), one CSV line"
     echo "  alias set A[,B]   Save extra prefixes in .claude/cache-catcher.config.yml"
     echo "  alias clear       Remove extra prefixes (only \"cache-catcher\" remains)"
@@ -372,12 +400,74 @@ cmd_config_set() {
     echo -e "${GREEN}Updated ${1} in ${target_label} config (${CFG})${NC}"
 }
 
+cmd_config_clear() {
+    local CFG target_label
+
+    if [ "$CONFIG_SCOPE" = "project" ]; then
+        CFG=$(cc_project_cfg)
+        target_label="project"
+    else
+        CFG=$(cc_global_cfg)
+        target_label="global"
+    fi
+
+    if [ ! -f "$CFG" ]; then
+        echo -e "${YELLOW}No ${target_label} config to clear (${CFG})${NC}" >&2
+        exit 0
+    fi
+
+    rm -f "$CFG"
+    echo -e "${GREEN}Removed ${target_label} config: ${CFG}${NC}"
+}
+
+cmd_config_unset() {
+    cc_config_valid_key "$1" || exit 1
+    local CFG target_label
+
+    if [ "$CONFIG_SCOPE" = "project" ]; then
+        CFG=$(cc_project_cfg)
+        target_label="project"
+    else
+        CFG=$(cc_global_cfg)
+        target_label="global"
+    fi
+
+    if [ ! -f "$CFG" ]; then
+        echo -e "${YELLOW}No ${target_label} config exists (${CFG})${NC}" >&2
+        exit 1
+    fi
+
+    # Remove key from file
+    local t found=0
+    t=$(mktemp 2>/dev/null || echo "/tmp/cc-yml-$$.tmp")
+    while IFS= read -r line || [ -n "$line" ]; do
+        pref=${line%%:*}
+        pref=$(echo "$pref" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [ "$pref" = "$1" ]; then
+            found=1
+        else
+            echo "$line" >> "$t"
+        fi
+    done < "$CFG"
+
+    if [ "$found" -eq 0 ]; then
+        rm -f "$t"
+        echo -e "${YELLOW}Key '${1}' not found in ${target_label} config${NC}" >&2
+        exit 1
+    fi
+
+    mv "$t" "$CFG"
+    echo -e "${GREEN}Removed ${1} from ${target_label} config (${CFG})${NC}"
+}
+
 cmd_config_dispatch() {
     case "$CONFIG_SUBCMD" in
         show) cmd_config_show ;;
         init) cmd_config_init ;;
         get) cmd_config_get "$CONFIG_KEY" ;;
         set) cmd_config_set "$CONFIG_KEY" "$CONFIG_VAL" ;;
+        clear) cmd_config_clear ;;
+        unset) cmd_config_unset "$CONFIG_KEY" ;;
         *) echo "Internal error: bad config subcommand" >&2; exit 1 ;;
     esac
 }
