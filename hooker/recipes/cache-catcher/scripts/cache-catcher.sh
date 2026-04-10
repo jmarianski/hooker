@@ -11,9 +11,9 @@
 #   sessions           List sessions with cache stats
 #   watch              Continuously monitor (like tail -f)
 #   config [show]      Show effective hook config (default)
-#   config init [-f]   Create .claude/cache-catcher.config.yml from plugin template
-#   config get KEY     Print effective value for KEY (project override wins)
-#   config set K V...  Set KEY in project file (creates file/dir if needed)
+#   config init [--scope global|project] [-f]   Create config from template (default: global)
+#   config get [--scope global|project] KEY     Print value from scope (default: global)
+#   config set [--scope global|project] K V     Set in scope (default: global)
 #   alias [print|set|clear]  Claude Code prompt prefixes (see help)
 #
 # Options:
@@ -56,6 +56,7 @@ CONFIG_SUBCMD="show"
 CONFIG_KEY=""
 CONFIG_VAL=""
 CONFIG_INIT_FORCE=0
+CONFIG_SCOPE="global"
 ALIAS_SUBCMD="show"
 ALIAS_SET_VAL=""
 SESSION=""
@@ -78,26 +79,42 @@ while [ $# -gt 0 ]; do
                     init)
                         CONFIG_SUBCMD=init
                         shift
-                        if [ "${1:-}" = "-f" ] || [ "${1:-}" = "--force" ]; then
-                            CONFIG_INIT_FORCE=1
-                            shift
-                        fi
+                        # Parse --scope and -f/--force in any order
+                        while [ -n "${1:-}" ]; do
+                            case "$1" in
+                                --scope) shift; CONFIG_SCOPE="${1:-global}"; shift ;;
+                                -f|--force) CONFIG_INIT_FORCE=1; shift ;;
+                                *) break ;;
+                            esac
+                        done
                         ;;
                     get)
                         CONFIG_SUBCMD=get
                         shift
+                        # Check for --scope
+                        if [ "${1:-}" = "--scope" ]; then
+                            shift
+                            CONFIG_SCOPE="${1:-global}"
+                            shift
+                        fi
                         CONFIG_KEY="${1:-}"
-                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config get <key>" && exit 1
+                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config get [--scope global|project] <key>" && exit 1
                         shift
                         ;;
                     set)
                         CONFIG_SUBCMD=set
                         shift
+                        # Check for --scope
+                        if [ "${1:-}" = "--scope" ]; then
+                            shift
+                            CONFIG_SCOPE="${1:-global}"
+                            shift
+                        fi
                         CONFIG_KEY="${1:-}"
-                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config set <key> <value>" && exit 1
+                        [ -z "$CONFIG_KEY" ] && _cmd_hint "cache-catcher config set [--scope global|project] <key> <value>" && exit 1
                         shift
                         CONFIG_VAL="$*"
-                        [ -z "$CONFIG_VAL" ] && _cmd_hint "cache-catcher config set <key> <value>" && exit 1
+                        [ -z "$CONFIG_VAL" ] && _cmd_hint "cache-catcher config set [--scope global|project] <key> <value>" && exit 1
                         set --
                         ;;
                     show)
@@ -163,9 +180,9 @@ cmd_help() {
     echo "  sessions          All sessions (status = last 10 turns; -n N to change)"
     echo "  watch             Live monitor in a real terminal (not from Claude Code prompt)"
     echo "  config [show]     Show effective hook config (project vs plugin default)"
-    echo "  config init [-f]  Create .claude/cache-catcher.config.yml from template"
-    echo "  config get KEY    Print one setting (override wins)"
-    echo "  config set K V    Set one field in project config"
+    echo "  config init [--scope global|project] [-f]  Create config from template (default: global)"
+    echo "  config get [--scope global|project] KEY    Print setting from scope (default: global)"
+    echo "  config set [--scope global|project] K V    Set in scope (default: global)"
     echo "  alias [print]     All UserPromptSubmit prefixes (for Claude Code), one CSV line"
     echo "  alias set A[,B]   Save extra prefixes in .claude/cache-catcher.config.yml"
     echo "  alias clear       Remove extra prefixes (only \"cache-catcher\" remains)"
@@ -189,12 +206,16 @@ cc_project_cfg() {
     echo "${PROJECT_DIR}/.claude/cache-catcher.config.yml"
 }
 
+cc_global_cfg() {
+    echo "${HOME}/.claude/cache-catcher.config.yml"
+}
+
 cc_config_valid_key() {
     case "$1" in
-        mode|lookback|threshold|min_tokens|streak|cooldown|ignore_first_turn|prompt_aliases) return 0 ;;
+        mode|lookback|threshold|min_tokens|streak|cooldown|ignore_first_turn|prompt_aliases|resume_guard|resume_guard_force_ttl|cache_ttl_default|cache_ttl_min) return 0 ;;
         *)
             echo "Unknown key: $1" >&2
-            echo "Allowed: mode lookback threshold min_tokens streak cooldown ignore_first_turn prompt_aliases" >&2
+            echo "Allowed: mode lookback threshold min_tokens streak cooldown ignore_first_turn prompt_aliases resume_guard resume_guard_force_ttl cache_ttl_default cache_ttl_min" >&2
             return 1
             ;;
     esac
@@ -241,22 +262,31 @@ cmd_config_show() {
     echo -e "${BOLD}Cache Catcher Configuration${NC}"
     echo ""
 
-    local PCFG
-    PCFG=$(cc_project_cfg)
-    local DEF
+    local DEF GCFG PCFG
     DEF=$(cc_default_cfg)
+    GCFG=$(cc_global_cfg)
+    PCFG=$(cc_project_cfg)
 
-    if [ -f "$PCFG" ]; then
-        echo -e "${DIM}Source: ${PCFG} (project override)${NC}"
+    echo -e "${DIM}Config files (priority: project > global > default):${NC}"
+    echo -e "  ${DIM}default:${NC} ${DEF}"
+    if [ -f "$GCFG" ]; then
+        echo -e "  ${GREEN}global:${NC}  ${GCFG}"
     else
-        echo -e "${DIM}Source: ${DEF} (default — no project file)${NC}"
+        echo -e "  ${DIM}global:  (not set)${NC}"
     fi
-    echo -e "${DIM}Project root: ${PROJECT_DIR}${NC}"
+    if [ -f "$PCFG" ]; then
+        echo -e "  ${GREEN}project:${NC} ${PCFG}"
+    else
+        echo -e "  ${DIM}project: (not set)${NC}"
+    fi
     echo ""
 
+    # Show effective config (highest priority file that exists)
     local CFG="$DEF"
+    [ -f "$GCFG" ] && CFG="$GCFG"
     [ -f "$PCFG" ] && CFG="$PCFG"
 
+    echo -e "${BOLD}Effective settings:${NC}"
     if [ -f "$CFG" ]; then
         while IFS= read -r LINE; do
             case "$LINE" in
@@ -275,34 +305,52 @@ cmd_config_show() {
 }
 
 cmd_config_init() {
-    local PCFG DEF
-    PCFG=$(cc_project_cfg)
+    local CFG DEF target_label
     DEF=$(cc_default_cfg)
+
+    if [ "$CONFIG_SCOPE" = "project" ]; then
+        CFG=$(cc_project_cfg)
+        target_label="project"
+    else
+        CFG=$(cc_global_cfg)
+        target_label="global"
+    fi
+
     if [ ! -f "$DEF" ]; then
         echo -e "${RED}Plugin template missing: ${DEF}${NC}" >&2
         exit 1
     fi
-    if [ -f "$PCFG" ] && [ "$CONFIG_INIT_FORCE" -eq 0 ] 2>/dev/null; then
-        echo -e "${YELLOW}Already exists: ${PCFG}${NC}" >&2
-        echo "Use: cache-catcher config init --force" >&2
+    if [ -f "$CFG" ] && [ "$CONFIG_INIT_FORCE" -eq 0 ] 2>/dev/null; then
+        echo -e "${YELLOW}Already exists: ${CFG}${NC}" >&2
+        echo "Use: cache-catcher config init --scope ${CONFIG_SCOPE} --force" >&2
         exit 1
     fi
-    mkdir -p "$(dirname "$PCFG")"
-    cp "$DEF" "$PCFG"
-    echo -e "${GREEN}Wrote ${PCFG}${NC}"
+    mkdir -p "$(dirname "$CFG")"
+    cp "$DEF" "$CFG"
+    echo -e "${GREEN}Wrote ${target_label} config: ${CFG}${NC}"
 }
 
 cmd_config_get() {
     cc_config_valid_key "$1" || exit 1
-    local PCFG DEF d p val
+    local DEF GCFG PCFG d g p val target_label
     DEF=$(cc_default_cfg)
+    GCFG=$(cc_global_cfg)
     PCFG=$(cc_project_cfg)
-    d=$(cc_yml_get "$1" "$DEF")
-    p=""
-    [ -f "$PCFG" ] && p=$(cc_yml_get "$1" "$PCFG")
-    val="${p:-$d}"
+
+    if [ "$CONFIG_SCOPE" = "project" ]; then
+        # Project scope: show project value only
+        val=""
+        [ -f "$PCFG" ] && val=$(cc_yml_get "$1" "$PCFG")
+        target_label="project"
+    else
+        # Global scope (default): show global value only
+        val=""
+        [ -f "$GCFG" ] && val=$(cc_yml_get "$1" "$GCFG")
+        target_label="global"
+    fi
+
     if [ -z "$val" ] && [ "$1" != "prompt_aliases" ]; then
-        echo "(empty)" >&2
+        echo "(empty in ${target_label})" >&2
         exit 1
     fi
     printf '%s\n' "$val"
@@ -310,10 +358,18 @@ cmd_config_get() {
 
 cmd_config_set() {
     cc_config_valid_key "$1" || exit 1
-    local PCFG
-    PCFG=$(cc_project_cfg)
-    cc_yml_update_or_append "$1" "$2" "$PCFG"
-    echo -e "${GREEN}Updated ${1} in ${PCFG}${NC}"
+    local CFG target_label
+
+    if [ "$CONFIG_SCOPE" = "project" ]; then
+        CFG=$(cc_project_cfg)
+        target_label="project"
+    else
+        CFG=$(cc_global_cfg)
+        target_label="global"
+    fi
+
+    cc_yml_update_or_append "$1" "$2" "$CFG"
+    echo -e "${GREEN}Updated ${1} in ${target_label} config (${CFG})${NC}"
 }
 
 cmd_config_dispatch() {
